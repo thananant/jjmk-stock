@@ -429,7 +429,11 @@
   <div class="sheet">
     <div class="sheet-head"><h3>ตั้งค่า</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
-      <div id="blkShop" class="setblk"><div class="field"><label>ชื่อร้าน</label><input id="setShop" placeholder="จริงใจหมูกระทะ"></div></div>
+      <div id="blkShop" class="setblk"><div class="field"><label>ชื่อร้าน</label><input id="setShop" placeholder="จริงใจหมูกระทะ"></div>
+        <div class="toggle-row"><span class="tl">🔄 รีเซ็ตการนับอัตโนมัติทุกวัน</span><label class="switch"><input type="checkbox" id="autoResetSwitch"><span class="sl"></span></label></div>
+        <div class="field"><label>เวลารีเซ็ต (ล้างยอดนับ เริ่มนับใหม่)</label><input id="resetTime" type="time"></div>
+        <p class="hint" style="margin:2px 0 0">ล้างเฉพาะ “ยอดนับ” ในเครื่อง — ข้อมูลที่บันทึกลง Sheet และค่า safety/max ยังอยู่ครบ</p>
+      </div>
 
       <div id="blkBranch" class="setblk">
         <div class="sub-title">🏪 สาขา</div>
@@ -661,7 +665,7 @@ let uidN=0; const uid=p=>(p||'i')+Date.now().toString(36)+(uidN++);
 function defaultCatalog(){return DEFAULT_CATS.map(c=>({key:c.key,label:c.label,ic:c.ic,items:c.items.map(([name,unit])=>({id:uid('it'),name,unit,qty:null,img:null,safety:null,max:null}))}))}
 function buildDefault(){
   return {schemaVersion:SCHEMA,
-    config:{shop:'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',units:[...DEFAULT_UNITS],roles:defaultRoles()},
+    config:{shop:'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',resetTime:'06:00',autoReset:true,units:[...DEFAULT_UNITS],roles:defaultRoles()},
     users:[{id:uid('u'),name:'ผู้ดูแลร้าน',username:'admin',password:'admin',code:'000000',role:'admin',branchId:null,branchIds:[],catKeys:[]}],
     branches:[{id:uid('b'),name:'สาขาหลัก',data:{categories:defaultCatalog()}}]};
 }
@@ -695,6 +699,8 @@ function normalize(o){
   o.config.shop=o.config.shop||'จริงใจหมูกระทะ';
   o.config.endpoint=o.config.endpoint||'';
   o.config.autoSync=o.config.autoSync===true;
+  o.config.resetTime=/^\d{2}:\d{2}$/.test(o.config.resetTime||'')?o.config.resetTime:'06:00';
+  o.config.autoReset=o.config.autoReset!==false;
   o.config.showImages=o.config.showImages!==false;
   o.config.imgQuality=o.config.imgQuality||'md';
   o.config.units=(Array.isArray(o.config.units)&&o.config.units.length)?o.config.units:[...DEFAULT_UNITS];
@@ -1128,8 +1134,11 @@ function applySettingsPerms(){
 }
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
+  $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';
   $('#showImgSwitch').checked=cfg().showImages!==false;$('#imgQuality').value=cfg().imgQuality||'md';
   updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();show('#setOverlay')};
+$('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
+$('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
 $('#showImgSwitch').onchange=e=>{cfg().showImages=e.target.checked;save();renderMain();toast(e.target.checked?'แสดงรูปบนการ์ดแล้ว':'ซ่อนรูปบนการ์ดแล้ว')};
 $('#imgQuality').onchange=e=>{cfg().imgQuality=e.target.value;save();toast('ตั้งคุณภาพรูปแล้ว (มีผลกับรูปใหม่)')};
 $('#setSave').onclick=()=>{cfg().shop=$('#setShop').value.trim()||'จริงใจหมูกระทะ';cfg().endpoint=$('#setEndpoint').value.trim();save();applyShop();hideAll();toast('บันทึกการตั้งค่าแล้ว ✓')};
@@ -1310,12 +1319,33 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=hideAll);
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)hideAll()}));
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1900)}
 
+/* ================= daily auto-reset of stock counts ================= */
+const RESET_KEY='jjmk_lastReset';
+function resetBoundary(){ const m=/^(\d{2}):(\d{2})$/.exec(cfg().resetTime||'06:00');
+  const hh=m?+m[1]:6, mm=m?+m[2]:0; const now=new Date(); const b=new Date(now); b.setHours(hh,mm,0,0);
+  if(now<b) b.setDate(b.getDate()-1);
+  return b.getFullYear()+'-'+('0'+(b.getMonth()+1)).slice(-2)+'-'+('0'+b.getDate()).slice(-2)+' '+(cfg().resetTime||'06:00'); }
+function checkDailyReset(){ if(cfg().autoReset===false) return;
+  const key=resetBoundary(); const last=localStorage.getItem(RESET_KEY);
+  if(last===null){ localStorage.setItem(RESET_KEY,key); return; }   // ครั้งแรก: แค่จำไว้ ไม่ล้าง
+  if(last!==key){
+    ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>i.qty=null)));
+    save(); localStorage.setItem(RESET_KEY,key);
+    if(currentUser){renderTabs&&renderTabs();renderMain&&renderMain();refreshCounters&&refreshCounters();}
+    toast('🔄 รีเซ็ตการนับสต็อกประจำวันแล้ว');
+  }
+}
+setInterval(checkDailyReset,60000);
+
 /* init */
 load();setLogos();applyShop();showLogin();
+checkDailyReset();
 if(syncEnabled()){ SY.lastHash=masterStr(); pullMaster(); }   // ดึงข้อมูลกลางเบื้องหลัง
 // ดึงข้อมูลกลางใหม่เมื่อกลับเข้าแอป (เฉพาะตอนยังไม่ล็อกอิน เพื่อไม่รบกวนการนับ)
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&syncEnabled()&&$('#login').classList.contains('show')){
+  if(document.visibilityState!=='visible')return;
+  checkDailyReset();
+  if(syncEnabled()&&$('#login').classList.contains('show')){
     if(SY.pending)flushPush(); else pullMaster();
   }
 });
