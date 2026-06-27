@@ -144,6 +144,17 @@
   .crow .cneed.go{color:var(--out)}
   .chead{display:grid;grid-template-columns:1fr 56px 64px 60px;gap:8px;font-size:.7rem;color:var(--ink-soft);font-weight:600;padding:0 0 4px;position:sticky;top:0}
   .chead span{text-align:center}.chead span:first-child{text-align:left}
+  #orderBox{margin:14px 0 4px}
+  .ordhead{font-family:'Kanit';font-weight:600;color:var(--red-deep);background:#fff4d6;border:1px solid var(--gold-line);border-radius:10px;padding:9px 11px;font-size:.9rem;margin-bottom:8px}
+  .osup{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.86rem;margin:10px 0 4px}
+  .ochead{display:grid;grid-template-columns:1fr 46px 46px 46px 62px;gap:6px;font-size:.66rem;color:var(--ink-soft);font-weight:600;padding:0 2px 3px}
+  .ochead span{text-align:center}.ochead span:first-child{text-align:left}
+  .orow{display:grid;grid-template-columns:1fr 46px 46px 46px 62px;gap:6px;align-items:center;padding:6px 2px;border-bottom:1px dotted var(--line);font-size:.84rem}
+  .orow .on{min-width:0;word-break:break-word}
+  .orow .ov{text-align:center;font-family:'Kanit';font-weight:600;font-size:.8rem;color:var(--ink-soft)}
+  .orow .ord{width:100%;text-align:center;padding:7px 2px;border:1.5px solid var(--gold-line);border-radius:8px;font-family:'Kanit';font-weight:700;font-size:.92rem;background:#fffdf5;color:var(--red-deep)}
+  .orow .ord:focus{outline:2px solid var(--gold);outline-offset:1px}
+  .ordnote{font-size:.8rem;color:var(--ink-soft);text-align:center;padding:18px}
   .rolecard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
   .rolecard .rh{font-family:'Kanit';font-weight:600;color:var(--red-deep);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .permrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.9rem}
@@ -313,6 +324,7 @@
         <div class="field"><label>วันที่นับ</label><input id="countDate" type="date"></div>
       </div>
       <div class="slip" id="slip"></div>
+      <div id="orderBox"></div>
       <div class="actions"><button class="act send wide" id="sendBtn">💾 บันทึกลง Google Sheet</button></div>
       <div class="actions">
         <button class="act copy" id="copyBtn">📑 คัดลอก</button>
@@ -892,8 +904,37 @@ function buildText(){
   chosen().forEach(({c,its})=>{s+=`\n${c.ic} ${c.label}\n`;its.forEach(i=>{s+=`• ${i.name} — ${isOut(i)?'❌ หมด':fmt(i.qty)+' '+(i.unit||'')}\n`})});
   s+=`\nนับแล้ว ${t.cn} รายการ · หมด ${t.out} รายการ`;return s;
 }
+let ORDER={};
+function orderOf(it){ if(ORDER[it.id]!=null)return ORDER[it.id]; const n=needQty(it); return (n!=null&&n>0)?n:0; }
+function buildOrder(){
+  const box=$('#orderBox');box.innerHTML='';
+  // counted items that have a recommended order (safety set, counted, safety>stock)
+  const list=[];
+  vcats().forEach(c=>c.items.forEach(i=>{ if(counted(i)){ const n=needQty(i); if(n!=null&&n>0) list.push(i); } }));
+  const head=document.createElement('div');head.className='ordhead';head.textContent='📦 ใบสั่งซื้อ — แนะนำจาก (safety − คงเหลือ) · แก้ “สั่งจริง” ได้';
+  box.appendChild(head);
+  if(!list.length){ const n=document.createElement('div');n.className='ordnote';
+    n.textContent='ยังไม่มีรายการที่ต้องสั่ง — ตั้ง safety stock (📦 ครัวกลาง) และนับให้ครบก่อน แล้วระบบจะคำนวณให้';
+    box.appendChild(n);return; }
+  // group by supplier
+  const sup={};list.forEach(i=>{const s=(i.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
+  Object.keys(sup).forEach(s=>{
+    const sh=document.createElement('div');sh.className='osup';sh.textContent='🏷️ '+s;box.appendChild(sh);
+    const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
+    sup[s].forEach(i=>{const rec=needQty(i);
+      const row=document.createElement('div');row.className='orow';
+      row.innerHTML=`<div class="on">${escapeHtml(i.name)} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
+        <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
+        <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
+      const inp=row.querySelector('.ord');
+      inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v)};
+      inp.onfocus=()=>inp.select();
+      box.appendChild(row);
+    });
+  });
+}
 function openSum(){if(!$('#countDate').value)$('#countDate').value=new Date().toISOString().slice(0,10);
-  $('#counterInput').value=currentUser?currentUser.name:'';buildSlip();show('#sumOverlay')}
+  $('#counterInput').value=currentUser?currentUser.name:'';ORDER={};buildSlip();buildOrder();show('#sumOverlay')}
 $('#summaryBtn').onclick=openSum;
 $('#countDate').onchange=buildSlip;
 $('#copyBtn').onclick=async()=>{const t=buildText();
@@ -909,7 +950,7 @@ $('#sendBtn').onclick=()=>{const btn=$('#sendBtn');
   const payload={type:'stock_check',schemaVersion:SCHEMA,shop:cfg().shop,date:todayStr(),
     branchId:B().id,branch:B().name,userId:currentUser&&currentUser.id,counter:currentUser&&currentUser.name,counterCode:currentUser&&currentUser.code,
     countDate:$('#countDate').value,summary:totals(),departments:vcats().map(c=>({key:c.key,label:c.label})),
-    items:[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({category:c.label,categoryKey:c.key,id:i.id,name:i.name,qty:i.qty,unit:i.unit,sup:i.sup||'',safety:(i.safety==null?null:i.safety),need:needQty(i),outOfStock:isOut(i),hasImage:!!i.img})))) };
+    items:[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({category:c.label,categoryKey:c.key,id:i.id,name:i.name,qty:i.qty,unit:i.unit,sup:i.sup||'',safety:(i.safety==null?null:i.safety),need:needQty(i),order:orderOf(i),outOfStock:isOut(i),hasImage:!!i.img})))) };
   const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Google Sheet'};
   if(gasAvailable()){
     google.script.run
