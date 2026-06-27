@@ -134,22 +134,22 @@
   /* sub-managers opened from inside settings must stack ABOVE it */
   #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
-  .crow{display:grid;grid-template-columns:1fr 56px 64px 60px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.88rem}
+  .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
-  .crow .cstock{text-align:center;font-family:'Kanit';font-weight:600;color:var(--ink-soft);font-size:.82rem}
+  .crow .cstock{text-align:center;font-family:'Kanit';font-weight:600;color:var(--ink-soft);font-size:.8rem}
   .crow .cstock.un{color:#c9a227}
-  .crow .csafe{width:100%;text-align:center;padding:7px 4px;border:1px solid var(--line);border-radius:9px;font-family:'Kanit';font-weight:600;font-size:.9rem;background:var(--paper);color:var(--ink)}
-  .crow .csafe:focus{outline:2px solid var(--gold);outline-offset:1px}
-  .crow .cneed{text-align:center;font-family:'Kanit';font-weight:700;font-size:.95rem;color:var(--ink-soft)}
+  .crow .csafe,.crow .cmax{width:100%;text-align:center;padding:7px 2px;border:1px solid var(--line);border-radius:9px;font-family:'Kanit';font-weight:600;font-size:.88rem;background:var(--paper);color:var(--ink)}
+  .crow .csafe:focus,.crow .cmax:focus{outline:2px solid var(--gold);outline-offset:1px}
+  .crow .cneed{text-align:center;font-family:'Kanit';font-weight:700;font-size:.92rem;color:var(--ink-soft)}
   .crow .cneed.go{color:var(--out)}
-  .chead{display:grid;grid-template-columns:1fr 56px 64px 60px;gap:8px;font-size:.7rem;color:var(--ink-soft);font-weight:600;padding:0 0 4px;position:sticky;top:0}
+  .chead{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;font-size:.68rem;color:var(--ink-soft);font-weight:600;padding:0 0 4px;position:sticky;top:0}
   .chead span{text-align:center}.chead span:first-child{text-align:left}
   #orderBox{margin:14px 0 4px}
   .ordhead{font-family:'Kanit';font-weight:600;color:var(--red-deep);background:#fff4d6;border:1px solid var(--gold-line);border-radius:10px;padding:9px 11px;font-size:.9rem;margin-bottom:8px}
   .osup{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.86rem;margin:10px 0 4px}
-  .ochead{display:grid;grid-template-columns:1fr 46px 46px 46px 62px;gap:6px;font-size:.66rem;color:var(--ink-soft);font-weight:600;padding:0 2px 3px}
+  .ochead{display:grid;grid-template-columns:1fr 40px 44px 40px 44px 58px;gap:5px;font-size:.64rem;color:var(--ink-soft);font-weight:600;padding:0 2px 3px}
   .ochead span{text-align:center}.ochead span:first-child{text-align:left}
-  .orow{display:grid;grid-template-columns:1fr 46px 46px 46px 62px;gap:6px;align-items:center;padding:6px 2px;border-bottom:1px dotted var(--line);font-size:.84rem}
+  .orow{display:grid;grid-template-columns:1fr 40px 44px 40px 44px 58px;gap:5px;align-items:center;padding:6px 2px;border-bottom:1px dotted var(--line);font-size:.84rem}
   .orow .on{min-width:0;word-break:break-word}
   .orow .ov{text-align:center;font-family:'Kanit';font-weight:600;font-size:.8rem;color:var(--ink-soft)}
   .orow .ord{width:100%;text-align:center;padding:7px 2px;border:1.5px solid var(--gold-line);border-radius:8px;font-family:'Kanit';font-weight:700;font-size:.92rem;background:#fffdf5;color:var(--red-deep)}
@@ -658,7 +658,7 @@ const DEFAULT_CATS=[
   {key:'veg',label:'ผักสด',ic:'🥬',items:[['ผักบุ้ง','กก.'],['กะหล่ำปลี','กก.'],['ผักกาดขาว','กก.'],['ผักกาดหอม','กก.'],['เห็ดเข็มทอง','แพ็ค'],['เห็ดออรินจิ','กก.'],['เห็ดหอม','กก.'],['ข้าวโพดอ่อน','กก.'],['ต้นหอม','กก.'],['ฟักทอง','กก.'],['ตำลึง','กก.']]}
 ];
 let uidN=0; const uid=p=>(p||'i')+Date.now().toString(36)+(uidN++);
-function defaultCatalog(){return DEFAULT_CATS.map(c=>({key:c.key,label:c.label,ic:c.ic,items:c.items.map(([name,unit])=>({id:uid('it'),name,unit,qty:null,img:null,safety:null}))}))}
+function defaultCatalog(){return DEFAULT_CATS.map(c=>({key:c.key,label:c.label,ic:c.ic,items:c.items.map(([name,unit])=>({id:uid('it'),name,unit,qty:null,img:null,safety:null,max:null}))}))}
 function buildDefault(){
   return {schemaVersion:SCHEMA,
     config:{shop:'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',units:[...DEFAULT_UNITS],roles:defaultRoles()},
@@ -714,7 +714,7 @@ function normalize(o){
     if(!Array.isArray(u.catKeys))u.catKeys=[];});
   if(!Array.isArray(o.branches)||!o.branches.length) o.branches=[{id:uid('b'),name:'สาขาหลัก',data:{categories:defaultCatalog()}}];
   o.branches.forEach(b=>{if(!b.id)b.id=uid('b');b.data=b.data||{};if(!Array.isArray(b.data.categories))b.data.categories=defaultCatalog();
-    b.data.categories.forEach(c=>c.items.forEach(i=>{if(!i.id)i.id=uid('it');if(i.qty===undefined)i.qty=null;if(i.img===undefined)i.img=null;if(i.safety===undefined)i.safety=null}))});
+    b.data.categories.forEach(c=>c.items.forEach(i=>{if(!i.id)i.id=uid('it');if(i.qty===undefined)i.qty=null;if(i.img===undefined)i.img=null;if(i.safety===undefined)i.safety=null;if(i.max===undefined)i.max=null}))});
   return o;
 }
 function load(){ ROOT=normalize(LS.get(ROOT_KEY,null)); }
@@ -920,11 +920,11 @@ function buildOrder(){
   const sup={};list.forEach(i=>{const s=(i.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
   Object.keys(sup).forEach(s=>{
     const sh=document.createElement('div');sh.className='osup';sh.textContent='🏷️ '+s;box.appendChild(sh);
-    const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
+    const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>max</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
     sup[s].forEach(i=>{const rec=needQty(i);
       const row=document.createElement('div');row.className='orow';
       row.innerHTML=`<div class="on">${escapeHtml(i.name)} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
-        <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
+        <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov">${i.max==null?'–':fmt(i.max)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
       inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v)};
@@ -950,7 +950,7 @@ $('#sendBtn').onclick=()=>{const btn=$('#sendBtn');
   const payload={type:'stock_check',schemaVersion:SCHEMA,shop:cfg().shop,date:todayStr(),
     branchId:B().id,branch:B().name,userId:currentUser&&currentUser.id,counter:currentUser&&currentUser.name,counterCode:currentUser&&currentUser.code,
     countDate:$('#countDate').value,summary:totals(),departments:vcats().map(c=>({key:c.key,label:c.label})),
-    items:[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({category:c.label,categoryKey:c.key,id:i.id,name:i.name,qty:i.qty,unit:i.unit,sup:i.sup||'',safety:(i.safety==null?null:i.safety),need:needQty(i),order:orderOf(i),outOfStock:isOut(i),hasImage:!!i.img})))) };
+    items:[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({category:c.label,categoryKey:c.key,id:i.id,name:i.name,qty:i.qty,unit:i.unit,sup:i.sup||'',safety:(i.safety==null?null:i.safety),max:(i.max==null?null:i.max),need:needQty(i),order:orderOf(i),outOfStock:isOut(i),hasImage:!!i.img})))) };
   const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Google Sheet'};
   if(gasAvailable()){
     google.script.run
@@ -1221,10 +1221,15 @@ $('#openRoles').onclick=()=>{if(!currentUser||currentUser.role!=='admin')return;
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
-function needQty(it){ // safety - stock, only when both known & positive
-  if(it.safety===null||it.safety===undefined)return null;
+function needQty(it){ // order up to max (or safety) when stock reaches the safety point
+  const safety=(it.safety===null||it.safety===undefined||it.safety==='')?null:(+it.safety);
+  if(safety===null)return null;
   if(it.qty===null||it.qty===undefined)return null;
-  const n=(+it.safety)-(+it.qty); return n>0?Math.round(n*100)/100:0;
+  const stock=+it.qty;
+  if(stock>safety)return 0;                 // ยังไม่ถึงจุดสั่ง
+  const mx=(it.max===null||it.max===undefined||it.max==='')?null:(+it.max);
+  const target=(mx!==null&&mx>safety)?mx:safety;
+  const n=target-stock; return n>0?Math.round(n*100)/100:0;
 }
 function cBranch(){return ROOT.branches.find(b=>b.id===cBranchId)||ROOT.branches[0]}
 function renderCentral(){
@@ -1236,7 +1241,7 @@ function renderCentral(){
     const rows=c.items.filter(it=>{const n=needQty(it);if(it.qty===null)uncounted++;return onlyNeed?(n>0):true});
     if(!rows.length)return;
     const head=document.createElement('div');head.className='ccat';head.textContent=c.ic+' '+c.label;wrap.appendChild(head);
-    const hd=document.createElement('div');hd.className='chead';hd.innerHTML='<span>สินค้า</span><span>คงเหลือ</span><span>Safety</span><span>ต้องจัด</span>';wrap.appendChild(hd);
+    const hd=document.createElement('div');hd.className='chead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>Safety</span><span>Max</span><span>ต้องจัด</span>';wrap.appendChild(hd);
     c.items.forEach(it=>{
       const n=needQty(it);
       if(onlyNeed&&!(n>0))return;
@@ -1246,10 +1251,12 @@ function renderCentral(){
       row.innerHTML=`<div class="cn">${escapeHtml(it.name)} <span style="color:var(--ink-soft);font-size:.8em">${escapeHtml(it.unit||'')}</span></div>
         <div class="cstock ${it.qty===null?'un':''}">${stockTxt}</div>
         <input class="csafe" inputmode="decimal" value="${(it.safety===null||it.safety===undefined)?'':fmt(it.safety)}" placeholder="–">
+        <input class="cmax" inputmode="decimal" value="${(it.max===null||it.max===undefined)?'':fmt(it.max)}" placeholder="–">
         <div class="cneed ${n>0?'go':''}">${n===null?'—':fmt(n)}</div>`;
-      const inp=row.querySelector('.csafe');
-      inp.onchange=()=>{const t=inp.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));save();renderCentral()};
-      inp.onfocus=()=>inp.select();
+      const sf=row.querySelector('.csafe'),mx=row.querySelector('.cmax');
+      sf.onchange=()=>{const t=sf.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));save();renderCentral()};
+      mx.onchange=()=>{const t=mx.value.trim();it.max=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));save();renderCentral()};
+      sf.onfocus=()=>sf.select();mx.onfocus=()=>mx.select();
       wrap.appendChild(row);
     });
   });
