@@ -552,7 +552,7 @@
     <div class="sheet-body">
       <div class="two">
         <div class="field"><label>จัดส่งไปสาขา</label><select id="cBranch"></select></div>
-        <div class="field"><label>กรอง</label><select id="cFilter"><option value="need">เฉพาะที่ต้องจัด</option><option value="all">ทั้งหมด</option></select></div>
+        <div class="field"><label>กรอง</label><select id="cFilter"><option value="all">ทั้งหมด (ตั้ง Safety/Max)</option><option value="need">เฉพาะที่ต้องจัด</option></select></div>
       </div>
       <div id="cList"></div>
       <div class="slip-tot" id="cTot" style="border-radius:10px;margin:8px 0 14px"><span>ต้องจัดส่ง</span><span>0 รายการ</span></div>
@@ -1633,12 +1633,12 @@ $('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
-function needQty(it){ // order up to max (or safety) when stock reaches the safety point
+function needQty(it){ // คงเหลือ < safety เท่านั้นถึงสั่ง, สั่งให้เต็ม max
   const safety=(it.safety===null||it.safety===undefined||it.safety==='')?null:(+it.safety);
   if(safety===null)return null;
   if(it.qty===null||it.qty===undefined)return null;
   const stock=+it.qty;
-  if(stock>safety)return 0;                 // ยังไม่ถึงจุดสั่ง
+  if(stock>=safety)return 0;                // เท่ากับหรือมากกว่า safety = ไม่สั่ง
   const mx=(it.max===null||it.max===undefined||it.max==='')?null:(+it.max);
   const target=(mx!==null&&mx>safety)?mx:safety;
   const n=target-stock; return n>0?Math.round(n*100)/100:0;
