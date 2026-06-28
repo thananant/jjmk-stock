@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --red:#A41B22;--red-deep:#6E0E14;--red-soft:#C7424A;
@@ -47,6 +48,7 @@
   .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;background:transparent;cursor:pointer;font-size:1.05rem;opacity:.55}
   .lbtn{width:100%;padding:14px;border-radius:12px;border:none;background:radial-gradient(circle at 30% 30%,var(--gold-bright),var(--gold-line));color:var(--red-deep);font-family:'Kanit';font-weight:700;font-size:1.05rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);margin-top:4px;transition:.1s}
   .lbtn:active{transform:translateY(1px)}
+  .lbtn.alt{background:transparent;color:var(--gold-bright);box-shadow:none;border:1.5px solid rgba(234,200,95,.5);font-weight:600;font-size:.95rem;padding:11px}
   .login .err{animation:shake .4s}
 
   header{background:linear-gradient(160deg,var(--red) 0%,var(--red-deep) 100%);color:#fff;position:relative;padding:16px 18px 14px;border-bottom:3px solid var(--gold)}
@@ -132,7 +134,7 @@
   .overlay{position:fixed;inset:0;z-index:100;background:rgba(42,23,19,.55);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .overlay.show{display:flex}
   /* sub-managers opened from inside settings must stack ABOVE it */
-  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay{z-index:130}
+  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
   .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
@@ -276,12 +278,14 @@
   <h2 id="loginShop">จริงใจหมูกระทะ</h2>
   <div class="sub">เช็คสต็อกสินค้าคงเหลือ</div>
   <div class="loginform">
+    <input id="loginName" class="linput" placeholder="ชื่อ-สกุล (กรอกเฉพาะตอนสมัคร)" autocapitalize="words" style="display:none">
     <input id="loginUser" class="linput" placeholder="ชื่อผู้ใช้ (username)" autocomplete="username" autocapitalize="off" autocorrect="off">
     <div class="pwrap">
       <input id="loginPass" class="linput" type="password" placeholder="รหัสผ่าน (password)" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
       <button id="togglePass" class="eye" type="button" aria-label="แสดงรหัสผ่าน">👁</button>
     </div>
     <button id="loginBtn" class="lbtn">เข้าสู่ระบบ</button>
+    <button id="signupBtn" class="lbtn alt" type="button">สมัครพนักงานใหม่</button>
   </div>
   <div class="msg" id="loginMsg"></div>
   <div class="hint2" id="loginHint"></div>
@@ -442,7 +446,8 @@
 
       <div id="blkStaff" class="setblk">
         <div class="sub-title">👥 พนักงาน</div>
-        <button class="act ghost wide" id="openUsers">จัดการพนักงาน (<span id="userCount">1</span> คน)</button>
+        <button class="act send wide" id="openApprove">👤 อนุมัติพนักงานใหม่ (<span id="pendingCount">0</span> รอ)</button>
+        <button class="act ghost wide" id="openUsers" style="margin-top:8px">จัดการพนักงาน (<span id="userCount">1</span> คน)</button>
       </div>
 
       <div id="blkRoles" class="setblk">
@@ -468,7 +473,7 @@
       <div id="blkConn" class="setblk">
         <div class="divider"></div>
         <div class="sub-title">☁️ ข้อมูลกลาง (ซิงค์อัตโนมัติ)</div>
-        <div class="field"><label>URL ปลายทาง (Apps Script /exec)</label><input id="setEndpoint" placeholder="https://script.google.com/macros/s/.../exec"></div>
+        <div class="field" id="endpointField"><label>URL ปลายทาง (Apps Script /exec)</label><input id="setEndpoint" placeholder="https://script.google.com/macros/s/.../exec"></div>
         <div class="toggle-row"><span class="tl">ซิงค์อัตโนมัติ (อัปเมื่อแก้ · ดึงเมื่อเปิดแอป)</span><label class="switch"><input type="checkbox" id="autoSyncSwitch"><span class="sl"></span></label></div>
         <div class="store-line"><span id="syncStatus" style="color:var(--ink-soft)">ยังไม่ได้ตั้งค่า</span><button class="act ghost" id="syncNow" style="padding:6px 12px;min-height:0">🔄 ซิงค์เดี๋ยวนี้</button></div>
         <p class="hint" style="margin:6px 0 10px">เปิดสวิตช์แล้วระบบจะ <b>อัปขึ้นกลางอัตโนมัติ</b>เมื่อแอดมินแก้พนักงาน/สินค้า/safety และ <b>ดึงลงอัตโนมัติ</b>เมื่อเปิดแอป (รูปยังไม่ซิงค์)</p>
@@ -524,12 +529,73 @@
   </div>
 </div>
 
+<!-- Approve staff (Supabase) -->
+<div class="overlay" id="approveOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>👤 อนุมัติพนักงานใหม่</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-body">
+      <div id="approveList"></div>
+      <p class="hint">อนุมัติแล้วพนักงานจะล็อกอินได้ทันที · กำหนดสาขา/แผนกที่ดูแลได้ในเมนู “จัดการพนักงาน”</p>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox"><img id="lightImg" src=""></div>
 <div class="toast" id="toast"></div>
 
 <script>
 /* ================= schema & defaults ================= */
 const SCHEMA=5, ROOT_KEY='jjmk_app', OLD_KEY='jjmk_stock_v2';
+
+/* ================= Supabase ================= */
+const SB_URL='https://aikyxvluaiubdidqxwnd.supabase.co';
+const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpa3l4dmx1YWl1YmRpZHF4d25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mjc1MjQsImV4cCI6MjA5ODIwMzUyNH0.YSZ-dWsdVisRd3diGA_Cos6U2YQYQZPJzSXYuGp7FfM';
+const EMAIL_DOMAIN='@jjmk.local';
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+const uname2email=u=>u.toLowerCase().trim()+EMAIL_DOMAIN;
+async function sbSignup(u,p,name){const {data,error}=await sb.auth.signUp({email:uname2email(u),password:p,options:{data:{name:name||u}}});if(error)throw error;return data;}
+async function sbLogin(u,p){const {error}=await sb.auth.signInWithPassword({email:uname2email(u),password:p});if(error)throw error;}
+async function sbProfile(){const {data:{user}}=await sb.auth.getUser();if(!user)return null;
+  const {data,error}=await sb.from('app_users').select('*').eq('auth_uid',user.id).maybeSingle();if(error)return null;return data;}
+function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.username,role:p.role||'staff',branchIds:p.branch_ids||[],catKeys:p.cat_keys||[],status:p.status};}
+async function sbLoadData(prof){
+  const [br,pr,un,rl,cf]=await Promise.all([
+    sb.from('branches').select('*').order('sort'),
+    sb.from('products').select('*').order('sort'),
+    sb.from('units').select('*').order('sort'),
+    sb.from('roles').select('*'),
+    sb.from('config').select('*')]);
+  if(br.error||pr.error)throw (br.error||pr.error);
+  const conf={};(cf.data||[]).forEach(r=>conf[r.key]=r.value);
+  const roles={};(rl.data||[]).forEach(r=>roles[r.role]={label:r.label,perms:r.perms||{}});
+  if(roles.admin)PERMS.forEach(p=>roles.admin.perms[p.key]=true);   // admin = ทุกสิทธิ์เสมอ
+  const units=(un.data||[]).map(u=>u.name);
+  const branches=(br.data||[]).map(b=>({id:b.id,name:b.name,data:{categories:[]}}));
+  const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
+  (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
+    if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
+    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:null});});
+  let users=[profToUser(prof)];
+  if(prof.role==='admin'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
+  ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:false,imgQuality:'md',
+    resetTime:conf.resetTime||'06:00',autoReset:String(conf.autoReset)!=='false',units:units,roles:roles},users:users,branches:branches};
+  currentUser=ROOT.users.find(u=>u.id===prof.auth_uid)||profToUser(prof);
+}
+async function boot(){
+  setLogos();
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){showLogin();return;}
+    const prof=await sbProfile();
+    if(!prof){await sb.auth.signOut();showLogin();return;}
+    if(prof.status!=='active'){await sb.auth.signOut();showLogin();loginErr('บัญชีนี้รอผู้ดูแลอนุมัติ');return;}
+    await sbLoadData(prof);applyShop();enterApp();
+  }catch(e){showLogin();loginErr('โหลดข้อมูลไม่สำเร็จ: '+((e&&e.message)||e));}
+}
+
+/* ===== ใส่ลิงค์ Apps Script /exec ตรงนี้ครั้งเดียว (เว้นว่าง = ให้กรอกในแอป) ===== */
+const CENTRAL_URL='';
+const SESSION_KEY='jjmk_session';
 // ===== permissions & roles =====
 const PERMS=[
   {key:'count',label:'นับสต็อก'},
@@ -770,25 +836,57 @@ function processImage(file,cb){const reader=new FileReader();
     im.onerror=()=>cb(null);im.src=reader.result};
   reader.onerror=()=>cb(null);reader.readAsDataURL(file)}
 
-/* ================= login (username + password) ================= */
-function tryLogin(){
-  const u=$('#loginUser').value.trim(), p=$('#loginPass').value.trim();
-  if(!u||!p){loginErr('กรอกชื่อผู้ใช้และรหัสผ่าน');return}
-  const found=ROOT.users.find(x=>(x.username||'').trim().toLowerCase()===u.toLowerCase()&&(x.password||'').trim()===p);
-  if(found){currentUser=found;$('#loginMsg').textContent='';$('#loginPass').value='';enterApp()}
-  else loginErr('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-}
-function loginErr(m){$('#loginMsg').textContent=m;const f=$('#login');f.classList.add('err');setTimeout(()=>f.classList.remove('err'),420)}
+/* ================= login (Supabase Auth) ================= */
+function loginErr(m){$('#loginMsg').style.color='';$('#loginMsg').textContent=m;const f=$('#login');f.classList.add('err');setTimeout(()=>f.classList.remove('err'),420)}
+function loginOk(m){$('#loginMsg').style.color='#9ee7a0';$('#loginMsg').textContent=m}
+function authMsg(e){const s=((e&&e.message)||String(e)).toLowerCase();
+  if(s.indexOf('invalid login')>-1)return'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+  if(s.indexOf('already registered')>-1||s.indexOf('already been registered')>-1)return'username นี้มีคนใช้แล้ว';
+  if(s.indexOf('password')>-1&&s.indexOf('6')>-1)return'รหัสผ่านอย่างน้อย 6 ตัว';
+  if(s.indexOf('network')>-1||s.indexOf('failed to fetch')>-1)return'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่';
+  return (e&&e.message)||'เกิดข้อผิดพลาด';}
+function setLoginBusy(b,txt){$('#loginBtn').disabled=b;$('#signupBtn').disabled=b;if(b)$('#loginBtn').textContent=txt||'⏳ ...';else $('#loginBtn').textContent='เข้าสู่ระบบ';}
 function showLogin(){
-  $('#loginShop').textContent=cfg().shop;
-  const def=ROOT.users.length===1&&ROOT.users[0].username==='admin'&&ROOT.users[0].password==='admin';
-  $('#loginHint').textContent=def?'เข้าครั้งแรก: ชื่อผู้ใช้ admin · รหัสผ่าน admin (เปลี่ยนได้ในเมนูจัดการพนักงาน)':'';
-  $('#loginUser').value='';$('#loginPass').value='';$('#loginPass').type='password';$('#loginMsg').textContent='';
+  $('#loginShop').textContent=(ROOT&&cfg().shop)||'จริงใจหมูกระทะ';
+  $('#loginHint').textContent='พนักงานใหม่กด “สมัครพนักงานใหม่” แล้วรอผู้ดูแลอนุมัติ';
+  $('#loginPass').value='';$('#loginPass').type='password';
   $('#login').classList.add('show');setTimeout(()=>$('#loginUser').focus(),200);
 }
-$('#loginBtn').onclick=tryLogin;
+async function doLogin(){
+  const u=$('#loginUser').value.trim(), p=$('#loginPass').value.trim();
+  if(!u||!p){loginErr('กรอกชื่อผู้ใช้และรหัสผ่าน');return}
+  setLoginBusy(true,'⏳ เข้าสู่ระบบ...');
+  try{
+    await sbLogin(u,p);
+    const prof=await sbProfile();
+    if(!prof){await sb.auth.signOut();loginErr('ไม่พบโปรไฟล์ในระบบ');return}
+    if(prof.status!=='active'){await sb.auth.signOut();loginErr('บัญชีนี้รอผู้ดูแลอนุมัติก่อนใช้งาน');return}
+    await sbLoadData(prof);applyShop();enterApp();
+  }catch(e){loginErr(authMsg(e));}
+  finally{setLoginBusy(false);}
+}
+async function doSignup(){
+  const nm=$('#loginName').style.display==='none'?'':$('#loginName').value.trim();
+  if($('#loginName').style.display==='none'){ // เผยช่องชื่อก่อน
+    $('#loginName').style.display='block';$('#loginName').focus();
+    loginOk('กรอกชื่อ-สกุล + username + password แล้วกด “สมัครพนักงานใหม่” อีกครั้ง');return;
+  }
+  const u=$('#loginUser').value.trim(), p=$('#loginPass').value.trim();
+  if(!u||!p){loginErr('กรอก username และ password เพื่อสมัคร');return}
+  if(p.length<6){loginErr('รหัสผ่านอย่างน้อย 6 ตัว');return}
+  setLoginBusy(true,'⏳ สมัคร...');
+  try{
+    await sbSignup(u,p,nm||u);
+    await sb.auth.signOut();
+    $('#loginName').style.display='none';$('#loginName').value='';$('#loginPass').value='';
+    loginOk('สมัครสำเร็จ ✓ รอผู้ดูแลอนุมัติ แล้วค่อยเข้าสู่ระบบ');
+  }catch(e){loginErr(authMsg(e));}
+  finally{setLoginBusy(false);}
+}
+$('#loginBtn').onclick=doLogin;
+$('#signupBtn').onclick=doSignup;
 $('#togglePass').onclick=()=>{const p=$('#loginPass');p.type=p.type==='password'?'text':'password'};
-['loginUser','loginPass'].forEach(id=>$('#'+id).addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin()}));
+['loginUser','loginPass'].forEach(id=>$('#'+id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()}));
 function enterApp(){
   $('#login').classList.remove('show');
   const accb=accessibleBranches();
@@ -799,7 +897,7 @@ function enterApp(){
   $('#userName').textContent=currentUser.name;
   applyShop();renderContext();renderTabs();renderMain();refreshCounters();
 }
-$('#logoutBtn').onclick=()=>{currentUser=null;hideAll();showLogin()};
+$('#logoutBtn').onclick=async()=>{try{await sb.auth.signOut()}catch(e){}currentUser=null;hideAll();showLogin()};
 
 /* ================= context (branch/user) ================= */
 function renderContext(){const multi=accessibleBranches().length>1;
@@ -1136,7 +1234,7 @@ $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
   $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';
   $('#showImgSwitch').checked=cfg().showImages!==false;$('#imgQuality').value=cfg().imgQuality||'md';
-  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();show('#setOverlay')};
+  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();show('#setOverlay')};
 $('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
 $('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
 $('#showImgSwitch').onchange=e=>{cfg().showImages=e.target.checked;save();renderMain();toast(e.target.checked?'แสดงรูปบนการ์ดแล้ว':'ซ่อนรูปบนการ์ดแล้ว')};
@@ -1195,6 +1293,7 @@ function pullMaster(cb){ if(!cfg().endpoint){cb&&cb(false);return}
   });
 }
 function applySyncUI(){ $('#setEndpoint').value=cfg().endpoint||''; $('#autoSyncSwitch').checked=!!cfg().autoSync;
+  if(CENTRAL_URL){const ef=$('#endpointField');if(ef)ef.style.display='none';}
   setSyncStatus(cfg().endpoint?(cfg().autoSync?'พร้อมซิงค์':'ปิดซิงค์อัตโนมัติอยู่'):'ยังไม่ได้ตั้งค่า'); }
 $('#setEndpoint').onchange=e=>{cfg().endpoint=e.target.value.trim();save();applySyncUI()};
 $('#autoSyncSwitch').onchange=e=>{cfg().endpoint=$('#setEndpoint').value.trim();cfg().autoSync=e.target.checked;save();applySyncUI();
@@ -1227,6 +1326,36 @@ function renderRoles(){
   });
 }
 $('#openRoles').onclick=()=>{if(!currentUser||currentUser.role!=='admin')return;renderRoles();show('#rolesOverlay')};
+
+/* ================= approve new staff (Supabase) ================= */
+async function refreshPendingCount(){ if(!can('manageStaff')){$('#pendingCount').textContent='0';return;}
+  try{const {count}=await sb.from('app_users').select('*',{count:'exact',head:true}).eq('status','pending');$('#pendingCount').textContent=count||0;}catch(e){} }
+async function renderApprove(){
+  const wrap=$('#approveList');wrap.innerHTML='<div style="text-align:center;color:var(--ink-soft);padding:18px">กำลังโหลด...</div>';
+  const {data,error}=await sb.from('app_users').select('*').eq('status','pending').order('created_at');
+  if(error){wrap.innerHTML='<div style="color:var(--out);padding:14px">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
+  if(!data.length){wrap.innerHTML='<div style="text-align:center;color:var(--ink-soft);padding:24px">ไม่มีพนักงานรออนุมัติ</div>';return;}
+  wrap.innerHTML='';
+  data.forEach(u=>{
+    const card=document.createElement('div');card.className='ucard';
+    card.innerHTML=`<div class="lrow" style="border:none;margin:0;padding:0">
+      <div style="flex:1"><b style="font-family:Kanit">${escapeHtml(u.name||u.username)}</b><div style="font-size:.8rem;color:var(--ink-soft)">@${escapeHtml(u.username)}</div></div>
+      <select class="role" style="width:120px"><option value="staff">พนักงาน</option><option value="supervisor">หัวหน้าแผนก</option><option value="manager">ผู้จัดการ</option><option value="admin">ผู้ดูแล</option></select>
+      </div>
+      <div class="actions" style="margin-top:8px"><button class="act send" data-act="ok">✓ อนุมัติ</button><button class="act ghost" data-act="no"><span class="danger">ปฏิเสธ</span></button></div>`;
+    const role=card.querySelector('.role');
+    card.querySelector('[data-act="ok"]').onclick=async(e)=>{const btn=e.target;btn.disabled=true;btn.textContent='⏳';
+      const {error}=await sb.from('app_users').update({status:'active',role:role.value}).eq('auth_uid',u.auth_uid);
+      if(error){toast('ไม่สำเร็จ: '+error.message);btn.disabled=false;btn.textContent='✓ อนุมัติ';return;}
+      toast('อนุมัติ '+(u.name||u.username)+' แล้ว ✓');renderApprove();refreshPendingCount();};
+    card.querySelector('[data-act="no"]').onclick=async()=>{if(!confirm('ปฏิเสธ/ลบ "'+(u.name||u.username)+'"?'))return;
+      const {error}=await sb.from('app_users').delete().eq('auth_uid',u.auth_uid);
+      if(error){toast('ลบไม่สำเร็จ: '+error.message);return;}
+      toast('ลบแล้ว');renderApprove();refreshPendingCount();};
+    wrap.appendChild(card);
+  });
+}
+$('#openApprove').onclick=()=>{if(!can('manageStaff'))return;renderApprove();show('#approveOverlay')};
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
@@ -1325,7 +1454,7 @@ function resetBoundary(){ const m=/^(\d{2}):(\d{2})$/.exec(cfg().resetTime||'06:
   const hh=m?+m[1]:6, mm=m?+m[2]:0; const now=new Date(); const b=new Date(now); b.setHours(hh,mm,0,0);
   if(now<b) b.setDate(b.getDate()-1);
   return b.getFullYear()+'-'+('0'+(b.getMonth()+1)).slice(-2)+'-'+('0'+b.getDate()).slice(-2)+' '+(cfg().resetTime||'06:00'); }
-function checkDailyReset(){ if(cfg().autoReset===false) return;
+function checkDailyReset(){ if(!ROOT||!currentUser) return; if(cfg().autoReset===false) return;
   const key=resetBoundary(); const last=localStorage.getItem(RESET_KEY);
   if(last===null){ localStorage.setItem(RESET_KEY,key); return; }   // ครั้งแรก: แค่จำไว้ ไม่ล้าง
   if(last!==key){
@@ -1337,17 +1466,10 @@ function checkDailyReset(){ if(cfg().autoReset===false) return;
 }
 setInterval(checkDailyReset,60000);
 
-/* init */
-load();setLogos();applyShop();showLogin();
-checkDailyReset();
-if(syncEnabled()){ SY.lastHash=masterStr(); pullMaster(); }   // ดึงข้อมูลกลางเบื้องหลัง
-// ดึงข้อมูลกลางใหม่เมื่อกลับเข้าแอป (เฉพาะตอนยังไม่ล็อกอิน เพื่อไม่รบกวนการนับ)
+/* init — Supabase */
+boot();
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState!=='visible')return;
-  checkDailyReset();
-  if(syncEnabled()&&$('#login').classList.contains('show')){
-    if(SY.pending)flushPush(); else pullMaster();
-  }
+  if(document.visibilityState==='visible')checkDailyReset();
 });
 </script>
 </body>
