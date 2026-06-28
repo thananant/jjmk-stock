@@ -618,7 +618,7 @@
     <div class="sheet-body">
       <div class="rfilters"><input id="pcSearch" placeholder="🔍 ค้นหาสินค้า..." style="grid-column:1/-1"></div>
       <div id="prodCfgList"></div>
-      <p class="hint">ตั้งครั้งเดียว ใช้ทุกสาขา (สินค้าชื่อเดียวกันอัปเดตทุกสาขา) · เลื่อนลงเพื่อตั้งทีละรายการ</p>
+      <p class="hint">🏷️ ซัพพลายเออร์ = ใช้ร่วมทุกสาขา · 📍 จุดจัดเก็บ = แยกแต่ละสาขา · เลื่อนลงเพื่อตั้งทีละรายการ</p>
     </div>
   </div>
 </div>
@@ -1791,11 +1791,11 @@ $('#addSupBtn').onclick=async()=>{const n=$('#newSupName').value.trim();if(!n)re
 $('#openSuppliers').onclick=()=>{if(!can('manageProducts'))return;renderSuppliers();show('#supOverlay')};
 
 /* ================= product config: supplier + location ================= */
-function uniqueProducts(){ // รวมสินค้าตามชื่อ (ข้ามสาขา)
+function uniqueProducts(){ // รวมตามชื่อ: ซัพร่วม, จุดจัดเก็บแยกตามสาขา
   const map={};
   ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{
-    if(!map[i.name])map[i.name]={name:i.name,cat:c.label,unit:i.unit,sup:i.sup||'',location:i.location||'',ids:[]};
-    map[i.name].ids.push(i.id);
+    if(!map[i.name])map[i.name]={name:i.name,cat:c.label,unit:i.unit,sup:i.sup||'',byBranch:{}};
+    map[i.name].byBranch[b.id]={item:i,location:i.location||''};
   })));
   return Object.values(map).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'','th')||a.name.localeCompare(b.name,'th'));
 }
@@ -1807,15 +1807,28 @@ function renderProdCfg(){
   if(!list.length){wrap.innerHTML='<div class="rempty">ไม่พบสินค้า</div>';return;}
   list.forEach(p=>{
     const card=document.createElement('div');card.className='pccard';
-    card.innerHTML=`<div class="pcn">${escapeHtml(p.name)} <small>· ${escapeHtml(p.cat)} · ${escapeHtml(p.unit||'')}</small></div>
-      <div class="pcrow"><select class="pc_sup">${supOptionsHtml(p.sup)}</select><input class="pc_loc" placeholder="จุดจัดเก็บ/โซน เช่น ตู้แช่ A2" value="${escapeHtml(p.location||'')}"></div>`;
-    const applyAll=async(patch)=>{ // อัปเดตทุกสาขาที่ชื่อตรงกัน
-      const {error}=await sb.from('products').update(patch).eq('name',p.name);
-      if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}
-      ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.name===p.name)Object.assign(i,patch);})));
-      return true;};
-    card.querySelector('.pc_sup').onchange=async e=>{const v=e.target.value;p.sup=v;if(await applyAll({sup:v}))toast('ตั้งซัพให้ "'+p.name+'" ทุกสาขาแล้ว ✓');};
-    card.querySelector('.pc_loc').onchange=async e=>{const v=e.target.value.trim();p.location=v;if(await applyAll({location:v||null}))toast('บันทึกจุดจัดเก็บแล้ว ✓');};
+    const head=document.createElement('div');head.className='pcn';head.innerHTML=`${escapeHtml(p.name)} <small>· ${escapeHtml(p.cat)} · ${escapeHtml(p.unit||'')}</small>`;
+    card.appendChild(head);
+    // ซัพพลายเออร์ (ร่วมทุกสาขา)
+    const supWrap=document.createElement('div');supWrap.innerHTML=`<label style="font-size:.72rem;color:var(--ink-soft);font-weight:600">🏷️ ซัพพลายเออร์ (ใช้ทุกสาขา)</label><select class="pc_sup" style="width:100%;margin-top:2px">${supOptionsHtml(p.sup)}</select>`;
+    card.appendChild(supWrap);
+    supWrap.querySelector('.pc_sup').onchange=async e=>{const v=e.target.value;p.sup=v;
+      const {error}=await sb.from('products').update({sup:v}).eq('name',p.name);
+      if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return;}
+      ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.name===p.name)i.sup=v;})));
+      toast('ตั้งซัพให้ "'+p.name+'" ทุกสาขาแล้ว ✓');};
+    // จุดจัดเก็บ (แยกตามสาขา)
+    const locLbl=document.createElement('label');locLbl.style.cssText='font-size:.72rem;color:var(--ink-soft);font-weight:600;display:block;margin-top:6px';locLbl.textContent='📍 จุดจัดเก็บ (แยกแต่ละสาขา)';card.appendChild(locLbl);
+    ROOT.branches.forEach(b=>{
+      const bb=p.byBranch[b.id];if(!bb)return;
+      const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:90px 1fr;gap:6px;align-items:center;margin-top:4px';
+      row.innerHTML=`<span style="font-size:.8rem;color:var(--ink)">${escapeHtml(b.name)}</span><input class="pc_loc" placeholder="เช่น ตู้แช่ A2 / ชั้นวาง 3" value="${escapeHtml(bb.location||'')}">`;
+      row.querySelector('.pc_loc').onchange=async e=>{const v=e.target.value.trim();
+        const {error}=await sb.from('products').update({location:v||null}).eq('id',bb.item.id);
+        if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return;}
+        bb.item.location=v;toast('บันทึกจุดจัดเก็บ ('+b.name+') แล้ว ✓');};
+      card.appendChild(row);
+    });
     wrap.appendChild(card);
   });
 }
