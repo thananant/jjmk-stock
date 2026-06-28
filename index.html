@@ -134,7 +134,7 @@
   .overlay{position:fixed;inset:0;z-index:100;background:rgba(42,23,19,.55);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .overlay.show{display:flex}
   /* sub-managers opened from inside settings must stack ABOVE it */
-  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay{z-index:130}
+  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay,#supOverlay,#prodCfgOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
   .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
@@ -198,6 +198,24 @@
   .pe-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
   .pe-item{display:flex;align-items:flex-start;gap:6px;font-size:.8rem;color:var(--ink);cursor:pointer}
   .pe-item input{margin-top:2px;accent-color:var(--red)}
+  /* ===== suppliers ===== */
+  .supcard{border:1px solid var(--gold-line);border-radius:12px;padding:11px 12px;margin-bottom:10px;background:var(--card)}
+  .supcard .sh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+  .supcard .sh b{font-family:'Kanit';font-size:.96rem;color:var(--red-deep)}
+  .supcard .sfield{margin-bottom:7px}
+  .supcard label{display:block;font-size:.74rem;color:var(--ink-soft);margin-bottom:2px;font-weight:600}
+  .supcard input,.supcard textarea{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:8px;font-family:'Sarabun';font-size:.85rem;background:var(--paper);color:var(--ink)}
+  .supcard textarea{resize:vertical;min-height:42px}
+  .supcard .s3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .supbadge{font-size:.72rem;font-weight:700;font-family:'Kanit';padding:3px 9px;border-radius:999px}
+  .supbadge.open{background:#e7f6ea;color:#1f8b3a}
+  .supbadge.soon{background:#fff4d6;color:#a9810a}
+  .supbadge.closed{background:#fbe9e7;color:var(--out)}
+  .pccard{display:grid;grid-template-columns:1fr;gap:5px;border-bottom:1px solid var(--line);padding:9px 2px}
+  .pccard .pcn{font-family:'Kanit';font-weight:600;font-size:.9rem;color:var(--ink)}
+  .pccard .pcn small{color:var(--ink-soft);font-weight:400}
+  .pccard .pcrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .pccard select,.pccard input{padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-family:'Sarabun';font-size:.83rem;background:var(--paper);color:var(--ink);width:100%}
   /* ===== dispatch / warehouse ===== */
   .dbranch{margin-bottom:16px;border:1.5px solid var(--gold-line);border-radius:14px;overflow:hidden}
   .dbranch-h{background:var(--red);color:#fff;padding:10px 13px;font-family:'Kanit';font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -508,6 +526,12 @@
         <button class="act ghost wide" id="openUnits">จัดการหน่วยนับ (<span id="unitCount">0</span> หน่วย)</button>
       </div>
 
+      <div id="blkSup" class="setblk">
+        <div class="sub-title">🏭 ซัพพลายเออร์ &amp; สินค้า</div>
+        <button class="act ghost wide" id="openSuppliers">จัดการซัพพลายเออร์ (รอบสั่ง/วันหยุด) — <span id="supCount">0</span> เจ้า</button>
+        <button class="act ghost wide" id="openProdCfg" style="margin-top:8px">ตั้งซัพพลายเออร์ + จุดจัดเก็บ (รายสินค้า)</button>
+      </div>
+
       <div id="blkImg" class="setblk">
         <div class="divider"></div>
         <div class="sub-title">🖼️ รูปภาพสินค้า</div>
@@ -571,6 +595,30 @@
         <button class="act ghost wide" id="cPrint">🖨️ พิมพ์ใบจัดส่ง</button>
       </div>
       <p class="hint">ต้องจัด = Safety stock − คงเหลือ (เฉพาะที่ขาด) · ตั้งค่า Safety ในช่องของแต่ละสินค้า<br><span id="cSrc"></span></p>
+    </div>
+  </div>
+</div>
+
+<!-- Suppliers manager -->
+<div class="overlay" id="supOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>🏭 จัดการซัพพลายเออร์</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-body">
+      <div class="addbox"><input id="newSupName" placeholder="ชื่อซัพพลายเออร์ใหม่" style="flex:1 1 160px"><button class="addbtn" id="addSupBtn">เพิ่ม</button></div>
+      <div id="supList"></div>
+      <p class="hint">ใส่ “รอบสั่ง/รอบส่ง” อิสระ เช่น สั่งก่อน 21:00 ได้พรุ่งนี้ก่อนเที่ยง · ช่วงเทศกาลกรอกวันสั่งสุดท้าย/วันส่งสุดท้าย/เปิดรับอีกครั้ง ระบบจะเตือนให้</p>
+    </div>
+  </div>
+</div>
+
+<!-- Product config: supplier + storage location -->
+<div class="overlay" id="prodCfgOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>🏷️ ซัพพลายเออร์ + จุดจัดเก็บ (รายสินค้า)</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-body">
+      <div class="rfilters"><input id="pcSearch" placeholder="🔍 ค้นหาสินค้า..." style="grid-column:1/-1"></div>
+      <div id="prodCfgList"></div>
+      <p class="hint">ตั้งครั้งเดียว ใช้ทุกสาขา (สินค้าชื่อเดียวกันอัปเดตทุกสาขา) · เลื่อนลงเพื่อตั้งทีละรายการ</p>
     </div>
   </div>
 </div>
@@ -649,22 +697,24 @@ async function sbProfile(){const {data:{user}}=await sb.auth.getUser();if(!user)
   const {data,error}=await sb.from('app_users').select('*').eq('auth_uid',user.id).maybeSingle();if(error)return null;return data;}
 function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.username,role:p.role||'staff',branchIds:p.branch_ids||[],catKeys:p.cat_keys||[],status:p.status,perms:(p.perms&&typeof p.perms==='object')?p.perms:null};}
 async function sbLoadData(prof){
-  const [br,pr,un,rl,cf]=await Promise.all([
+  const [br,pr,un,rl,cf,sp]=await Promise.all([
     sb.from('branches').select('*').order('sort'),
     sb.from('products').select('*').order('sort'),
     sb.from('units').select('*').order('sort'),
     sb.from('roles').select('*'),
-    sb.from('config').select('*')]);
+    sb.from('config').select('*'),
+    sb.from('suppliers').select('*').order('name')]);
   if(br.error||pr.error)throw (br.error||pr.error);
   const conf={};(cf.data||[]).forEach(r=>conf[r.key]=r.value);
   const roles={};(rl.data||[]).forEach(r=>roles[r.role]={label:r.label,perms:r.perms||{}});
   if(roles.admin)PERMS.forEach(p=>roles.admin.perms[p.key]=true);   // admin = ทุกสิทธิ์เสมอ
   const units=(un.data||[]).map(u=>u.name);
+  SUPPLIERS=(sp&&sp.data)?sp.data:[];
   const branches=(br.data||[]).map(b=>({id:b.id,name:b.name,data:{categories:[]}}));
   const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
   (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
-    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:null});});
+    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
@@ -676,7 +726,8 @@ async function sbLoadData(prof){
   try{const {data}=await sb.from('stock_current').select('*');if(data)data.forEach(r=>{const x=ITEM_INDEX[r.product_id];if(x)x.item.qty=(r.qty==null?null:+r.qty);});}catch(e){}
   subscribeRealtime();
 }
-let ITEM_INDEX={}, RT_CHAN=null;
+let ITEM_INDEX={}, RT_CHAN=null, SUPPLIERS=[];
+function supInfo(name){return SUPPLIERS.find(s=>s.name===(name||''))||null;}
 function subscribeRealtime(){
   if(RT_CHAN)return;   // ครั้งเดียว
   RT_CHAN=sb.channel('rt-stock')
@@ -1156,7 +1207,16 @@ function buildOrder(){
   // group by supplier
   const sup={};list.forEach(i=>{const s=(i.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
   Object.keys(sup).forEach(s=>{
-    const sh=document.createElement('div');sh.className='osup';sh.textContent='🏷️ '+s;box.appendChild(sh);
+    const sh=document.createElement('div');sh.className='osup';sh.innerHTML='🏷️ '+escapeHtml(s);
+    const si=supInfo(s);
+    if(si){ const st=supStatus(si);
+      const note=document.createElement('div');note.style.cssText='font-family:Sarabun;font-weight:400;font-size:.74rem;margin:1px 0 5px';
+      let txt='';
+      if(st.cls!=='open')txt+='<span style="color:'+(st.cls==='closed'?'var(--out)':'#a9810a')+';font-weight:600">'+st.txt+'</span>';
+      if(si.order_info)txt+=(txt?' · ':'')+'<span style="color:var(--ink-soft)">⏰ '+escapeHtml(si.order_info)+'</span>';
+      if(txt){note.innerHTML=txt;sh.appendChild(note);}
+    }
+    box.appendChild(sh);
     const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>max</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
     sup[s].forEach(i=>{const rec=needQty(i);
       const row=document.createElement('div');row.className='orow';
@@ -1393,6 +1453,7 @@ function applySettingsPerms(){
   vis('#blkStaff',can('manageStaff'));
   vis('#blkRoles',currentUser&&currentUser.role==='admin');
   vis('#blkUnit',can('manageUnits'));
+  vis('#blkSup',can('manageProducts'));
   vis('#blkImg',can('manageProducts'));
   vis('#blkConn',false);   // เลิกใช้ Sheet — เก็บใน Supabase ล้วน
   vis('#blkSave',can('manageSettings'));
@@ -1400,7 +1461,7 @@ function applySettingsPerms(){
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
   $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';
-  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();show('#setOverlay')};
+  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();refreshSupCount();show('#setOverlay')};
 $('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
 $('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
 $('#setSave').onclick=()=>{cfg().shop=$('#setShop').value.trim()||'จริงใจหมูกระทะ';cfg().endpoint=$('#setEndpoint').value.trim();save();applyShop();hideAll();toast('บันทึกการตั้งค่าแล้ว ✓')};
@@ -1654,7 +1715,8 @@ function renderDispatch(){
     const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
     Object.keys(sup).forEach(s=>{
       html+='<div class="dgroup">🏷️ '+escapeHtml(s)+'</div>';
-      sup[s].forEach(r=>{html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small></span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span></div>';});
+      sup[s].forEach(r=>{const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?' <small style="color:var(--gold-bright)">📍'+escapeHtml(ix.item.location)+'</small>':'';
+        html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span></div>';});
     });
     html+='</div>';div.innerHTML=html;board.appendChild(div);
   });
@@ -1677,6 +1739,88 @@ $('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
 $('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
+
+/* ================= suppliers manager ================= */
+function supStatus(s){ // คืน {cls,txt} สถานะเทศกาล/รอบ
+  const today=new Date();today.setHours(0,0,0,0);
+  const d=v=>{if(!v)return null;const x=new Date(v+'T00:00:00');return isNaN(x)?null:x;};
+  const lo=d(s.last_order_date),re=d(s.reopen_date);
+  if(lo){ const diff=Math.round((lo-today)/86400000);
+    if(re&&today<re&&today>lo)return{cls:'closed',txt:'⛔ หยุดส่ง — เปิดอีกครั้ง '+fmtDate(s.reopen_date)};
+    if(diff<0&&!re)return{cls:'closed',txt:'⛔ เลยวันสั่งสุดท้ายแล้ว'};
+    if(diff>=0&&diff<=2)return{cls:'soon',txt:'⏰ ใกล้ปิดรับ! สั่งภายใน '+fmtDate(s.last_order_date)};
+  }
+  return{cls:'open',txt:'● เปิดรับสั่งปกติ'};
+}
+async function refreshSupCount(){$('#supCount').textContent=SUPPLIERS.length;}
+function renderSuppliers(){
+  const wrap=$('#supList');wrap.innerHTML='';
+  if(!SUPPLIERS.length){wrap.innerHTML='<div class="rempty">ยังไม่มีซัพพลายเออร์ — เพิ่มด้านบน</div>';return;}
+  SUPPLIERS.forEach(s=>{
+    const st=supStatus(s);
+    const card=document.createElement('div');card.className='supcard';
+    card.innerHTML=`<div class="sh"><b>🏷️ ${escapeHtml(s.name)}</b><span class="supbadge ${st.cls}">${st.txt}</span></div>
+      <div class="sfield"><label>รอบสั่ง / รอบส่ง (อธิบายอิสระ)</label><textarea class="f_info" placeholder="เช่น สั่งก่อน 21:00 ได้ของพรุ่งนี้ก่อนเที่ยง">${escapeHtml(s.order_info||'')}</textarea></div>
+      <div class="sfield"><label>เวลาตัดรอบสั่ง (ถ้ามี)</label><input class="f_cut" placeholder="เช่น 21:00" value="${escapeHtml(s.cutoff||'')}"></div>
+      <div class="sfield"><label>ช่วงหยุด/เทศกาล</label>
+        <div class="s3">
+          <div><label style="font-weight:400">วันสั่งสุดท้าย</label><input class="f_lo" type="date" value="${s.last_order_date||''}"></div>
+          <div><label style="font-weight:400">วันส่งสุดท้าย</label><input class="f_ld" type="date" value="${s.last_delivery_date||''}"></div>
+          <div><label style="font-weight:400">เปิดรับอีกครั้ง</label><input class="f_re" type="date" value="${s.reopen_date||''}"></div>
+        </div></div>
+      <div class="sfield"><label>หมายเหตุ</label><input class="f_note" value="${escapeHtml(s.note||'')}"></div>
+      <div class="actions"><button class="act ghost" data-act="del"><span class="danger">ลบซัพนี้</span></button></div>`;
+    const save=async(patch)=>{const {error}=await sb.from('suppliers').update(patch).eq('name',s.name);
+      if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return;}Object.assign(s,patch);toast('บันทึกแล้ว ✓');};
+    card.querySelector('.f_info').onchange=e=>save({order_info:e.target.value.trim()||null});
+    card.querySelector('.f_cut').onchange=e=>save({cutoff:e.target.value.trim()||null});
+    card.querySelector('.f_lo').onchange=e=>{save({last_order_date:e.target.value||null}).then(()=>renderSuppliers())};
+    card.querySelector('.f_ld').onchange=e=>save({last_delivery_date:e.target.value||null});
+    card.querySelector('.f_re').onchange=e=>{save({reopen_date:e.target.value||null}).then(()=>renderSuppliers())};
+    card.querySelector('.f_note').onchange=e=>save({note:e.target.value.trim()||null});
+    card.querySelector('[data-act="del"]').onclick=async()=>{if(!confirm('ลบซัพ "'+s.name+'"? (สินค้าที่ผูกไว้จะยังคงชื่อซัพเดิม)'))return;
+      const {error}=await sb.from('suppliers').delete().eq('name',s.name);if(error){toast('ลบไม่สำเร็จ: '+error.message);return;}
+      SUPPLIERS=SUPPLIERS.filter(x=>x.name!==s.name);renderSuppliers();refreshSupCount();toast('ลบแล้ว');};
+    wrap.appendChild(card);
+  });
+}
+$('#addSupBtn').onclick=async()=>{const n=$('#newSupName').value.trim();if(!n)return;
+  if(SUPPLIERS.some(s=>s.name===n)){toast('มีซัพนี้แล้ว');return;}
+  const {error}=await sb.from('suppliers').insert({name:n});if(error){toast('เพิ่มไม่สำเร็จ: '+error.message);return;}
+  SUPPLIERS.push({name:n});SUPPLIERS.sort((a,b)=>a.name.localeCompare(b.name,'th'));$('#newSupName').value='';renderSuppliers();refreshSupCount();toast('เพิ่มแล้ว ✓');};
+$('#openSuppliers').onclick=()=>{if(!can('manageProducts'))return;renderSuppliers();show('#supOverlay')};
+
+/* ================= product config: supplier + location ================= */
+function uniqueProducts(){ // รวมสินค้าตามชื่อ (ข้ามสาขา)
+  const map={};
+  ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{
+    if(!map[i.name])map[i.name]={name:i.name,cat:c.label,unit:i.unit,sup:i.sup||'',location:i.location||'',ids:[]};
+    map[i.name].ids.push(i.id);
+  })));
+  return Object.values(map).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'','th')||a.name.localeCompare(b.name,'th'));
+}
+function supOptionsHtml(sel){return '<option value="">— ไม่ระบุ —</option>'+SUPPLIERS.map(s=>`<option value="${escapeHtml(s.name)}" ${s.name===sel?'selected':''}>${escapeHtml(s.name)}</option>`).join('');}
+function renderProdCfg(){
+  const wrap=$('#prodCfgList');wrap.innerHTML='';
+  const kw=$('#pcSearch').value.trim().toLowerCase();
+  const list=uniqueProducts().filter(p=>!kw||p.name.toLowerCase().includes(kw));
+  if(!list.length){wrap.innerHTML='<div class="rempty">ไม่พบสินค้า</div>';return;}
+  list.forEach(p=>{
+    const card=document.createElement('div');card.className='pccard';
+    card.innerHTML=`<div class="pcn">${escapeHtml(p.name)} <small>· ${escapeHtml(p.cat)} · ${escapeHtml(p.unit||'')}</small></div>
+      <div class="pcrow"><select class="pc_sup">${supOptionsHtml(p.sup)}</select><input class="pc_loc" placeholder="จุดจัดเก็บ/โซน เช่น ตู้แช่ A2" value="${escapeHtml(p.location||'')}"></div>`;
+    const applyAll=async(patch)=>{ // อัปเดตทุกสาขาที่ชื่อตรงกัน
+      const {error}=await sb.from('products').update(patch).eq('name',p.name);
+      if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}
+      ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.name===p.name)Object.assign(i,patch);})));
+      return true;};
+    card.querySelector('.pc_sup').onchange=async e=>{const v=e.target.value;p.sup=v;if(await applyAll({sup:v}))toast('ตั้งซัพให้ "'+p.name+'" ทุกสาขาแล้ว ✓');};
+    card.querySelector('.pc_loc').onchange=async e=>{const v=e.target.value.trim();p.location=v;if(await applyAll({location:v||null}))toast('บันทึกจุดจัดเก็บแล้ว ✓');};
+    wrap.appendChild(card);
+  });
+}
+$('#pcSearch').oninput=renderProdCfg;
+$('#openProdCfg').onclick=()=>{if(!can('manageProducts'))return;renderProdCfg();show('#prodCfgOverlay')};
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
