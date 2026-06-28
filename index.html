@@ -134,7 +134,7 @@
   .overlay{position:fixed;inset:0;z-index:100;background:rgba(42,23,19,.55);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .overlay.show{display:flex}
   /* sub-managers opened from inside settings must stack ABOVE it */
-  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay{z-index:130}
+  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
   .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
@@ -157,6 +157,29 @@
   .orow .ord{width:100%;text-align:center;padding:7px 2px;border:1.5px solid var(--gold-line);border-radius:8px;font-family:'Kanit';font-weight:700;font-size:.92rem;background:#fffdf5;color:var(--red-deep)}
   .orow .ord:focus{outline:2px solid var(--gold);outline-offset:1px}
   .ordnote{font-size:.8rem;color:var(--ink-soft);text-align:center;padding:18px}
+  /* ===== report viewer ===== */
+  .rfilters{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+  .rfilters select,.rfilters input{padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-family:'Sarabun';font-size:.86rem;background:var(--paper);color:var(--ink);width:100%}
+  .rfilters input{grid-column:1/-1}
+  .rfilters select:focus,.rfilters input:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold-line)}
+  .rquick{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .rchip{padding:6px 14px;border-radius:999px;border:1.5px solid var(--gold-line);background:var(--paper);color:var(--ink-soft);font-family:'Kanit';font-weight:600;font-size:.82rem;cursor:pointer}
+  .rchip.active{background:var(--red);color:#fff;border-color:var(--red)}
+  .rsum{background:#fff4d6;border:1px solid var(--gold-line);border-radius:10px;padding:8px 11px;font-size:.84rem;color:var(--red-deep);font-weight:600;margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
+  .rsum b{color:var(--red)}
+  .rcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card)}
+  .rc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px}
+  .rc-name{font-family:'Kanit';font-weight:600;font-size:.92rem;color:var(--ink);min-width:0;word-break:break-word}
+  .rc-name small{color:var(--ink-soft);font-weight:400;font-size:.78rem}
+  .rc-badge{font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;font-family:'Kanit'}
+  .rc-badge.ok{background:#e7f6ea;color:#1f8b3a}
+  .rc-badge.out{background:#fbe9e7;color:var(--out)}
+  .rc-badge.ord{background:#fff4d6;color:#a9810a}
+  .rc-nums{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:.82rem;color:var(--ink-soft);margin-bottom:5px}
+  .rc-nums b{color:var(--ink);font-family:'Kanit'}
+  .rc-nums .ord b{color:var(--red)}
+  .rc-meta{font-size:.74rem;color:var(--ink-soft);border-top:1px dotted var(--line);padding-top:5px}
+  .rempty{text-align:center;color:var(--ink-soft);padding:32px 12px}
   .rolecard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
   .rolecard .rh{font-family:'Kanit';font-weight:600;color:var(--red-deep);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .permrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.9rem}
@@ -301,6 +324,7 @@
   </div>
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none">⚙️</button>
   <button class="gear" id="centralBtn" aria-label="ครัวกลาง" style="display:none;right:58px">📦</button>
+  <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none">📊</button>
   <div class="ctx">
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn">ออก</button></div>
@@ -525,6 +549,31 @@
         <button class="act ghost wide" id="cPrint">🖨️ พิมพ์ใบจัดส่ง</button>
       </div>
       <p class="hint">ต้องจัด = Safety stock − คงเหลือ (เฉพาะที่ขาด) · ตั้งค่า Safety ในช่องของแต่ละสินค้า<br><span id="cSrc"></span></p>
+    </div>
+  </div>
+</div>
+
+<!-- Report / data viewer -->
+<div class="overlay" id="reportOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>📊 ดูข้อมูลสต็อก / สั่งของ</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-body">
+      <div class="rfilters">
+        <select id="rBranch"></select>
+        <select id="rDate"></select>
+        <select id="rCat"></select>
+        <select id="rSup"></select>
+        <input id="rSearch" placeholder="🔍 ค้นหาชื่อสินค้า...">
+      </div>
+      <div class="rquick">
+        <button class="rchip active" data-q="all">ทั้งหมด</button>
+        <button class="rchip" data-q="order">🛒 ต้องสั่ง</button>
+        <button class="rchip" data-q="out">หมด</button>
+        <button class="rchip" data-q="low">ต่ำกว่า safety</button>
+      </div>
+      <div class="rsum" id="rSum"></div>
+      <div id="rTable"></div>
+      <div class="actions"><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -914,10 +963,19 @@ function enterApp(){
   const accb=accessibleBranches();
   let bid=(currentUser.branchIds&&currentUser.branchIds[0]&&accb.some(b=>b.id===currentUser.branchIds[0]))?currentUser.branchIds[0]:accb[0].id;
   currentBranchId=bid;active=0;
-  $('#gearBtn').style.display=canAnyManage()?'grid':'none';
-  const cb=$('#centralBtn');cb.style.display=can('manageCentral')?'grid':'none';cb.style.right=canAnyManage()?'58px':'14px';
   $('#userName').textContent=currentUser.name;
+  layoutHeaderBtns();
   applyShop();renderContext();renderTabs();renderMain();refreshCounters();
+}
+function layoutHeaderBtns(){
+  const gear=canAnyManage(), central=can('manageCentral'), report=true;
+  $('#gearBtn').style.display=gear?'grid':'none';
+  $('#centralBtn').style.display=central?'grid':'none';
+  $('#reportBtn').style.display=report?'grid':'none';
+  let r=14;
+  if(gear){$('#gearBtn').style.right=r+'px';r+=44;}
+  if(central){$('#centralBtn').style.right=r+'px';r+=44;}
+  if(report){$('#reportBtn').style.right=r+'px';r+=44;}
 }
 $('#logoutBtn').onclick=async()=>{try{await sb.auth.signOut()}catch(e){}currentUser=null;hideAll();showLogin()};
 
@@ -1380,6 +1438,88 @@ async function renderApprove(){
   });
 }
 $('#openApprove').onclick=()=>{if(!can('manageStaff'))return;renderApprove();show('#approveOverlay')};
+
+/* ================= report / data viewer ================= */
+let REPORT_ROWS=[];
+function opt(v,t){const o=document.createElement('option');o.value=v;o.textContent=t;return o;}
+async function openReport(){
+  show('#reportOverlay');
+  $('#rTable').innerHTML='<div class="rempty">กำลังโหลดข้อมูล...</div>';
+  // โหลดข้อมูลการนับล่าสุด (สูงสุด 3000 แถว)
+  let q=sb.from('stock_counts').select('*').order('created_at',{ascending:false}).limit(3000);
+  // staff เห็นเฉพาะสาขาที่ดูแล (ถ้ากำหนดไว้)
+  const accb=accessibleBranches().map(b=>b.id);
+  if(currentUser.role!=='admin'&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
+  const {data,error}=await q;
+  if(error){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
+  REPORT_ROWS=data||[];
+  buildReportFilters();applyReport();
+}
+function buildReportFilters(){
+  const bs=$('#rBranch'),ds=$('#rDate'),cs=$('#rCat'),ss=$('#rSup');
+  bs.innerHTML='';bs.appendChild(opt('','🏪 ทุกสาขา'));
+  accessibleBranches().forEach(b=>bs.appendChild(opt(b.id,b.name)));
+  const dates=[...new Set(REPORT_ROWS.map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  ds.innerHTML='';ds.appendChild(opt('','📅 ทุกวัน'));dates.forEach(d=>ds.appendChild(opt(d,fmtDate(d))));
+  if(dates.length)ds.value=dates[0];   // ค่าเริ่มต้น = วันล่าสุด
+  const cats=[...new Set(REPORT_ROWS.map(r=>r.cat_label).filter(Boolean))];
+  cs.innerHTML='';cs.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>cs.appendChild(opt(c,c)));
+  const sups=[...new Set(REPORT_ROWS.map(r=>r.sup).filter(Boolean))].sort();
+  ss.innerHTML='';ss.appendChild(opt('','🏷️ ทุกซัพพลายเออร์'));sups.forEach(s=>ss.appendChild(opt(s,s)));
+}
+function fmtDate(d){if(!d)return'';const p=String(d).split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
+let reportQuick='all';
+function filteredReport(){
+  const b=$('#rBranch').value,d=$('#rDate').value,c=$('#rCat').value,s=$('#rSup').value,
+    kw=$('#rSearch').value.trim().toLowerCase();
+  return REPORT_ROWS.filter(r=>{
+    if(b&&r.branch_id!==b)return false;
+    if(d&&r.count_date!==d)return false;
+    if(c&&r.cat_label!==c)return false;
+    if(s&&r.sup!==s)return false;
+    if(kw&&!(r.name||'').toLowerCase().includes(kw))return false;
+    if(reportQuick==='order'&&!(+r.ordered>0))return false;
+    if(reportQuick==='out'&&!r.out_of_stock)return false;
+    if(reportQuick==='low'&&!(r.safety!=null&&r.qty!=null&&+r.qty<+r.safety))return false;
+    return true;
+  });
+}
+function applyReport(){
+  const rows=filteredReport();
+  const totOrder=rows.reduce((a,r)=>a+(+r.ordered>0?+r.ordered:0),0);
+  const outN=rows.filter(r=>r.out_of_stock).length;
+  $('#rSum').innerHTML=`<span>📦 <b>${rows.length}</b> รายการ</span><span>🛒 ต้องสั่ง <b>${rows.filter(r=>+r.ordered>0).length}</b></span><span>❌ หมด <b>${outN}</b></span><span>Σ รวมสั่ง <b>${Math.round(totOrder*100)/100}</b></span>`;
+  const wrap=$('#rTable');
+  if(!rows.length){wrap.innerHTML='<div class="rempty">ไม่พบข้อมูลตามตัวกรอง<br><small>ลองเปลี่ยนวัน/สาขา หรือกด “ทั้งหมด”</small></div>';return;}
+  wrap.innerHTML='';
+  rows.forEach(r=>{
+    const badge=r.out_of_stock?'<span class="rc-badge out">หมด</span>':(+r.ordered>0?'<span class="rc-badge ord">สั่ง '+(+r.ordered)+'</span>':'<span class="rc-badge ok">มีของ</span>');
+    const card=document.createElement('div');card.className='rcard';
+    card.innerHTML=`<div class="rc-top"><span class="rc-name">${escapeHtml(r.name||'')} <small>${escapeHtml(r.cat_label||'')}</small></span>${badge}</div>
+      <div class="rc-nums"><span>คงเหลือ <b>${r.qty==null?'-':r.qty}</b> ${escapeHtml(r.unit||'')}</span>
+        ${r.safety!=null?'<span>safety <b>'+r.safety+'</b></span>':''}${r.max!=null?'<span>max <b>'+r.max+'</b></span>':''}
+        ${+r.recommended>0?'<span>แนะนำ <b>'+r.recommended+'</b></span>':''}${+r.ordered>0?'<span class="ord">สั่งจริง <b>'+r.ordered+'</b></span>':''}</div>
+      <div class="rc-meta">📅 ${fmtDate(r.count_date)} · 🏪 ${escapeHtml(r.branch_name||'')}${r.sup?' · 🏷️ '+escapeHtml(r.sup):''} · 👤 ${escapeHtml(r.counter||'')}</div>`;
+    wrap.appendChild(card);
+  });
+}
+function exportReportCSV(){
+  const rows=filteredReport();
+  if(!rows.length){toast('ไม่มีข้อมูลให้ส่งออก');return;}
+  const head=['วันที่นับ','สาขา','หมวด','สินค้า','คงเหลือ','หน่วย','สถานะ','ซัพพลายเออร์','safety','max','แนะนำสั่ง','สั่งจริง','ผู้ตรวจนับ'];
+  const esc=v=>{const s=(v==null?'':String(v));return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const lines=[head.join(',')];
+  rows.forEach(r=>lines.push([r.count_date,r.branch_name,r.cat_label,r.name,r.qty,r.unit,r.out_of_stock?'หมด':'มีของ',r.sup,r.safety,r.max,r.recommended,r.ordered,r.counter].map(esc).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='jjmk-stock-'+($('#rDate').value||'all')+'.csv';a.click();URL.revokeObjectURL(url);
+  toast('ส่งออก '+rows.length+' รายการแล้ว ✓');
+}
+$('#reportBtn').onclick=openReport;
+['rBranch','rDate','rCat','rSup'].forEach(id=>$('#'+id).onchange=applyReport);
+$('#rSearch').oninput=applyReport;
+$('#rExport').onclick=exportReportCSV;
+document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
