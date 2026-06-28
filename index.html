@@ -180,6 +180,24 @@
   .rc-nums .ord b{color:var(--red)}
   .rc-meta{font-size:.74rem;color:var(--ink-soft);border-top:1px dotted var(--line);padding-top:5px}
   .rempty{text-align:center;color:var(--ink-soft);padding:32px 12px}
+  /* ===== user manager (auth) ===== */
+  .urow{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+  .urow .nm{flex:2 1 140px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';font-size:.9rem;background:var(--paper);color:var(--ink);font-weight:600}
+  .urow .role{flex:1 1 110px;padding:9px 8px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';font-size:.86rem;background:var(--paper);color:var(--ink)}
+  .usub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .usub .uat{font-family:'Kanit';color:var(--ink-soft);font-size:.82rem}
+  .usub .ustatus{font-size:.74rem;font-weight:700;font-family:'Kanit'}
+  .usub .ustatus.on{color:#1f8b3a}.usub .ustatus.off{color:var(--ink-soft)}
+  .ubtn{padding:5px 11px;border-radius:8px;border:1px solid var(--gold-line);background:var(--paper);color:var(--ink-soft);font-family:'Kanit';font-weight:600;font-size:.76rem;cursor:pointer}
+  .ubtn.del{border-color:#e7b7b7;color:var(--out)}
+  .ubtn:disabled{opacity:.4}
+  .permedit{background:#fffaf0;border:1px solid var(--gold-line);border-radius:10px;padding:8px 10px;margin:6px 0}
+  .pe-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-soft);font-family:'Kanit';margin-bottom:6px}
+  .pe-reset{padding:4px 10px;border-radius:7px;border:1px solid var(--gold-line);background:var(--paper);color:var(--ink-soft);font-family:'Kanit';font-size:.72rem;font-weight:600;cursor:pointer}
+  .pe-reset:disabled{opacity:.4}
+  .pe-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+  .pe-item{display:flex;align-items:flex-start;gap:6px;font-size:.8rem;color:var(--ink);cursor:pointer}
+  .pe-item input{margin-top:2px;accent-color:var(--red)}
   /* ===== dispatch / warehouse ===== */
   .dbranch{margin-bottom:16px;border:1.5px solid var(--gold-line);border-radius:14px;overflow:hidden}
   .dbranch-h{background:var(--red);color:#fff;padding:10px 13px;font-family:'Kanit';font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -428,16 +446,9 @@
   <div class="sheet">
     <div class="sheet-head"><h3>จัดการพนักงาน</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
-      <div class="addbox">
-        <input id="newUserName" placeholder="ชื่อ-สกุล" style="flex:2 1 130px">
-        <input id="newUserUser" placeholder="username" autocapitalize="off" style="flex:1 1 100px">
-        <input id="newUserPass" placeholder="password" style="flex:1 1 100px">
-        <select id="newUserRole"></select>
-        <button class="addbtn" id="addUserBtn">เพิ่ม</button>
-      </div>
-      <div class="lhead">ชื่อ · username · password · ระดับ — แล้วเลือกสาขา/แผนกที่มอบหมายด้านล่าง</div>
+      <div class="lhead">กำหนด <b>ระดับ</b> · <b>สาขาที่ดูแล</b> · <b>แผนกที่นับ</b> แยกรายคน — บันทึกอัตโนมัติ</div>
       <div id="userList"></div>
-      <p class="hint">เลือก “สาขาที่ดูแล” และ “แผนกที่นับ” ให้พนักงาน — เขาจะเห็นเฉพาะที่มอบหมาย (เลือกได้หลายอัน) · กำหนดสิทธิ์แต่ละระดับได้ในเมนู “บทบาท &amp; สิทธิ์”</p>
+      <p class="hint">พนักงานใหม่ให้ “สมัครพนักงานใหม่” ที่หน้าล็อกอิน แล้วอนุมัติที่ 👤 อนุมัติพนักงานใหม่ · ระดับ “คลัง” จะเห็นเฉพาะกระดานจัดของ</p>
     </div>
   </div>
 </div>
@@ -500,9 +511,7 @@
       <div id="blkImg" class="setblk">
         <div class="divider"></div>
         <div class="sub-title">🖼️ รูปภาพสินค้า</div>
-        <div class="toggle-row"><span class="tl">แสดงรูปบนการ์ดสินค้า</span><label class="switch"><input type="checkbox" id="showImgSwitch"><span class="sl"></span></label></div>
-        <div class="field"><label>คุณภาพ/ขนาดรูปที่จัดเก็บ</label>
-          <select id="imgQuality"><option value="sm">เล็ก — ประหยัดพื้นที่สุด (240px)</option><option value="md">กลาง — แนะนำ (400px)</option><option value="lg">ใหญ่ — คมชัด (640px)</option></select></div>
+        <p class="hint" style="margin:0 0 8px">รูปจะแสดงบนการ์ดสินค้าตลอด (ไม่มีปุ่มเปิด/ปิด) · รูปยังต้องย้ายขึ้นฐานข้อมูลก่อนถึงจะโชว์</p>
         <div class="store-line"><span>มีรูปรวม <b id="imgN">0</b> รายการ</span><span>ใช้พื้นที่ <b id="storeUse">0</b></span></div>
         <button class="act ghost wide" id="openImgMgr">จัดการรูป (สาขาปัจจุบัน)</button>
       </div>
@@ -638,7 +647,7 @@ async function sbSignup(u,p,name){const {data,error}=await sb.auth.signUp({email
 async function sbLogin(u,p){const {error}=await sb.auth.signInWithPassword({email:uname2email(u),password:p});if(error)throw error;}
 async function sbProfile(){const {data:{user}}=await sb.auth.getUser();if(!user)return null;
   const {data,error}=await sb.from('app_users').select('*').eq('auth_uid',user.id).maybeSingle();if(error)return null;return data;}
-function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.username,role:p.role||'staff',branchIds:p.branch_ids||[],catKeys:p.cat_keys||[],status:p.status};}
+function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.username,role:p.role||'staff',branchIds:p.branch_ids||[],catKeys:p.cat_keys||[],status:p.status,perms:(p.perms&&typeof p.perms==='object')?p.perms:null};}
 async function sbLoadData(prof){
   const [br,pr,un,rl,cf]=await Promise.all([
     sb.from('branches').select('*').order('sort'),
@@ -658,7 +667,7 @@ async function sbLoadData(prof){
     cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
-  ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:false,imgQuality:'md',
+  ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
     resetTime:conf.resetTime||'06:00',autoReset:String(conf.autoReset)!=='false',units:units,roles:roles},users:users,branches:branches};
   currentUser=ROOT.users.find(u=>u.id===prof.auth_uid)||profToUser(prof);
   // index: product_id -> {item, branchId}
@@ -917,7 +926,12 @@ function storeInfo(){let bytes=0;try{bytes=new Blob([JSON.stringify(ROOT)]).size
   let n=0;ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.img)n++})));return{bytes,n}}
 const isAdmin=()=>currentUser&&currentUser.role==='admin';
 function rolePerms(rk){const r=cfg().roles&&cfg().roles[rk];return r?r.perms:{}}
-function can(perm){ if(!currentUser)return false; if(currentUser.role==='admin')return true; return !!rolePerms(currentUser.role)[perm]; }
+function effPerms(u){ // สิทธิ์ที่มีผลจริง: รายคน (ถ้ามี) ทับสิทธิ์ของระดับ
+  if(u&&u.role==='admin'){const all={};PERMS.forEach(p=>all[p.key]=true);return all;}
+  if(u&&u.perms&&typeof u.perms==='object')return u.perms;
+  return rolePerms(u?u.role:'')||{};
+}
+function can(perm){ if(!currentUser)return false; if(currentUser.role==='admin')return true; return !!effPerms(currentUser)[perm]; }
 function canAnyManage(){ return ['manageProducts','manageUnits','manageBranches','manageStaff','manageSettings'].some(can); }
 function roleLabel(rk){return (cfg().roles&&cfg().roles[rk]&&cfg().roles[rk].label)||ROLE_LABEL[rk]||rk}
 // ===== access control: assigned branches & departments =====
@@ -1234,13 +1248,17 @@ $('#openBranchMgr').onclick=()=>{renderBranchMgr();show('#branchMgrOverlay')};
 function adminCount(){return ROOT.users.filter(u=>u.role==='admin').length}
 function chipLabel(t){const d=document.createElement('div');d.className='alabel';d.textContent=t;return d}
 function assignChips(u,key,opts,getId,getText){
+  const col=(key==='branchIds')?'branch_ids':'cat_keys';
+  const persist=async()=>{const {error}=await sb.from('app_users').update({[col]:u[key]}).eq('auth_uid',u.id);
+    if(error)toast('บันทึกไม่สำเร็จ: '+error.message);
+    else if(currentUser&&currentUser.id===u.id){currentUser[key]=u[key].slice();}};
   const box=document.createElement('div');box.className='chips';
   const allOn=!(u[key]&&u[key].length);
   const all=document.createElement('button');all.className='chipx all'+(allOn?' on':'');all.textContent=(key==='branchIds'?'ทุกสาขา':'ทุกแผนก');
-  all.onclick=()=>{u[key]=[];save();renderUsers()};box.appendChild(all);
+  all.onclick=()=>{u[key]=[];persist();renderUsers()};box.appendChild(all);
   opts.forEach(o=>{const id=getId(o);const on=(u[key]||[]).indexOf(id)>-1;
     const c=document.createElement('button');c.className='chipx'+(on?' on':'');c.textContent=getText(o);
-    c.onclick=()=>{u[key]=u[key]||[];const i=u[key].indexOf(id);if(i>-1)u[key].splice(i,1);else u[key].push(id);save();renderUsers()};
+    c.onclick=()=>{u[key]=u[key]||[];const i=u[key].indexOf(id);if(i>-1)u[key].splice(i,1);else u[key].push(id);persist();renderUsers()};
     box.appendChild(c)});
   return box;
 }
@@ -1251,38 +1269,47 @@ function roleOptionsHtml(sel){ // only admin can assign/keep admin role
 function renderUsers(){
   const wrap=$('#userList');wrap.innerHTML='';
   const depts=deptList();const meAdmin=currentUser&&currentUser.role==='admin';
-  ROOT.users.forEach((u,idx)=>{
-    const lockAdmin=(u.role==='admin'&&!meAdmin); // non-admin can't edit admin accounts
+  ROOT.users.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','th')).forEach(u=>{
+    const isSelf=currentUser&&currentUser.id===u.id;
+    const lockAdmin=(u.role==='admin'&&!meAdmin);
     const card=document.createElement('div');card.className='ucard';
-    const row=document.createElement('div');row.className='lrow';
-    row.innerHTML=`<input class="nm" value="${escapeHtml(u.name)}" ${lockAdmin?'disabled':''}>
-      <input class="uname" placeholder="username" value="${escapeHtml(u.username||'')}" autocapitalize="off" ${lockAdmin?'disabled':''}>
-      <input class="pass" placeholder="password" value="${escapeHtml(u.password||'')}" ${lockAdmin?'disabled':''}>
-      <select class="role" ${lockAdmin?'disabled':''}>${roleOptionsHtml(u.role)}</select>
-      <button class="del" title="ลบ" ${lockAdmin?'disabled':''}>🗑</button>`;
-    const nm=row.querySelector('.nm'),un=row.querySelector('.uname'),pw=row.querySelector('.pass'),rl=row.querySelector('.role');
-    nm.onchange=()=>{const v=nm.value.trim();if(!v){nm.value=u.name;return}u.name=v;save();if(currentUser&&currentUser.id===u.id)renderContext();toast('บันทึกแล้ว')};
-    un.onchange=()=>{const v=un.value.trim();
-      if(!v){un.value=u.username;return}
-      if(ROOT.users.some(x=>x!==u&&(x.username||'').toLowerCase()===v.toLowerCase())){toast('username นี้ซ้ำ');un.value=u.username;return}
-      u.username=v;save();toast('เปลี่ยน username แล้ว ✓')};
-    pw.onchange=()=>{const v=pw.value;if(!v){pw.value=u.password;return}u.password=v;save();toast('เปลี่ยนรหัสผ่านแล้ว ✓')};
-    rl.onchange=()=>{
+    const row=document.createElement('div');row.className='urow';
+    row.innerHTML=`<input class="nm" value="${escapeHtml(u.name||'')}" ${lockAdmin?'disabled':''}>
+      <select class="role" ${lockAdmin?'disabled':''}>${roleOptionsHtml(u.role)}</select>`;
+    const sub=document.createElement('div');sub.className='usub';
+    sub.innerHTML=`<span class="uat">@${escapeHtml(u.username||'')}</span>
+      <span class="ustatus ${u.status==='active'?'on':'off'}">${u.status==='active'?'● ใช้งาน':(u.status==='pending'?'○ รออนุมัติ':'○ ปิดใช้งาน')}</span>
+      <span style="flex:1"></span>
+      ${isSelf?'<span style="font-size:.74rem;color:var(--gold-bright)">บัญชีคุณ</span>':`<button class="ubtn toggle" ${lockAdmin?'disabled':''}>${u.status==='active'?'ปิดใช้งาน':'เปิดใช้งาน'}</button><button class="ubtn del" ${lockAdmin?'disabled':''}>🗑 ลบ</button>`}`;
+    const nm=row.querySelector('.nm'),rl=row.querySelector('.role');
+    nm.onchange=async()=>{const v=nm.value.trim();if(!v){nm.value=u.name;return}u.name=v;
+      if(await dbUser(u.id,{name:v})){if(isSelf){currentUser.name=v;$('#userName').textContent=v;}toast('บันทึกชื่อแล้ว ✓')}};
+    rl.onchange=async()=>{
       if(u.role==='admin'&&rl.value!=='admin'&&adminCount()<=1){toast('ต้องมีผู้ดูแลอย่างน้อย 1 คน');rl.value='admin';return}
-      u.role=rl.value;save();renderUsers();
-      if(currentUser&&currentUser.id===u.id)$('#gearBtn').style.display=canAnyManage()?'grid':'none';toast('เปลี่ยนระดับแล้ว')};
-    row.querySelector('.del').onclick=()=>{
-      if(currentUser&&currentUser.id===u.id){toast('ลบบัญชีที่กำลังใช้งานไม่ได้');return}
-      if(u.role==='admin'&&adminCount()<=1){toast('ต้องมีผู้ดูแลอย่างน้อย 1 คน');return}
-      if(ROOT.users.length<=1){toast('ต้องมีผู้ใช้อย่างน้อย 1 คน');return}
-      if(!confirm(`ลบ "${u.name}"?`))return;
-      ROOT.users.splice(idx,1);save();renderUsers();updateCounts();toast('ลบแล้ว')};
-    card.appendChild(row);
-    const note=document.createElement('div');note.className='adminnote';
-    note.textContent='ระดับ “'+roleLabel(u.role)+'” — '+PERMS.filter(p=>rolePerms(u.role)[p.key]).map(p=>p.label).join(' · ');
-    card.appendChild(note);
+      const old=u.role;u.role=rl.value;
+      if(await dbUser(u.id,{role:rl.value})){if(isSelf){currentUser.role=rl.value;layoutHeaderBtns();}renderUsers();toast('เปลี่ยนระดับแล้ว ✓')}
+      else{u.role=old;rl.value=old;}};
+    if(!isSelf){
+      sub.querySelector('.toggle').onclick=async()=>{
+        if(u.role==='admin'&&u.status==='active'&&adminCount()<=1){toast('ต้องมีผู้ดูแลที่ใช้งานอย่างน้อย 1 คน');return}
+        const ns=u.status==='active'?'disabled':'active';
+        if(await dbUser(u.id,{status:ns})){u.status=ns;renderUsers();toast(ns==='active'?'เปิดใช้งานแล้ว':'ปิดใช้งานแล้ว')}};
+      sub.querySelector('.del').onclick=async()=>{
+        if(u.role==='admin'&&adminCount()<=1){toast('ต้องมีผู้ดูแลอย่างน้อย 1 คน');return}
+        if(!confirm('ลบ "'+(u.name||u.username)+'" ออกจากระบบ? (ลบบัญชีถาวร)'))return;
+        const {error}=await sb.from('app_users').delete().eq('auth_uid',u.id);
+        if(error){toast('ลบไม่สำเร็จ: '+error.message);return}
+        const i=ROOT.users.findIndex(x=>x.id===u.id);if(i>-1)ROOT.users.splice(i,1);
+        renderUsers();updateCounts();toast('ลบแล้ว ✓')};
+    }
+    card.appendChild(row);card.appendChild(sub);
+    if(u.role==='admin'){
+      const note=document.createElement('div');note.className='adminnote';note.textContent='ผู้ดูแล — ทุกสิทธิ์ (แก้ไม่ได้)';card.appendChild(note);
+    }else if(!lockAdmin){
+      card.appendChild(permEditor(u));
+    }
     const asg=document.createElement('div');asg.className='assign';
-    asg.appendChild(chipLabel('สาขาที่ดูแล (นับ)'));
+    asg.appendChild(chipLabel('สาขาที่ดูแล'));
     asg.appendChild(assignChips(u,'branchIds',ROOT.branches,b=>b.id,b=>b.name));
     asg.appendChild(chipLabel('แผนกที่นับ'));
     asg.appendChild(assignChips(u,'catKeys',depts,d=>d.key,d=>(d.ic?d.ic+' ':'')+d.label));
@@ -1290,14 +1317,33 @@ function renderUsers(){
     wrap.appendChild(card);
   });
 }
-$('#addUserBtn').onclick=()=>{const name=$('#newUserName').value.trim(),un=$('#newUserUser').value.trim(),pw=$('#newUserPass').value,role=$('#newUserRole').value;
-  if(!name){toast('ใส่ชื่อ');return}
-  if(!un){toast('ใส่ username');return}
-  if(!pw){toast('ใส่ password');return}
-  if(ROOT.users.some(x=>(x.username||'').toLowerCase()===un.toLowerCase())){toast('username นี้ซ้ำ');return}
-  ROOT.users.push({id:uid('u'),name,username:un,password:pw,code:'',role,branchId:null,branchIds:[],catKeys:[]});
-  $('#newUserName').value='';$('#newUserUser').value='';$('#newUserPass').value='';save();renderUsers();updateCounts();toast('เพิ่มพนักงานแล้ว ✓ (ตั้งแผนก/สาขาด้านล่าง)')};
-$('#openUsers').onclick=()=>{$('#newUserRole').innerHTML=roleOptionsHtml('staff');renderUsers();show('#userOverlay')};
+async function dbUser(uid,patch){const {error}=await sb.from('app_users').update(patch).eq('auth_uid',uid);
+  if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}return true;}
+function permEditor(u){
+  const box=document.createElement('div');box.className='permedit';
+  const custom=!!(u.perms&&typeof u.perms==='object');
+  const head=document.createElement('div');head.className='pe-head';
+  const lbl=document.createElement('span');lbl.innerHTML='🔐 สิทธิ์ '+(custom?'<b style="color:var(--red)">(กำหนดเอง)</b>':'(ตามระดับ “'+escapeHtml(roleLabel(u.role))+'”)');
+  const reset=document.createElement('button');reset.className='pe-reset';reset.textContent='ใช้ตามระดับ';reset.disabled=!custom;
+  reset.onclick=async()=>{if(await dbUser(u.id,{perms:null})){u.perms=null;if(currentUser&&currentUser.id===u.id){currentUser.perms=null;layoutHeaderBtns();}renderUsers();toast('ใช้สิทธิ์ตามระดับแล้ว')}};
+  head.appendChild(lbl);head.appendChild(reset);box.appendChild(head);
+  const grid=document.createElement('div');grid.className='pe-grid';
+  const eff=effPerms(u);
+  PERMS.forEach(p=>{
+    const lab=document.createElement('label');lab.className='pe-item';
+    const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!eff[p.key];
+    cb.onchange=async()=>{
+      const base=(u.perms&&typeof u.perms==='object')?Object.assign({},u.perms):Object.assign({},rolePerms(u.role));
+      base[p.key]=cb.checked;
+      if(await dbUser(u.id,{perms:base})){u.perms=base;if(currentUser&&currentUser.id===u.id){currentUser.perms=base;layoutHeaderBtns();}renderUsers();toast('อัปเดตสิทธิ์แล้ว ✓')}
+      else cb.checked=!cb.checked;
+    };
+    lab.appendChild(cb);lab.appendChild(document.createTextNode(' '+p.label));
+    grid.appendChild(lab);
+  });
+  box.appendChild(grid);return box;
+}
+$('#openUsers').onclick=()=>{if(!can('manageStaff'))return;renderUsers();show('#userOverlay')};
 
 /* ================= units manager (cascade all branches) ================= */
 function unitUsage(u){let n=0;ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.unit===u)n++})));return n}
@@ -1354,12 +1400,9 @@ function applySettingsPerms(){
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
   $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';
-  $('#showImgSwitch').checked=cfg().showImages!==false;$('#imgQuality').value=cfg().imgQuality||'md';
   updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();show('#setOverlay')};
 $('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
 $('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
-$('#showImgSwitch').onchange=e=>{cfg().showImages=e.target.checked;save();renderMain();toast(e.target.checked?'แสดงรูปบนการ์ดแล้ว':'ซ่อนรูปบนการ์ดแล้ว')};
-$('#imgQuality').onchange=e=>{cfg().imgQuality=e.target.value;save();toast('ตั้งคุณภาพรูปแล้ว (มีผลกับรูปใหม่)')};
 $('#setSave').onclick=()=>{cfg().shop=$('#setShop').value.trim()||'จริงใจหมูกระทะ';cfg().endpoint=$('#setEndpoint').value.trim();save();applyShop();hideAll();toast('บันทึกการตั้งค่าแล้ว ✓')};
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(ROOT,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='jjmk-stock-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('ส่งออกไฟล์แล้ว ✓')};
