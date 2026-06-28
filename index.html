@@ -227,7 +227,10 @@
   .ditem .dn small{color:var(--ink-soft);font-size:.82em}
   .ditem .dq{font-family:'Kanit';font-weight:700;color:var(--red);white-space:nowrap;font-size:.95rem}
   body.dispatch-only .tabs,body.dispatch-only main,body.dispatch-only .bar,body.dispatch-only #centralBtn,body.dispatch-only #branchChip{display:none!important}
-  body.dispatch-only #dispClose{display:none}
+  body.dispatch-only #dispClose{display:none!important}
+  body.dispatch-only #dispLogout{display:inline-block!important;width:auto;padding:0 14px;font-size:.82rem;font-weight:600;background:rgba(164,27,34,.12);border-radius:9px}
+  body.dispatch-only #dispatchOverlay{align-items:flex-start}
+  body.dispatch-only #dispatchOverlay .sheet{max-height:100vh;min-height:100vh;border-radius:0;max-width:680px}
   .rolecard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
   .rolecard .rh{font-family:'Kanit';font-weight:600;color:var(--red-deep);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .permrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.9rem}
@@ -626,7 +629,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 คลัง — ออเดอร์ที่ต้องจัด (แยกตามสาขา)</h3><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 คลัง — ออเดอร์ที่ต้องจัด (แยกตามสาขา)</h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <select id="dDate"></select>
@@ -1081,7 +1084,9 @@ function layoutHeaderBtns(){
 }
 // บัญชี "คลัง": ดูออเดอร์อย่างเดียว ไม่ต้องเห็นหน้านับสต๊อก
 function isDispatchOnly(){return !can('count')&&can('viewDispatch');}
-$('#logoutBtn').onclick=async()=>{try{await sb.auth.signOut()}catch(e){}currentUser=null;hideAll();showLogin()};
+async function doLogout(){try{await sb.auth.signOut()}catch(e){}currentUser=null;document.body.classList.remove('dispatch-only');hideAll();showLogin();}
+$('#logoutBtn').onclick=doLogout;
+$('#dispLogout').onclick=doLogout;
 
 /* ================= context (branch/user) ================= */
 function renderContext(){const multi=accessibleBranches().length>1;
