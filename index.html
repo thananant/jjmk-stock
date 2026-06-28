@@ -1554,17 +1554,21 @@ let reportQuick='all';
 function filteredReport(){
   const b=$('#rBranch').value,d=$('#rDate').value,c=$('#rCat').value,s=$('#rSup').value,
     kw=$('#rSearch').value.trim().toLowerCase();
-  return REPORT_ROWS.filter(r=>{
-    if(b&&r.branch_id!==b)return false;
-    if(d&&r.count_date!==d)return false;
-    if(c&&r.cat_label!==c)return false;
-    if(s&&r.sup!==s)return false;
-    if(kw&&!(r.name||'').toLowerCase().includes(kw))return false;
-    if(reportQuick==='order'&&!(+r.ordered>0))return false;
-    if(reportQuick==='out'&&!r.out_of_stock)return false;
-    if(reportQuick==='low'&&!(r.safety!=null&&r.qty!=null&&+r.qty<+r.safety))return false;
-    return true;
-  });
+  const seen={},out=[];
+  for(const r of REPORT_ROWS){            // REPORT_ROWS เรียงใหม่→เก่า
+    if(b&&r.branch_id!==b)continue;
+    if(d&&r.count_date!==d)continue;
+    if(c&&r.cat_label!==c)continue;
+    if(s&&r.sup!==s)continue;
+    if(kw&&!(r.name||'').toLowerCase().includes(kw))continue;
+    const k=r.branch_id+'|'+r.product_id;
+    if(seen[k])continue;seen[k]=1;        // เก็บเฉพาะตัวล่าสุดต่อสินค้า
+    if(reportQuick==='order'&&!(+r.ordered>0))continue;
+    if(reportQuick==='out'&&!r.out_of_stock)continue;
+    if(reportQuick==='low'&&!(r.safety!=null&&r.qty!=null&&+r.qty<+r.safety))continue;
+    out.push(r);
+  }
+  return out;
 }
 function applyReport(){
   const rows=filteredReport();
