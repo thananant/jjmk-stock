@@ -718,7 +718,7 @@ async function sbLoadData(prof){
   const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
   (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
-    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:null});});
+    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:p.image_url||null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
@@ -1009,6 +1009,26 @@ function processImage(file,cb){const reader=new FileReader();
     im.onerror=()=>cb(null);im.src=reader.result};
   reader.onerror=()=>cb(null);reader.readAsDataURL(file)}
 
+/* ===== product images (Supabase Storage, ใช้รูปเดียวกันทุกสาขา) ===== */
+function applyImgByName(name,url){ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.name===name)i.img=url;})));}
+async function uploadProductImage(name,file){
+  const dataUrl=await new Promise((res)=>processImage(file,res));
+  if(!dataUrl)throw new Error('อ่านรูปไม่สำเร็จ');
+  const blob=await (await fetch(dataUrl)).blob();
+  const path='p/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+  const up=await sb.storage.from('product-images').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+  if(up.error)throw up.error;
+  const {data}=sb.storage.from('product-images').getPublicUrl(path);
+  const url=data.publicUrl;
+  const db=await sb.from('products').update({image_url:url}).eq('name',name);
+  if(db.error)throw db.error;
+  applyImgByName(name,url);return url;
+}
+async function clearProductImage(name){
+  const db=await sb.from('products').update({image_url:null}).eq('name',name);
+  if(db.error)throw db.error;applyImgByName(name,null);
+}
+
 /* ================= login (Supabase Auth) ================= */
 function loginErr(m){$('#loginMsg').style.color='';$('#loginMsg').textContent=m;const f=$('#login');f.classList.add('err');setTimeout(()=>f.classList.remove('err'),420)}
 function loginOk(m){$('#loginMsg').style.color='#9ee7a0';$('#loginMsg').textContent=m}
@@ -1277,9 +1297,15 @@ function openEdit(cat,item){if(!can('manageProducts'))return;editCtx={cat,item};
   $('#editName').value=item?item.name:'';$('#editUnit').innerHTML=unitOptions(item?item.unit:units()[0]);
   $('#editDelete').style.display=item?'flex':'none';setEditPreview();show('#editOverlay');setTimeout(()=>$('#editName').focus(),250)}
 $('#pickImg').onclick=()=>$('#imgFile').click();
-$('#imgFile').onchange=e=>{const f=e.target.files[0];if(!f)return;toast('กำลังย่อรูป...');
-  processImage(f,d=>{if(d){editImg=d;setEditPreview();toast('ใส่รูปแล้ว ✓')}else toast('อ่านรูปไม่สำเร็จ')});e.target.value=''};
-$('#removeImg').onclick=()=>{editImg=null;setEditPreview()};
+$('#imgFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
+  if(!editCtx.item){toast('สร้าง/บันทึกสินค้าก่อนค่อยใส่รูปได้');return}
+  const btn=$('#pickImg');btn.disabled=true;toast('กำลังอัปโหลดรูป...');
+  try{const url=await uploadProductImage(editCtx.item.name,f);editImg=url;setEditPreview();renderTabs();renderMain();toast('อัปโหลดรูปแล้ว ✓ (ใช้ทุกสาขา)');}
+  catch(err){toast('อัปโหลดไม่สำเร็จ: '+((err&&err.message)||err))}
+  finally{btn.disabled=false}};
+$('#removeImg').onclick=async()=>{
+  if(editCtx.item&&editCtx.item.img){try{await clearProductImage(editCtx.item.name);renderTabs();renderMain();}catch(err){toast('ลบรูปไม่สำเร็จ: '+((err&&err.message)||err));return}}
+  editImg=null;setEditPreview();toast('ลบรูปแล้ว')};
 $('#editSave').onclick=()=>{const name=$('#editName').value.trim(),unit=$('#editUnit').value;
   if(!name){toast('ใส่ชื่อสินค้าก่อน');return}
   if(editCtx.item){editCtx.item.name=name;editCtx.item.unit=unit;editCtx.item.img=editImg}
@@ -1441,7 +1467,7 @@ function renderImgMgr(){
   cats().forEach(c=>c.items.forEach(it=>{if(!it.img)return;any=true;
     const row=document.createElement('div');row.className='mrow';
     row.innerHTML=`<div class="mthumb"><img src="${it.img}"></div><div class="minfo"><b>${escapeHtml(it.name)}</b><span>${c.ic} ${escapeHtml(c.label)}</span></div><button class="del" title="ลบรูป">🗑</button>`;
-    row.querySelector('.del').onclick=()=>{it.img=null;save();renderImgMgr();renderMain();updateStoreLine();toast('ลบรูปแล้ว')};
+    row.querySelector('.del').onclick=async()=>{try{await clearProductImage(it.name);renderImgMgr();renderMain();updateStoreLine();toast('ลบรูปแล้ว (ทุกสาขา)')}catch(err){toast('ลบไม่สำเร็จ: '+((err&&err.message)||err))}};
     wrap.appendChild(row)}));
   if(!any)wrap.innerHTML='<p class="hint">สาขานี้ยังไม่มีสินค้าที่ใส่รูป</p>';
 }
