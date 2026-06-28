@@ -584,10 +584,11 @@
 <!-- Central kitchen dispatch -->
 <div class="overlay" id="centralOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📦 ครัวกลาง — รายการจัดส่ง</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-head"><h3>📦 ครัวกลาง — Safety/Max &amp; จัดส่ง</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
+      <div class="ordhead" style="margin-bottom:10px">⚠️ Safety &amp; Max <b>แยกตามสาขา</b> — เลือกสาขาด้านล่างก่อนตั้งค่า (รัชดา/ลาดพร้าว ตั้งคนละค่าได้)</div>
       <div class="two">
-        <div class="field"><label>จัดส่งไปสาขา</label><select id="cBranch"></select></div>
+        <div class="field"><label>สาขา (ตั้ง Safety/Max แยกแต่ละสาขา)</label><select id="cBranch"></select></div>
         <div class="field"><label>กรอง</label><select id="cFilter"><option value="all">ทั้งหมด (ตั้ง Safety/Max)</option><option value="need">เฉพาะที่ต้องจัด</option></select></div>
       </div>
       <div id="cList"></div>
@@ -1903,7 +1904,7 @@ $('#cFilter').onchange=renderCentral;
 $('#cCopy').onclick=async()=>{const t=centralText();try{await navigator.clipboard.writeText(t);toast('คัดลอกแล้ว ✓')}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('คัดลอกแล้ว ✓')}};
 $('#cLine').onclick=()=>window.open('https://line.me/R/msg/text/?'+encodeURIComponent(centralText()),'_blank');
 $('#cPrint').onclick=()=>window.print();
-$('#centralBtn').onclick=()=>{if(!can('manageCentral'))return;cBranchId=ROOT.branches[0].id;$('#cFilter').value='need';renderCentral();show('#centralOverlay')};
+$('#centralBtn').onclick=()=>{if(!can('manageCentral'))return;cBranchId=currentBranchId||ROOT.branches[0].id;$('#cFilter').value='all';renderCentral();show('#centralOverlay')};
 function setLogos(){const s=$('#sealImg'),l=$('#lsealImg');if(s)s.src=LOGO;if(l)l.src=LOGO;
   try{let lk=document.querySelector('link[rel="icon"]');if(!lk){lk=document.createElement('link');lk.rel='icon';document.head.appendChild(lk)}lk.href=LOGO}catch(e){}}
 
