@@ -329,13 +329,13 @@
       </div>
       <div class="slip" id="slip"></div>
       <div id="orderBox"></div>
-      <div class="actions"><button class="act send wide" id="sendBtn">💾 บันทึกลง Google Sheet</button></div>
+      <div class="actions"><button class="act send wide" id="sendBtn">💾 บันทึกลง Supabase</button></div>
       <div class="actions">
         <button class="act copy" id="copyBtn">📑 คัดลอก</button>
         <button class="act ghost" id="printBtn">🖨️ พิมพ์</button>
         <button class="act ghost" id="clearBtn"><span class="danger">↺ ล้างการนับ</span></button>
       </div>
-      <p class="hint">บันทึกลง Google Sheet พร้อมระบุ <b>สาขา</b> และ <b>ผู้ตรวจนับ</b> อัตโนมัติ · ตั้ง URL ได้ที่ ⚙️ → ☁️ ข้อมูลกลาง</p>
+      <p class="hint">บันทึกเข้าฐานข้อมูล Supabase พร้อมระบุ <b>สาขา</b> และ <b>ผู้ตรวจนับ</b> อัตโนมัติ · ทุกเครื่องเห็นเรียลไทม์</p>
     </div>
   </div>
 </div>
@@ -580,6 +580,28 @@ async function sbLoadData(prof){
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:false,imgQuality:'md',
     resetTime:conf.resetTime||'06:00',autoReset:String(conf.autoReset)!=='false',units:units,roles:roles},users:users,branches:branches};
   currentUser=ROOT.users.find(u=>u.id===prof.auth_uid)||profToUser(prof);
+  // index: product_id -> {item, branchId}
+  ITEM_INDEX={};ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{ITEM_INDEX[i.id]={item:i,branchId:b.id};})));
+  // โหลดยอดนับล่าสุดจาก DB
+  try{const {data}=await sb.from('stock_current').select('*');if(data)data.forEach(r=>{const x=ITEM_INDEX[r.product_id];if(x)x.item.qty=(r.qty==null?null:+r.qty);});}catch(e){}
+  subscribeRealtime();
+}
+let ITEM_INDEX={}, RT_CHAN=null;
+function subscribeRealtime(){
+  if(RT_CHAN)return;   // ครั้งเดียว
+  RT_CHAN=sb.channel('rt-stock')
+    .on('postgres_changes',{event:'*',schema:'public',table:'stock_current'},payload=>{
+      const r=payload.new||payload.old;if(!r)return;const x=ITEM_INDEX[r.product_id];if(!x)return;
+      x.item.qty=(payload.eventType==='DELETE'||r.qty==null)?null:+r.qty;
+      if(currentUser){ if($('#centralOverlay').classList.contains('show'))renderCentral();
+        if(x.branchId===currentBranchId){renderTabs();renderMain();refreshCounters();} }
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'products'},payload=>{
+      const r=payload.new;if(!r)return;const x=ITEM_INDEX[r.id];if(!x)return;
+      x.item.safety=(r.safety==null?null:+r.safety);x.item.max=(r.max==null?null:+r.max);
+      if(currentUser&&$('#centralOverlay').classList.contains('show'))renderCentral();
+    })
+    .subscribe();
 }
 async function boot(){
   setLogos();
@@ -1048,23 +1070,25 @@ $('#printBtn').onclick=()=>{buildSlip();window.print()};
 $('#clearBtn').onclick=()=>{if(!confirm('ล้างการนับ (กลับเป็นยังไม่นับ)?'))return;
   vcats().forEach(c=>c.items.forEach(i=>i.qty=null));save();renderTabs();renderMain();refreshCounters();buildSlip();toast('ล้างการนับแล้ว')};
 function gasAvailable(){return typeof google!=='undefined'&&google.script&&google.script.run}
-$('#sendBtn').onclick=()=>{const btn=$('#sendBtn');
-  if(!cfg().endpoint&&!gasAvailable()){toast('ยังไม่ได้ตั้งค่า URL ปลายทาง (⚙️ → ☁️ ข้อมูลกลาง)');return}
+$('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
+  const picked=[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({c,i}))));
+  if(!picked.length){toast('ยังไม่มีรายการที่นับ');return}
   btn.disabled=true;btn.textContent='⏳ กำลังบันทึก...';
-  const payload={type:'stock_check',schemaVersion:SCHEMA,shop:cfg().shop,date:todayStr(),
-    branchId:B().id,branch:B().name,userId:currentUser&&currentUser.id,counter:currentUser&&currentUser.name,counterCode:currentUser&&currentUser.code,
-    countDate:$('#countDate').value,summary:totals(),departments:vcats().map(c=>({key:c.key,label:c.label})),
-    items:[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({category:c.label,categoryKey:c.key,id:i.id,name:i.name,qty:i.qty,unit:i.unit,sup:i.sup||'',safety:(i.safety==null?null:i.safety),max:(i.max==null?null:i.max),need:needQty(i),order:orderOf(i),outOfStock:isOut(i),hasImage:!!i.img})))) };
-  const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Google Sheet'};
-  if(gasAvailable()){
-    google.script.run
-      .withSuccessHandler(r=>done(r&&r.ok?('บันทึกแล้ว ✓ '+(r.saved||0)+' รายการ'):'บันทึกไม่สำเร็จ'))
-      .withFailureHandler(err=>done('บันทึกไม่สำเร็จ: '+((err&&err.message)||err)))
-      .saveStock(payload);
-  }else if(cfg().endpoint){
-    fetch(cfg().endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
-      .then(()=>done('บันทึกลง Google Sheet แล้ว ✓')).catch(()=>done('บันทึกไม่สำเร็จ ตรวจ URL ปลายทาง'));
-  }};
+  const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Supabase'};
+  const cd=$('#countDate').value||todayStr();
+  const histRows=picked.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
+    counter:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id,
+    cat_key:c.key,cat_label:c.label,product_id:i.id,name:i.name,unit:i.unit||'',sup:i.sup||'',
+    qty:i.qty,out_of_stock:isOut(i),safety:i.safety,max:i.max,recommended:needQty(i),ordered:orderOf(i)}));
+  const curRows=picked.map(({i})=>({branch_id:B().id,product_id:i.id,qty:i.qty,counter:currentUser&&currentUser.name,updated_at:new Date().toISOString()}));
+  try{
+    const r1=await sb.from('stock_counts').insert(histRows);
+    if(r1.error)throw r1.error;
+    const r2=await sb.from('stock_current').upsert(curRows,{onConflict:'branch_id,product_id'});
+    if(r2.error)throw r2.error;
+    done('บันทึกลง Supabase แล้ว ✓ '+picked.length+' รายการ');
+  }catch(e){done('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}
+};
 
 /* ================= edit item (+image) ================= */
 let editCtx={cat:null,item:null}, editImg=null;
@@ -1227,7 +1251,7 @@ function applySettingsPerms(){
   vis('#blkRoles',currentUser&&currentUser.role==='admin');
   vis('#blkUnit',can('manageUnits'));
   vis('#blkImg',can('manageProducts'));
-  vis('#blkConn',can('manageSettings'));
+  vis('#blkConn',false);   // เลิกใช้ Sheet — เก็บใน Supabase ล้วน
   vis('#blkSave',can('manageSettings'));
 }
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
@@ -1392,15 +1416,17 @@ function renderCentral(){
         <input class="cmax" inputmode="decimal" value="${(it.max===null||it.max===undefined)?'':fmt(it.max)}" placeholder="–">
         <div class="cneed ${n>0?'go':''}">${n===null?'—':fmt(n)}</div>`;
       const sf=row.querySelector('.csafe'),mx=row.querySelector('.cmax');
-      sf.onchange=()=>{const t=sf.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));save();renderCentral()};
-      mx.onchange=()=>{const t=mx.value.trim();it.max=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));save();renderCentral()};
+      sf.onchange=async()=>{const t=sf.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
+        const {error}=await sb.from('products').update({safety:it.safety}).eq('id',it.id);if(error)toast('บันทึก safety ไม่สำเร็จ: '+error.message);};
+      mx.onchange=async()=>{const t=mx.value.trim();it.max=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
+        const {error}=await sb.from('products').update({max:it.max}).eq('id',it.id);if(error)toast('บันทึก max ไม่สำเร็จ: '+error.message);};
       sf.onfocus=()=>sf.select();mx.onfocus=()=>mx.select();
       wrap.appendChild(row);
     });
   });
   if(!wrap.children.length)wrap.innerHTML='<div style="text-align:center;color:var(--ink-soft);padding:30px">'+(onlyNeed?'ไม่มีรายการที่ต้องจัด (ตั้ง Safety stock ก่อน หรือสต็อกยังพอ)':'ไม่มีสินค้า')+'</div>';
   $('#cTot').innerHTML=`<span>ต้องจัดส่ง</span><span>${totalNeed} รายการ</span>`;
-  $('#cSrc').textContent=uncounted?('หมายเหตุ: มี '+uncounted+' รายการยังไม่ได้นับสต็อก จึงคำนวณไม่ได้ — ใช้สต็อกจากข้อมูลในเครื่องนี้ (เฟสถัดไปจะดึงจาก Google Sheet)'):'ใช้สต็อกจากข้อมูลในเครื่องนี้ (เฟสถัดไปจะดึงจาก Google Sheet อัตโนมัติ)';
+  $('#cSrc').textContent=uncounted?('หมายเหตุ: มี '+uncounted+' รายการยังไม่ได้นับสต็อก จึงคำนวณไม่ครบ — ใช้ยอดนับล่าสุดจาก Supabase'):'ใช้ยอดนับล่าสุดจาก Supabase (เรียลไทม์)';
 }
 function centralText(){
   const b=cBranch();let s=`🏭 ครัวกลาง — ใบจัดส่ง\n🏪 ส่งไป: ${b.name}\n📅 ${todayStr()}\n`;
@@ -1454,7 +1480,8 @@ function resetBoundary(){ const m=/^(\d{2}):(\d{2})$/.exec(cfg().resetTime||'06:
   const hh=m?+m[1]:6, mm=m?+m[2]:0; const now=new Date(); const b=new Date(now); b.setHours(hh,mm,0,0);
   if(now<b) b.setDate(b.getDate()-1);
   return b.getFullYear()+'-'+('0'+(b.getMonth()+1)).slice(-2)+'-'+('0'+b.getDate()).slice(-2)+' '+(cfg().resetTime||'06:00'); }
-function checkDailyReset(){ if(!ROOT||!currentUser) return; if(cfg().autoReset===false) return;
+function checkDailyReset(){ return; /* DB mode: รีเซ็ตทำที่ฝั่ง Supabase (pg_cron) แทน */
+  if(!ROOT||!currentUser) return; if(cfg().autoReset===false) return;
   const key=resetBoundary(); const last=localStorage.getItem(RESET_KEY);
   if(last===null){ localStorage.setItem(RESET_KEY,key); return; }   // ครั้งแรก: แค่จำไว้ ไม่ล้าง
   if(last!==key){
