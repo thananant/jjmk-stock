@@ -180,6 +180,18 @@
   .rc-nums .ord b{color:var(--red)}
   .rc-meta{font-size:.74rem;color:var(--ink-soft);border-top:1px dotted var(--line);padding-top:5px}
   .rempty{text-align:center;color:var(--ink-soft);padding:32px 12px}
+  /* ===== dispatch / warehouse ===== */
+  .dbranch{margin-bottom:16px;border:1.5px solid var(--gold-line);border-radius:14px;overflow:hidden}
+  .dbranch-h{background:var(--red);color:#fff;padding:10px 13px;font-family:'Kanit';font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .dbranch-h .dbtot{font-size:.78rem;font-weight:500;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:999px}
+  .dbranch-body{padding:6px 12px}
+  .dgroup{font-family:'Kanit';font-weight:600;color:var(--red-deep);font-size:.82rem;margin:8px 0 3px;border-bottom:1px dotted var(--gold-line);padding-bottom:3px}
+  .ditem{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px dotted var(--line);font-size:.88rem}
+  .ditem .dn{min-width:0;word-break:break-word}
+  .ditem .dn small{color:var(--ink-soft);font-size:.82em}
+  .ditem .dq{font-family:'Kanit';font-weight:700;color:var(--red);white-space:nowrap;font-size:.95rem}
+  body.dispatch-only .tabs,body.dispatch-only main,body.dispatch-only .bar,body.dispatch-only #centralBtn,body.dispatch-only #branchChip{display:none!important}
+  body.dispatch-only #dispClose{display:none}
   .rolecard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
   .rolecard .rh{font-family:'Kanit';font-weight:600;color:var(--red-deep);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .permrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.9rem}
@@ -325,6 +337,7 @@
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none">⚙️</button>
   <button class="gear" id="centralBtn" aria-label="ครัวกลาง" style="display:none;right:58px">📦</button>
   <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none">📊</button>
+  <button class="gear" id="dispatchBtn" aria-label="คลัง" style="display:none">📥</button>
   <div class="ctx">
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn">ออก</button></div>
@@ -553,6 +566,25 @@
   </div>
 </div>
 
+<!-- Dispatch / warehouse (คลัง) -->
+<div class="overlay" id="dispatchOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>📥 คลัง — ออเดอร์ที่ต้องจัด (แยกตามสาขา)</h3><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-body">
+      <div class="rfilters">
+        <select id="dDate"></select>
+        <select id="dCat"></select>
+      </div>
+      <div class="rquick">
+        <button class="rchip" id="dRefresh" style="border-color:var(--red);color:var(--red)">🔄 รีเฟรช</button>
+        <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV ทั้งหมด</button>
+      </div>
+      <div class="rsum" id="dSum"></div>
+      <div id="dBoard"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Report / data viewer -->
 <div class="overlay" id="reportOverlay">
   <div class="sheet">
@@ -675,6 +707,7 @@ const PERMS=[
   {key:'manageBranches',label:'จัดการสาขา'},
   {key:'manageStaff',label:'จัดการพนักงาน'},
   {key:'manageCentral',label:'ครัวกลาง — จัดส่ง / Safety stock'},
+  {key:'viewDispatch',label:'คลัง — ดูออเดอร์ที่ต้องจัดแยกสาขา'},
   {key:'manageSettings',label:'ตั้งค่าร้าน / เชื่อมต่อ / สำรองข้อมูล'}
 ];
 const ROLE_ORDER=['admin','manager','supervisor','staff'];
@@ -966,17 +999,23 @@ function enterApp(){
   $('#userName').textContent=currentUser.name;
   layoutHeaderBtns();
   applyShop();renderContext();renderTabs();renderMain();refreshCounters();
+  // บัญชีคลัง → เปิดกระดานจัดของเลย ซ่อนหน้านับ
+  if(isDispatchOnly()){ document.body.classList.add('dispatch-only'); openDispatch(); }
+  else document.body.classList.remove('dispatch-only');
 }
 function layoutHeaderBtns(){
-  const gear=canAnyManage(), central=can('manageCentral'), report=true;
+  const gear=canAnyManage(), central=can('manageCentral'), report=true, dispatch=can('viewDispatch');
   $('#gearBtn').style.display=gear?'grid':'none';
   $('#centralBtn').style.display=central?'grid':'none';
   $('#reportBtn').style.display=report?'grid':'none';
+  $('#dispatchBtn').style.display=dispatch?'grid':'none';
   let r=14;
-  if(gear){$('#gearBtn').style.right=r+'px';r+=44;}
-  if(central){$('#centralBtn').style.right=r+'px';r+=44;}
-  if(report){$('#reportBtn').style.right=r+'px';r+=44;}
+  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#reportBtn',report]].forEach(([sel,on])=>{
+    if(on){$(sel).style.right=r+'px';r+=44;}
+  });
 }
+// บัญชี "คลัง": ดูออเดอร์อย่างเดียว ไม่ต้องเห็นหน้านับสต๊อก
+function isDispatchOnly(){return !can('count')&&can('viewDispatch');}
 $('#logoutBtn').onclick=async()=>{try{await sb.auth.signOut()}catch(e){}currentUser=null;hideAll();showLogin()};
 
 /* ================= context (branch/user) ================= */
@@ -1422,7 +1461,7 @@ async function renderApprove(){
     const card=document.createElement('div');card.className='ucard';
     card.innerHTML=`<div class="lrow" style="border:none;margin:0;padding:0">
       <div style="flex:1"><b style="font-family:Kanit">${escapeHtml(u.name||u.username)}</b><div style="font-size:.8rem;color:var(--ink-soft)">@${escapeHtml(u.username)}</div></div>
-      <select class="role" style="width:120px"><option value="staff">พนักงาน</option><option value="supervisor">หัวหน้าแผนก</option><option value="manager">ผู้จัดการ</option><option value="admin">ผู้ดูแล</option></select>
+      <select class="role" style="width:120px"><option value="staff">พนักงาน</option><option value="supervisor">หัวหน้าแผนก</option><option value="manager">ผู้จัดการ</option><option value="warehouse">คลัง (จัดของ)</option><option value="admin">ผู้ดูแล</option></select>
       </div>
       <div class="actions" style="margin-top:8px"><button class="act send" data-act="ok">✓ อนุมัติ</button><button class="act ghost" data-act="no"><span class="danger">ปฏิเสธ</span></button></div>`;
     const role=card.querySelector('.role');
@@ -1521,6 +1560,77 @@ $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
 
+/* ================= dispatch / warehouse (คลัง) ================= */
+let DISPATCH_ROWS=[];
+async function openDispatch(){
+  show('#dispatchOverlay');
+  $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
+  let q=sb.from('stock_counts').select('*').gt('ordered',0).order('created_at',{ascending:false}).limit(5000);
+  const {data,error}=await q;
+  if(error){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
+  DISPATCH_ROWS=data||[];
+  // ตัวกรองวัน
+  const dd=$('#dDate');const dates=[...new Set(DISPATCH_ROWS.map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  dd.innerHTML='';dd.appendChild(opt('','📅 ทุกวัน'));dates.forEach(d=>dd.appendChild(opt(d,fmtDate(d))));
+  if(dates.length)dd.value=dates[0];
+  const dc=$('#dCat');const cats=[...new Set(DISPATCH_ROWS.map(r=>r.cat_label).filter(Boolean))];
+  dc.innerHTML='';dc.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>dc.appendChild(opt(c,c)));
+  renderDispatch();
+}
+function dispatchFiltered(){
+  const d=$('#dDate').value,c=$('#dCat').value;
+  // dedupe: เก็บแถวล่าสุดต่อ สาขา+สินค้า (รายการเรียงใหม่ไปเก่าอยู่แล้ว)
+  const seen={},out=[];
+  DISPATCH_ROWS.forEach(r=>{
+    if(d&&r.count_date!==d)return;
+    if(c&&r.cat_label!==c)return;
+    const k=r.branch_id+'|'+r.product_id;if(seen[k])return;seen[k]=1;
+    if(+r.ordered>0)out.push(r);
+  });
+  return out;
+}
+function renderDispatch(){
+  const rows=dispatchFiltered();
+  const board=$('#dBoard');
+  const branches={};rows.forEach(r=>{(branches[r.branch_id]=branches[r.branch_id]||{name:r.branch_name,items:[]}).items.push(r);});
+  const bids=Object.keys(branches);
+  const totItems=rows.length, totQty=rows.reduce((a,r)=>a+(+r.ordered||0),0);
+  $('#dSum').innerHTML=`<span>🏪 <b>${bids.length}</b> สาขา</span><span>📦 <b>${totItems}</b> รายการ</span><span>Σ รวม <b>${Math.round(totQty*100)/100}</b> หน่วย</span>`;
+  if(!rows.length){board.innerHTML='<div class="rempty">ยังไม่มีออเดอร์ที่ต้องจัด<br><small>รอสาขานับสต็อก + ระบุยอดสั่ง แล้วบันทึก</small></div>';return;}
+  board.innerHTML='';
+  bids.forEach(bid=>{
+    const b=branches[bid];
+    const sumQ=b.items.reduce((a,r)=>a+(+r.ordered||0),0);
+    const div=document.createElement('div');div.className='dbranch';
+    let html='<div class="dbranch-h"><span>🏪 '+escapeHtml(b.name||'')+'</span><span class="dbtot">'+b.items.length+' รายการ · รวม '+Math.round(sumQ*100)/100+'</span></div><div class="dbranch-body">';
+    // จัดกลุ่มตามซัพพลายเออร์ในแต่ละสาขา
+    const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
+    Object.keys(sup).forEach(s=>{
+      html+='<div class="dgroup">🏷️ '+escapeHtml(s)+'</div>';
+      sup[s].forEach(r=>{html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small></span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span></div>';});
+    });
+    html+='</div>';div.innerHTML=html;board.appendChild(div);
+  });
+}
+function exportDispatchCSV(){
+  const rows=dispatchFiltered();
+  if(!rows.length){toast('ไม่มีออเดอร์ให้ส่งออก');return;}
+  const head=['สาขา','ซัพพลายเออร์','หมวด','สินค้า','จำนวนที่จัด','หน่วย','วันที่'];
+  const esc=v=>{const s=(v==null?'':String(v));return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const lines=[head.join(',')];
+  rows.sort((a,b)=>(a.branch_name||'').localeCompare(b.branch_name||'')||(a.sup||'').localeCompare(b.sup||''));
+  rows.forEach(r=>lines.push([r.branch_name,r.sup,r.cat_label,r.name,r.ordered,r.unit,r.count_date].map(esc).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='jjmk-dispatch-'+($('#dDate').value||'all')+'.csv';a.click();URL.revokeObjectURL(url);
+  toast('ส่งออก '+rows.length+' รายการแล้ว ✓');
+}
+$('#dispatchBtn').onclick=openDispatch;
+$('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;
+$('#dRefresh').onclick=openDispatch;
+$('#dExport').onclick=exportDispatchCSV;
+$('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
+
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
 function needQty(it){ // order up to max (or safety) when stock reaches the safety point
@@ -1609,7 +1719,8 @@ window.JJStock={
 
 /* ================= misc ================= */
 function show(s){$(s).classList.add('show')}
-function hideAll(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show'))}
+function hideAll(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show'));
+  if(currentUser&&isDispatchOnly())show('#dispatchOverlay');}   // คลัง: กลับมากระดานจัดของเสมอ
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=hideAll);
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)hideAll()}));
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1900)}
