@@ -392,6 +392,7 @@
   #dPrintHead .ph-shop{font-size:19px;font-weight:700;color:#A41B22;font-family:'Kanit';line-height:1.2}
   #dPrintHead .ph-ttl{font-size:13px;color:#555}
   #dPrintHead .ph-meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5;color:#333}
+  .dsign{display:none}
   @media print{
     @page{margin:11mm}
     /* พิมพ์เฉพาะกระดานคลัง */
@@ -408,6 +409,9 @@
     body.printing .dgroup{color:#A41B22!important;border-bottom:1px solid #ccc}
     body.printing .ditem{border-bottom:1px solid #ddd}
     body.printing .ditem .dq{color:#111!important}
+    body.printing .dsign{display:flex!important;justify-content:space-between;gap:14px;margin:30px 6px 0;page-break-inside:avoid}
+    body.printing .dsign .ds{flex:1;text-align:center;font-size:11px;color:#333}
+    body.printing .dsign .dsline{height:38px;border-bottom:1px dotted #555;margin-bottom:5px}
     /* พิมพ์สลิป/ครัวกลาง (โหมดเดิม) */
     body:not(.printing) header,body:not(.printing) .tabs,body:not(.printing) main,body:not(.printing) .bar,body:not(.printing) .gear,body:not(.printing) .sheet-head,body:not(.printing) .actions,body:not(.printing) .hint,body:not(.printing) .field,body:not(.printing) .two,body:not(.printing) .divider,body:not(.printing) .sub-title{display:none!important}
     body:not(.printing) .overlay{position:static;background:#fff;display:block!important;backdrop-filter:none}
@@ -1887,7 +1891,14 @@ function renderDispatch(){
       sup[s].forEach(r=>{const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?' <small style="color:var(--gold-bright)">📍'+escapeHtml(ix.item.location)+'</small>':'';
         html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span></div>';});
     });
-    html+='</div>';div.innerHTML=html;board.appendChild(div);
+    html+='</div>';
+    html+='<div class="dsign">'
+      +'<div class="ds"><div class="dsline"></div>ผู้คอนเฟิร์มออเดอร์</div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้จัดของ</div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้ส่งของ</div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้รับของ</div>'
+      +'</div>';
+    div.innerHTML=html;board.appendChild(div);
   });
 }
 function exportDispatchCSV(){
