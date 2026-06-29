@@ -694,7 +694,8 @@
       </div>
       <div class="rquick">
         <button class="rchip" id="dRefresh" style="border-color:var(--red);color:var(--red)">🔄 รีเฟรช</button>
-        <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV ทั้งหมด</button>
+        <button class="act send" id="dPrint" style="padding:6px 14px;font-size:.82rem">🖨️ พิมพ์ใบส่งของ / PDF</button>
+        <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV</button>
       </div>
       <div class="rsum" id="dSum"></div>
       <div id="dBoard"></div>
@@ -1879,10 +1880,59 @@ function exportDispatchCSV(){
   a.href=url;a.download='jjmk-dispatch-'+($('#dDate').value||'all')+'.csv';a.click();URL.revokeObjectURL(url);
   toast('ส่งออก '+rows.length+' รายการแล้ว ✓');
 }
-$('#dispatchBtn').onclick=openDispatch;
+const PRINT_CSS=`*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun','TH Sarabun New',Tahoma,sans-serif;color:#111;font-size:13px}
+.sheet{padding:16px 18px;page-break-after:always}
+.sheet:last-child{page-break-after:auto}
+.hd{display:flex;align-items:center;gap:12px;border-bottom:3px solid #A41B22;padding-bottom:10px;margin-bottom:12px}
+.hd img{width:50px;height:50px;border-radius:9px;object-fit:cover}
+.shop{font-size:19px;font-weight:700;color:#A41B22;line-height:1.2}
+.ttl{font-size:13px;color:#555}
+.meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5}
+.sup{font-weight:700;color:#A41B22;margin:13px 0 4px;font-size:14px}
+table{width:100%;border-collapse:collapse;margin-bottom:4px}
+th,td{border:1px solid #888;padding:5px 7px;font-size:12.5px;vertical-align:middle}
+th{background:#f0e6d2;text-align:left}
+td.c,th.c{text-align:center;width:32px;font-size:15px}
+td.q,th.q{text-align:right;width:64px;font-weight:700}
+td.loc{color:#7a5c00}
+.tot{text-align:right;font-weight:700;margin-top:6px;font-size:13px}
+.sign{display:flex;justify-content:space-between;margin-top:40px;font-size:12px;gap:30px}
+.sign div{flex:1;text-align:center;border-top:1px dotted #999;padding-top:6px}
+@media print{@page{margin:11mm}}`;
+function printDispatch(){
+  const rows=dispatchFiltered();
+  if(!rows.length){toast('ไม่มีออเดอร์ให้พิมพ์');return;}
+  const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
+  const branches={};rows.forEach(r=>{(branches[r.branch_id]=branches[r.branch_id]||{name:r.branch_name,items:[]}).items.push(r);});
+  let body='';
+  Object.keys(branches).forEach(bid=>{
+    const b=branches[bid];
+    const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
+    const totQ=b.items.reduce((a,r)=>a+(+r.ordered||0),0);
+    let sec='<div class="sheet"><div class="hd"><img src="'+LOGO+'"><div><div class="shop">'+escapeHtml(cfg().shop||'จริงใจหมูกระทะ')+'</div><div class="ttl">ใบจัดส่งสินค้า · Dispatch Sheet</div></div><div class="meta">วันที่ '+dateLabel+'<br>สาขา: <b>'+escapeHtml(b.name||'')+'</b></div></div>';
+    Object.keys(sup).sort((a,b)=>a.localeCompare(b,'th')).forEach(s=>{
+      sec+='<div class="sup">🏷️ '+escapeHtml(s)+'</div><table><thead><tr><th class="c">จัด</th><th>สินค้า</th><th>จุดจัดเก็บ</th><th class="q">จำนวน</th><th>หน่วย</th><th>หมายเหตุ</th></tr></thead><tbody>';
+      sup[s].slice().sort((a,b)=>{const la=(ITEM_INDEX[a.product_id]||{}).item,lb=(ITEM_INDEX[b.product_id]||{}).item;
+        return ((la&&la.location)||'~').localeCompare((lb&&lb.location)||'~','th')||(a.name||'').localeCompare(b.name||'','th');}).forEach(r=>{
+        const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?escapeHtml(ix.item.location):'';
+        sec+='<tr><td class="c">☐</td><td>'+escapeHtml(r.name||'')+'</td><td class="loc">'+loc+'</td><td class="q">'+(+r.ordered)+'</td><td>'+escapeHtml(r.unit||'')+'</td><td></td></tr>';});
+      sec+='</tbody></table>';
+    });
+    sec+='<div class="tot">รวม '+b.items.length+' รายการ · '+Math.round(totQ*100)/100+' หน่วย</div>';
+    sec+='<div class="sign"><div>ผู้จัดสินค้า</div><div>ผู้ตรวจ</div><div>ผู้รับสินค้า</div></div></div>';
+    body+=sec;
+  });
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>ใบจัดส่ง '+dateLabel+'</title><style>'+PRINT_CSS+'</style></head><body>'+body
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},350)}</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');
+  if(!w){toast('เบราว์เซอร์บล็อกหน้าต่าง — อนุญาต popup แล้วลองใหม่');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
 $('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
+$('#dPrint').onclick=printDispatch;
 $('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
 
 /* ================= suppliers manager ================= */
