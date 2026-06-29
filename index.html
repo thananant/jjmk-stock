@@ -180,6 +180,25 @@
   .rc-nums .ord b{color:var(--red)}
   .rc-meta{font-size:.74rem;color:var(--ink-soft);border-top:1px dotted var(--line);padding-top:5px}
   .rempty{text-align:center;color:var(--ink-soft);padding:32px 12px}
+  /* ===== report table ===== */
+  .rtable-wrap{overflow-x:auto;border:1px solid var(--gold-line);border-radius:12px;max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .rtable{border-collapse:separate;border-spacing:0;width:100%;font-size:.8rem;white-space:nowrap}
+  .rtable th{position:sticky;top:0;background:var(--red);color:#fff;font-family:'Kanit';font-weight:600;font-size:.74rem;padding:8px 9px;text-align:center;z-index:2}
+  .rtable td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);color:var(--ink)}
+  .rtable td.nm{text-align:left;font-family:'Kanit';font-weight:600;font-size:.84rem;white-space:normal;min-width:130px;max-width:160px}
+  .rtable td.nm small{display:block;color:var(--ink-soft);font-weight:400;font-size:.72rem}
+  .rtable th.sticky-c,.rtable td.sticky-c{position:sticky;left:0;z-index:1}
+  .rtable td.sticky-c{background:var(--card)}
+  .rtable th.sticky-c{z-index:3}
+  .rtable tr:nth-child(even) td{background:#fffaf0}
+  .rtable tr:nth-child(even) td.sticky-c{background:#fdf3df}
+  .rtable td.loc{color:var(--gold-bright);font-family:'Kanit';font-size:.76rem}
+  .rtable td.ord b{color:var(--red)}
+  .rtable td.low b{color:var(--out)}
+  .rtable .bdg{font-size:.68rem;font-weight:700;font-family:'Kanit';padding:2px 7px;border-radius:999px}
+  .rtable .bdg.ok{background:#e7f6ea;color:#1f8b3a}
+  .rtable .bdg.out{background:#fbe9e7;color:var(--out)}
+  .rtable .bdg.ord{background:#fff4d6;color:#a9810a}
   /* ===== user manager (auth) ===== */
   .urow{display:flex;gap:8px;align-items:center;margin-bottom:7px}
   .urow .nm{flex:2 1 140px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';font-size:.9rem;background:var(--paper);color:var(--ink);font-weight:600}
@@ -1670,17 +1689,23 @@ function applyReport(){
   $('#rSum').innerHTML=`<span>📦 <b>${rows.length}</b> รายการ</span><span>🛒 ต้องสั่ง <b>${rows.filter(r=>+r.ordered>0).length}</b></span><span>❌ หมด <b>${outN}</b></span><span>Σ รวมสั่ง <b>${Math.round(totOrder*100)/100}</b></span>`;
   const wrap=$('#rTable');
   if(!rows.length){wrap.innerHTML='<div class="rempty">ไม่พบข้อมูลตามตัวกรอง<br><small>ลองเปลี่ยนวัน/สาขา หรือกด “ทั้งหมด”</small></div>';return;}
-  wrap.innerHTML='';
+  const loc=r=>{const x=ITEM_INDEX[r.product_id];return (x&&x.item.location)||'';};
+  // เรียงตามตำแหน่งจัดเก็บ แล้วชื่อ
+  rows.sort((a,b)=>(loc(a)||'~').localeCompare(loc(b)||'~','th')||(a.name||'').localeCompare(b.name||'','th'));
+  let html='<div class="rtable-wrap"><table class="rtable"><thead><tr>'
+    +'<th class="sticky-c">สินค้า</th><th>จุดเก็บ</th><th>เหลือ</th><th>safety</th><th>max</th><th>แนะนำ</th><th>สั่งจริง</th><th>สถานะ</th></tr></thead><tbody>';
   rows.forEach(r=>{
-    const badge=r.out_of_stock?'<span class="rc-badge out">หมด</span>':(+r.ordered>0?'<span class="rc-badge ord">สั่ง '+(+r.ordered)+'</span>':'<span class="rc-badge ok">มีของ</span>');
-    const card=document.createElement('div');card.className='rcard';
-    card.innerHTML=`<div class="rc-top"><span class="rc-name">${escapeHtml(r.name||'')} <small>${escapeHtml(r.cat_label||'')}</small></span>${badge}</div>
-      <div class="rc-nums"><span>คงเหลือ <b>${r.qty==null?'-':r.qty}</b> ${escapeHtml(r.unit||'')}</span>
-        ${r.safety!=null?'<span>safety <b>'+r.safety+'</b></span>':''}${r.max!=null?'<span>max <b>'+r.max+'</b></span>':''}
-        ${+r.recommended>0?'<span>แนะนำ <b>'+r.recommended+'</b></span>':''}${+r.ordered>0?'<span class="ord">สั่งจริง <b>'+r.ordered+'</b></span>':''}</div>
-      <div class="rc-meta">📅 ${fmtDate(r.count_date)} · 🏪 ${escapeHtml(r.branch_name||'')}${r.sup?' · 🏷️ '+escapeHtml(r.sup):''} · 👤 ${escapeHtml(r.counter||'')}</div>`;
-    wrap.appendChild(card);
+    const st=r.out_of_stock?'<span class="bdg out">หมด</span>':(+r.ordered>0?'<span class="bdg ord">สั่ง</span>':'<span class="bdg ok">มี</span>');
+    const lowCls=(r.safety!=null&&r.qty!=null&&+r.qty<+r.safety)?' class="low"':'';
+    html+=`<tr><td class="sticky-c nm">${escapeHtml(r.name||'')}<small>${escapeHtml(r.cat_label||'')}</small></td>`
+      +`<td class="loc">${escapeHtml(loc(r)||'-')}</td>`
+      +`<td${lowCls}><b>${r.qty==null?'-':r.qty}</b> <small>${escapeHtml(r.unit||'')}</small></td>`
+      +`<td>${r.safety==null?'-':r.safety}</td><td>${r.max==null?'-':r.max}</td>`
+      +`<td>${+r.recommended>0?r.recommended:'-'}</td><td class="ord">${+r.ordered>0?'<b>'+r.ordered+'</b>':'-'}</td>`
+      +`<td>${st}</td></tr>`;
   });
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
 }
 function exportReportCSV(){
   const rows=filteredReport();
