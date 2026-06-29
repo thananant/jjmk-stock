@@ -243,6 +243,10 @@
   .scarr{font-size:.76rem;color:var(--ink-soft)}
   .schrow .sc_to{padding:5px 7px;border:1px solid var(--line);border-radius:7px;font-family:'Sarabun';font-size:.82rem;background:var(--paper);color:var(--ink)}
   .schrow .sc_to:disabled{opacity:.4}
+  .supremind{font-family:'Sarabun';font-size:.76rem;font-weight:500;margin:3px 0 6px;padding:6px 10px;border-radius:9px;line-height:1.45}
+  .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
+  .supremind b{font-weight:700}
   .pctable td{text-align:left;padding:5px 7px}
   .pctable td.nm{min-width:120px;max-width:150px}
   .pctable select,.pctable input{width:100%;min-width:108px;padding:6px 7px;border:1px solid var(--line);border-radius:7px;font-family:'Sarabun';font-size:.8rem;background:var(--paper);color:var(--ink)}
@@ -1294,14 +1298,10 @@ function buildOrder(){
   Object.keys(sup).forEach(s=>{
     const sh=document.createElement('div');sh.className='osup';sh.innerHTML='🏷️ '+escapeHtml(s);
     const si=supInfo(s);
-    if(si){ const st=supStatus(si);
-      const note=document.createElement('div');note.style.cssText='font-family:Sarabun;font-weight:400;font-size:.74rem;margin:1px 0 5px';
-      let txt='';
-      if(st.cls!=='open')txt+='<span style="color:'+(st.cls==='closed'?'var(--out)':'#a9810a')+';font-weight:600">'+st.txt+'</span>';
-      const sched=scheduleSummary(si.schedule);
-      const round=sched?(sched+(si.cutoff?(' (ก่อน '+escapeHtml(si.cutoff)+')'):'')):(si.order_info||'');
-      if(round)txt+=(txt?' · ':'')+'<span style="color:var(--ink-soft)">⏰ '+escapeHtml(round)+'</span>';
-      if(txt){note.innerHTML=txt;sh.appendChild(note);}
+    if(si){ const rem=supReminder(si);
+      if(rem){const note=document.createElement('div');note.className='supremind '+rem.cls;
+        note.innerHTML=rem.html+(si.cutoff?' <span style="opacity:.7">· ตัดรอบ '+escapeHtml(si.cutoff)+'</span>':'');
+        sh.appendChild(note);}
     }
     box.appendChild(sh);
     const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>max</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
@@ -1901,9 +1901,39 @@ async function refreshSupCount(){$('#supCount').textContent=SUPPLIERS.length;}
 let expandedSup=null;
 const DOW=[['mon','จันทร์','จ'],['tue','อังคาร','อ'],['wed','พุธ','พ'],['thu','พฤหัส','พฤ'],['fri','ศุกร์','ศ'],['sat','เสาร์','ส'],['sun','อาทิตย์','อา']];
 function dowShort(k){const d=DOW.find(x=>x[0]===k);return d?d[2]:k;}
+function dowLong(k){const d=DOW.find(x=>x[0]===k);return d?d[1]:k;}
+function ymd(d){const m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return d.getFullYear()+'-'+m+'-'+day;}
+function nextDow(base,key){const order=['sun','mon','tue','wed','thu','fri','sat'];const t=order.indexOf(key);
+  const d=new Date(base);d.setHours(0,0,0,0);let diff=(t-d.getDay()+7)%7;d.setDate(d.getDate()+diff);return d;}
 function scheduleSummary(sc){if(!sc||typeof sc!=='object')return '';
   const parts=DOW.filter(d=>sc[d[0]]).map(d=>dowShort(d[0])+'→'+dowShort(sc[d[0]]));
   return parts.length?('สั่ง '+parts.join(' · ')):'';}
+function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
+  if(!si)return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const P=v=>v?new Date(v+'T00:00:00'):null;
+  const lo=P(si.last_order_date),ld=P(si.last_delivery_date),re=P(si.reopen_date);
+  if(re&&today<re&&lo&&today>lo){
+    const days=ld?Math.max(1,Math.round((re-ld)/86400000)):Math.round((re-today)/86400000);
+    const left=Math.round((re-today)/86400000);
+    return {cls:'red',html:'⛔ หยุดส่ง '+days+' วัน · เปิดรับอีกครั้ง '+fmtDate(si.reopen_date)+' (อีก '+left+' วัน)'};
+  }
+  if(lo&&today<=lo){const left=Math.round((lo-today)/86400000);
+    if(left<=3)return {cls:'red',html:'⏰ ใกล้ปิดรับ! สั่งวันสุดท้าย '+fmtDate(si.last_order_date)+' (อีก '+left+' วัน)'+(si.last_delivery_date?' · ส่งสุดท้าย '+fmtDate(si.last_delivery_date):'')};
+  }
+  const sc=si.schedule;
+  if(sc&&typeof sc==='object'){
+    let best=null;
+    DOW.forEach(d=>{if(sc[d[0]]){const od=nextDow(today,d[0]);const dd=nextDow(new Date(od.getTime()+86400000),sc[d[0]]);
+      if(!best||od<best.od)best={od,dd,odk:d[0],ddk:sc[d[0]]};}});
+    if(best){const isToday=(+best.od===+today);const sum=scheduleSummary(sc);
+      return {cls:'blue',html:(isToday?'📦 <b>วันนี้สั่งได้!</b> ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd))
+        :'🗓️ รอบหน้า: สั่ง'+dowLong(best.odk)+' '+fmtDate(ymd(best.od))+' → ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd)))
+        +(sum?' · <span style="opacity:.75">'+sum+'</span>':'')};
+    }
+  }
+  return null;
+}
 function renderSuppliers(){
   const wrap=$('#supList');wrap.innerHTML='';
   const kw=($('#supSearch')&&$('#supSearch').value.trim().toLowerCase())||'';
