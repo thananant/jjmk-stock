@@ -210,6 +210,17 @@
   .ubtn{padding:5px 11px;border-radius:8px;border:1px solid var(--gold-line);background:var(--paper);color:var(--ink-soft);font-family:'Kanit';font-weight:600;font-size:.76rem;cursor:pointer}
   .ubtn.del{border-color:#e7b7b7;color:var(--out)}
   .ubtn:disabled{opacity:.4}
+  .ugroup{font-family:'Kanit';font-weight:700;color:var(--red-deep);font-size:.86rem;margin:14px 2px 6px;padding-bottom:4px;border-bottom:2px solid var(--gold-line)}
+  .ugroup span{float:right;background:var(--gold);color:var(--red-deep);border-radius:999px;padding:1px 9px;font-size:.74rem}
+  .ucard{overflow:hidden}
+  .uhead{width:100%;display:flex;align-items:center;gap:9px;padding:11px 12px;background:none;border:none;cursor:pointer;text-align:left;font-family:'Sarabun'}
+  .ucard.open .uhead{background:#fffaf0;border-bottom:1px solid var(--gold-line)}
+  .uh-name{font-family:'Kanit';font-weight:600;font-size:.92rem;color:var(--ink);flex:1}
+  .uh-name small{color:var(--gold-bright);font-weight:400}
+  .uh-role{font-size:.76rem;color:var(--ink-soft);font-family:'Kanit';background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+  .uhead .ustatus.on{color:#1f8b3a}.uhead .ustatus.off{color:#c9a98e}
+  .uh-arrow{color:var(--ink-soft);font-size:.7rem}
+  .ubody{padding:11px 12px}
   .permedit{background:#fffaf0;border:1px solid var(--gold-line);border-radius:10px;padding:8px 10px;margin:6px 0}
   .pe-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-soft);font-family:'Kanit';margin-bottom:6px}
   .pe-reset{padding:4px 10px;border-radius:7px;border:1px solid var(--gold-line);background:var(--paper);color:var(--ink-soft);font-family:'Kanit';font-size:.72rem;font-weight:600;cursor:pointer}
@@ -522,9 +533,11 @@
     <div class="sheet-head"><h3>ตั้งค่า</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
       <div id="blkShop" class="setblk"><div class="field"><label>ชื่อร้าน</label><input id="setShop" placeholder="จริงใจหมูกระทะ"></div>
-        <div class="toggle-row"><span class="tl">🔄 รีเซ็ตการนับอัตโนมัติทุกวัน</span><label class="switch"><input type="checkbox" id="autoResetSwitch"><span class="sl"></span></label></div>
-        <div class="field"><label>เวลารีเซ็ต (ล้างยอดนับ เริ่มนับใหม่)</label><input id="resetTime" type="time"></div>
-        <p class="hint" style="margin:2px 0 0">ล้างเฉพาะ “ยอดนับ” ในเครื่อง — ข้อมูลที่บันทึกลง Sheet และค่า safety/max ยังอยู่ครบ</p>
+        <div id="resetTimeBox">
+          <div class="toggle-row"><span class="tl">🔄 รีเซ็ตการนับอัตโนมัติทุกวัน</span><label class="switch"><input type="checkbox" id="autoResetSwitch"><span class="sl"></span></label></div>
+          <div class="field"><label>เวลารีเซ็ต (ล้างยอดนับ เริ่มนับใหม่)</label><input id="resetTime" type="time"></div>
+          <p class="hint" style="margin:2px 0 0">รีเซ็ตจริงทำที่ Supabase ทุก 06:00 (ล้าง stock_current) · ประวัติใน 📊 และค่า safety/max ยังอยู่ครบ · 🔒 เจ้าของ/ผู้ดูแลเท่านั้นที่แก้ได้</p>
+        </div>
       </div>
 
       <div id="blkBranch" class="setblk">
@@ -731,6 +744,7 @@ async function sbLoadData(prof){
   const conf={};(cf.data||[]).forEach(r=>conf[r.key]=r.value);
   const roles={};(rl.data||[]).forEach(r=>roles[r.role]={label:r.label,perms:r.perms||{}});
   if(roles.admin)PERMS.forEach(p=>roles.admin.perms[p.key]=true);   // admin = ทุกสิทธิ์เสมอ
+  if(roles.owner)PERMS.forEach(p=>roles.owner.perms[p.key]=true);   // เจ้าของ = ทุกสิทธิ์เสมอ
   const units=(un.data||[]).map(u=>u.name);
   SUPPLIERS=(sp&&sp.data)?sp.data:[];
   const branches=(br.data||[]).map(b=>({id:b.id,name:b.name,data:{categories:[]}}));
@@ -739,7 +753,7 @@ async function sbLoadData(prof){
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
     cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:p.image_url||null});});
   let users=[profToUser(prof)];
-  if(prof.role==='admin'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
+  if(prof.role==='admin'||prof.role==='owner'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
     resetTime:conf.resetTime||'06:00',autoReset:String(conf.autoReset)!=='false',units:units,roles:roles},users:users,branches:branches};
   currentUser=ROOT.users.find(u=>u.id===prof.auth_uid)||profToUser(prof);
@@ -785,23 +799,28 @@ const SESSION_KEY='jjmk_session';
 // ===== permissions & roles =====
 const PERMS=[
   {key:'count',label:'นับสต็อก'},
-  {key:'manageProducts',label:'เพิ่ม/แก้/ลบสินค้า + รูป'},
+  {key:'manageProducts',label:'เพิ่ม/แก้/ลบสินค้า'},
+  {key:'manageImages',label:'แก้รูปสินค้า'},
+  {key:'manageSuppliers',label:'จัดการซัพพลายเออร์'},
   {key:'manageUnits',label:'จัดการหน่วยนับ'},
   {key:'manageBranches',label:'จัดการสาขา'},
   {key:'manageStaff',label:'จัดการพนักงาน'},
-  {key:'manageCentral',label:'ครัวกลาง — จัดส่ง / Safety stock'},
-  {key:'viewDispatch',label:'คลัง — ดูออเดอร์ที่ต้องจัดแยกสาขา'},
-  {key:'manageSettings',label:'ตั้งค่าร้าน / เชื่อมต่อ / สำรองข้อมูล'}
+  {key:'approveStaff',label:'อนุมัติพนักงานใหม่'},
+  {key:'manageCentral',label:'ครัวกลาง — Safety/Max'},
+  {key:'viewDispatch',label:'คลัง — ดูออเดอร์จัดของ'},
+  {key:'manageSettings',label:'ตั้งค่าร้าน'}
 ];
-const ROLE_ORDER=['admin','manager','supervisor','staff'];
-const ROLE_LABEL={admin:'ผู้ดูแล',manager:'ผู้จัดการ',supervisor:'หัวหน้าแผนก',staff:'พนักงาน'};
+const ROLE_ORDER=['owner','admin','manager','supervisor','staff','warehouse'];
+const ROLE_LABEL={owner:'เจ้าของ',admin:'ผู้ดูแล',manager:'ผู้จัดการ',supervisor:'หัวหน้าแผนก',staff:'พนักงาน',warehouse:'คลัง (จัดของ)'};
 function fullPerms(v){const o={};PERMS.forEach(p=>o[p.key]=v);return o}
 function defaultRoles(){
   return {
+    owner:{label:'เจ้าของ',perms:fullPerms(true)},
     admin:{label:'ผู้ดูแล',perms:fullPerms(true)},
-    manager:{label:'ผู้จัดการ',perms:Object.assign(fullPerms(false),{count:true,manageUnits:true})},
+    manager:{label:'ผู้จัดการ',perms:Object.assign(fullPerms(false),{count:true,manageUnits:true,manageStaff:true,approveStaff:true,manageCentral:true,viewDispatch:true})},
     supervisor:{label:'หัวหน้าแผนก',perms:Object.assign(fullPerms(false),{count:true,manageStaff:true})},
-    staff:{label:'พนักงาน',perms:Object.assign(fullPerms(false),{count:true})}
+    staff:{label:'พนักงาน',perms:Object.assign(fullPerms(false),{count:true})},
+    warehouse:{label:'คลัง (จัดของ)',perms:Object.assign(fullPerms(false),{viewDispatch:true})}
   };
 }
 const LOGO=
@@ -998,15 +1017,16 @@ function catOut(c){return c.items.filter(isOut).length}
 function fmtSize(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(2)+' MB'}
 function storeInfo(){let bytes=0;try{bytes=new Blob([JSON.stringify(ROOT)]).size}catch(e){bytes=(JSON.stringify(ROOT)||'').length}
   let n=0;ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.img)n++})));return{bytes,n}}
-const isAdmin=()=>currentUser&&currentUser.role==='admin';
+const isAdmin=()=>currentUser&&(currentUser.role==='admin'||currentUser.role==='owner');
+function isFullRole(rk){return rk==='admin'||rk==='owner';}
 function rolePerms(rk){const r=cfg().roles&&cfg().roles[rk];return r?r.perms:{}}
 function effPerms(u){ // สิทธิ์ที่มีผลจริง: รายคน (ถ้ามี) ทับสิทธิ์ของระดับ
-  if(u&&u.role==='admin'){const all={};PERMS.forEach(p=>all[p.key]=true);return all;}
+  if(u&&isFullRole(u.role)){const all={};PERMS.forEach(p=>all[p.key]=true);return all;}
   if(u&&u.perms&&typeof u.perms==='object')return u.perms;
   return rolePerms(u?u.role:'')||{};
 }
-function can(perm){ if(!currentUser)return false; if(currentUser.role==='admin')return true; return !!effPerms(currentUser)[perm]; }
-function canAnyManage(){ return ['manageProducts','manageUnits','manageBranches','manageStaff','manageSettings'].some(can); }
+function can(perm){ if(!currentUser)return false; if(isFullRole(currentUser.role))return true; return !!effPerms(currentUser)[perm]; }
+function canAnyManage(){ return ['manageProducts','manageImages','manageSuppliers','manageUnits','manageBranches','manageStaff','approveStaff','manageCentral','manageSettings'].some(can); }
 function roleLabel(rk){return (cfg().roles&&cfg().roles[rk]&&cfg().roles[rk].label)||ROLE_LABEL[rk]||rk}
 // ===== access control: assigned branches & departments =====
 function accessibleBranches(){ if(isAdmin()) return ROOT.branches;
@@ -1194,7 +1214,7 @@ function itemCard(it,cat){
   input.onfocus=()=>input.select();
   el.querySelector('.unit-sel').onchange=e=>{it.unit=e.target.value;save();rerenderCard(el,it)};
   const ed=el.querySelector('.edit-dot');if(ed)ed.onclick=()=>openEdit(cat,it);
-  const th=el.querySelector('.thumb');if(th)th.onclick=()=>{ if(can('manageProducts'))openEdit(cat,it); else if(it.img)openLight(it.img); };
+  const th=el.querySelector('.thumb');if(th)th.onclick=()=>{ if(can('manageProducts')||can('manageImages'))openEdit(cat,it); else if(it.img)openLight(it.img); };
   el.querySelector('.minus').disabled=!counted(it)||it.qty<=0;
   return el;
 }
@@ -1308,21 +1328,26 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
 
 /* ================= edit item (+image) ================= */
 let editCtx={cat:null,item:null}, editImg=null;
-function setEditPreview(){const p=$('#imgPreview');
-  if(editImg){p.innerHTML=`<img src="${editImg}">`;$('#removeImg').style.display='flex'}
+function setEditPreview(){const p=$('#imgPreview');const canImg=can('manageImages');
+  if(editImg){p.innerHTML=`<img src="${editImg}">`;$('#removeImg').style.display=canImg?'flex':'none'}
   else{p.innerHTML='<span>ยังไม่มีรูป</span>';$('#removeImg').style.display='none'}}
-function openEdit(cat,item){if(!can('manageProducts'))return;editCtx={cat,item};editImg=item?(item.img||null):null;
+function openEdit(cat,item){if(!can('manageProducts')&&!can('manageImages'))return;editCtx={cat,item};editImg=item?(item.img||null):null;
   $('#editTitle').textContent=item?'แก้ไขสินค้า':'เพิ่มสินค้าใหม่';
   $('#editName').value=item?item.name:'';$('#editUnit').innerHTML=unitOptions(item?item.unit:units()[0]);
-  $('#editDelete').style.display=item?'flex':'none';setEditPreview();show('#editOverlay');setTimeout(()=>$('#editName').focus(),250)}
-$('#pickImg').onclick=()=>$('#imgFile').click();
+  const canImg=can('manageImages');$('#pickImg').style.display=canImg?'':'none';
+  const canProd=can('manageProducts');$('#editName').disabled=!canProd;$('#editUnit').disabled=!canProd;
+  $('#editSave').style.display=canProd?'':'none';
+  $('#editDelete').style.display=(item&&canProd)?'flex':'none';setEditPreview();show('#editOverlay');if(canProd)setTimeout(()=>$('#editName').focus(),250)}
+$('#pickImg').onclick=()=>{if(!can('manageImages')){toast('แก้รูปได้เฉพาะผู้ดูแล');return}$('#imgFile').click()};
 $('#imgFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
+  if(!can('manageImages')){toast('แก้รูปได้เฉพาะผู้ดูแล');return}
   if(!editCtx.item){toast('สร้าง/บันทึกสินค้าก่อนค่อยใส่รูปได้');return}
   const btn=$('#pickImg');btn.disabled=true;toast('กำลังอัปโหลดรูป...');
   try{const url=await uploadProductImage(editCtx.item.name,f);editImg=url;setEditPreview();renderTabs();renderMain();toast('อัปโหลดรูปแล้ว ✓ (ใช้ทุกสาขา)');}
   catch(err){toast('อัปโหลดไม่สำเร็จ: '+((err&&err.message)||err))}
   finally{btn.disabled=false}};
 $('#removeImg').onclick=async()=>{
+  if(!can('manageImages')){toast('แก้รูปได้เฉพาะผู้ดูแล');return}
   if(editCtx.item&&editCtx.item.img){try{await clearProductImage(editCtx.item.name);renderTabs();renderMain();}catch(err){toast('ลบรูปไม่สำเร็จ: '+((err&&err.message)||err));return}}
   editImg=null;setEditPreview();toast('ลบรูปแล้ว')};
 $('#editSave').onclick=()=>{const name=$('#editName').value.trim(),unit=$('#editUnit').value;
@@ -1356,7 +1381,7 @@ $('#addBranchBtn').onclick=()=>{const v=$('#newBranch').value.trim();if(!v){toas
 $('#openBranchMgr').onclick=()=>{renderBranchMgr();show('#branchMgrOverlay')};
 
 /* ================= user manager ================= */
-function adminCount(){return ROOT.users.filter(u=>u.role==='admin').length}
+function adminCount(){return ROOT.users.filter(u=>isFullRole(u.role)).length}
 function chipLabel(t){const d=document.createElement('div');d.className='alabel';d.textContent=t;return d}
 function assignChips(u,key,opts,getId,getText){
   const col=(key==='branchIds')?'branch_ids':'cat_keys';
@@ -1373,60 +1398,88 @@ function assignChips(u,key,opts,getId,getText){
     box.appendChild(c)});
   return box;
 }
-function roleOptionsHtml(sel){ // only admin can assign/keep admin role
-  const allowAdmin=currentUser&&currentUser.role==='admin';
-  return ROLE_ORDER.filter(rk=>allowAdmin||rk!=='admin').map(rk=>`<option value="${rk}" ${rk===sel?'selected':''}>${escapeHtml(roleLabel(rk))}</option>`).join('');
+function roleOptionsHtml(sel){ // เฉพาะเจ้าของ/ผู้ดูแล ตั้งคนเป็นเจ้าของ/ผู้ดูแลได้
+  const allowFull=currentUser&&isFullRole(currentUser.role);
+  return ROLE_ORDER.filter(rk=>allowFull||!isFullRole(rk)).map(rk=>`<option value="${rk}" ${rk===sel?'selected':''}>${escapeHtml(roleLabel(rk))}</option>`).join('');
 }
+let expandedUser=null;
 function renderUsers(){
   const wrap=$('#userList');wrap.innerHTML='';
-  const depts=deptList();const meAdmin=currentUser&&currentUser.role==='admin';
-  ROOT.users.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','th')).forEach(u=>{
-    const isSelf=currentUser&&currentUser.id===u.id;
-    const lockAdmin=(u.role==='admin'&&!meAdmin);
-    const card=document.createElement('div');card.className='ucard';
-    const row=document.createElement('div');row.className='urow';
-    row.innerHTML=`<input class="nm" value="${escapeHtml(u.name||'')}" ${lockAdmin?'disabled':''}>
-      <select class="role" ${lockAdmin?'disabled':''}>${roleOptionsHtml(u.role)}</select>`;
-    const sub=document.createElement('div');sub.className='usub';
-    sub.innerHTML=`<span class="uat">@${escapeHtml(u.username||'')}</span>
-      <span class="ustatus ${u.status==='active'?'on':'off'}">${u.status==='active'?'● ใช้งาน':(u.status==='pending'?'○ รออนุมัติ':'○ ปิดใช้งาน')}</span>
-      <span style="flex:1"></span>
-      ${isSelf?'<span style="font-size:.74rem;color:var(--gold-bright)">บัญชีคุณ</span>':`<button class="ubtn toggle" ${lockAdmin?'disabled':''}>${u.status==='active'?'ปิดใช้งาน':'เปิดใช้งาน'}</button><button class="ubtn del" ${lockAdmin?'disabled':''}>🗑 ลบ</button>`}`;
-    const nm=row.querySelector('.nm'),rl=row.querySelector('.role');
-    nm.onchange=async()=>{const v=nm.value.trim();if(!v){nm.value=u.name;return}u.name=v;
-      if(await dbUser(u.id,{name:v})){if(isSelf){currentUser.name=v;$('#userName').textContent=v;}toast('บันทึกชื่อแล้ว ✓')}};
-    rl.onchange=async()=>{
-      if(u.role==='admin'&&rl.value!=='admin'&&adminCount()<=1){toast('ต้องมีผู้ดูแลอย่างน้อย 1 คน');rl.value='admin';return}
-      const old=u.role;u.role=rl.value;
-      if(await dbUser(u.id,{role:rl.value})){if(isSelf){currentUser.role=rl.value;layoutHeaderBtns();}renderUsers();toast('เปลี่ยนระดับแล้ว ✓')}
-      else{u.role=old;rl.value=old;}};
-    if(!isSelf){
-      sub.querySelector('.toggle').onclick=async()=>{
-        if(u.role==='admin'&&u.status==='active'&&adminCount()<=1){toast('ต้องมีผู้ดูแลที่ใช้งานอย่างน้อย 1 คน');return}
-        const ns=u.status==='active'?'disabled':'active';
-        if(await dbUser(u.id,{status:ns})){u.status=ns;renderUsers();toast(ns==='active'?'เปิดใช้งานแล้ว':'ปิดใช้งานแล้ว')}};
-      sub.querySelector('.del').onclick=async()=>{
-        if(u.role==='admin'&&adminCount()<=1){toast('ต้องมีผู้ดูแลอย่างน้อย 1 คน');return}
-        if(!confirm('ลบ "'+(u.name||u.username)+'" ออกจากระบบ? (ลบบัญชีถาวร)'))return;
-        const {error}=await sb.from('app_users').delete().eq('auth_uid',u.id);
-        if(error){toast('ลบไม่สำเร็จ: '+error.message);return}
-        const i=ROOT.users.findIndex(x=>x.id===u.id);if(i>-1)ROOT.users.splice(i,1);
-        renderUsers();updateCounts();toast('ลบแล้ว ✓')};
-    }
-    card.appendChild(row);card.appendChild(sub);
-    if(u.role==='admin'){
-      const note=document.createElement('div');note.className='adminnote';note.textContent='ผู้ดูแล — ทุกสิทธิ์ (แก้ไม่ได้)';card.appendChild(note);
-    }else if(!lockAdmin){
-      card.appendChild(permEditor(u));
-    }
-    const asg=document.createElement('div');asg.className='assign';
-    asg.appendChild(chipLabel('สาขาที่ดูแล'));
-    asg.appendChild(assignChips(u,'branchIds',ROOT.branches,b=>b.id,b=>b.name));
-    asg.appendChild(chipLabel('แผนกที่นับ'));
-    asg.appendChild(assignChips(u,'catKeys',depts,d=>d.key,d=>(d.ic?d.ic+' ':'')+d.label));
-    card.appendChild(asg);
-    wrap.appendChild(card);
+  const depts=deptList();
+  const groups=[{key:'_all',name:'⭐ ส่วนกลาง / ทุกสาขา',users:[]}];
+  const bg={};ROOT.branches.forEach(b=>{bg[b.id]={key:b.id,name:'🏪 '+b.name,users:[]};groups.push(bg[b.id]);});
+  ROOT.users.forEach(u=>{
+    if(!u.branchIds||!u.branchIds.length)groups[0].users.push(u);
+    else u.branchIds.forEach(bid=>{if(bg[bid])bg[bid].users.push(u);});
   });
+  let shown=0;
+  groups.forEach(g=>{
+    if(!g.users.length)return;shown++;
+    const gh=document.createElement('div');gh.className='ugroup';gh.innerHTML=`${escapeHtml(g.name)} <span>${g.users.length}</span>`;wrap.appendChild(gh);
+    g.users.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','th')).forEach(u=>wrap.appendChild(buildUserRow(u,depts)));
+  });
+  if(!shown)wrap.innerHTML='<div class="rempty">ยังไม่มีพนักงาน</div>';
+}
+function buildUserRow(u,depts){
+  const isSelf=currentUser&&currentUser.id===u.id;
+  const meFull=currentUser&&isFullRole(currentUser.role);
+  const lockAdmin=(isFullRole(u.role)&&!meFull);
+  const open=(expandedUser===u.id);
+  const card=document.createElement('div');card.className='ucard'+(open?' open':'');
+  const head=document.createElement('button');head.className='uhead';
+  head.innerHTML=`<span class="uh-name">${escapeHtml(u.name||u.username)}${isSelf?' <small>(คุณ)</small>':''}</span>
+    <span class="uh-role">${escapeHtml(roleLabel(u.role))}</span>
+    <span class="ustatus ${u.status==='active'?'on':'off'}">${u.status==='active'?'●':'○'}</span>
+    <span class="uh-arrow">${open?'▲':'▼'}</span>`;
+  head.onclick=()=>{expandedUser=open?null:u.id;renderUsers();};
+  card.appendChild(head);
+  if(open)card.appendChild(buildUserEditor(u,isSelf,lockAdmin,depts));
+  return card;
+}
+function buildUserEditor(u,isSelf,lockAdmin,depts){
+  const box=document.createElement('div');box.className='ubody';
+  const row=document.createElement('div');row.className='urow';
+  row.innerHTML=`<input class="nm" value="${escapeHtml(u.name||'')}" ${lockAdmin?'disabled':''}>
+    <select class="role" ${lockAdmin?'disabled':''}>${roleOptionsHtml(u.role)}</select>`;
+  const sub=document.createElement('div');sub.className='usub';
+  sub.innerHTML=`<span class="uat">@${escapeHtml(u.username||'')}</span>
+    <span class="ustatus ${u.status==='active'?'on':'off'}">${u.status==='active'?'● ใช้งาน':(u.status==='pending'?'○ รออนุมัติ':'○ ปิดใช้งาน')}</span>
+    <span style="flex:1"></span>
+    ${isSelf?'<span style="font-size:.74rem;color:var(--gold-bright)">บัญชีคุณ</span>':`<button class="ubtn toggle" ${lockAdmin?'disabled':''}>${u.status==='active'?'ปิดใช้งาน':'เปิดใช้งาน'}</button><button class="ubtn del" ${lockAdmin?'disabled':''}>🗑 ลบ</button>`}`;
+  const nm=row.querySelector('.nm'),rl=row.querySelector('.role');
+  nm.onchange=async()=>{const v=nm.value.trim();if(!v){nm.value=u.name;return}u.name=v;
+    if(await dbUser(u.id,{name:v})){if(isSelf){currentUser.name=v;$('#userName').textContent=v;}toast('บันทึกชื่อแล้ว ✓')}};
+  rl.onchange=async()=>{
+    if(isFullRole(u.role)&&!isFullRole(rl.value)&&adminCount()<=1){toast('ต้องมีเจ้าของ/ผู้ดูแลอย่างน้อย 1 คน');rl.value=u.role;return}
+    const old=u.role;u.role=rl.value;
+    if(await dbUser(u.id,{role:rl.value})){if(isSelf){currentUser.role=rl.value;layoutHeaderBtns();}renderUsers();toast('เปลี่ยนระดับแล้ว ✓')}
+    else{u.role=old;rl.value=old;}};
+  if(!isSelf){
+    sub.querySelector('.toggle').onclick=async()=>{
+      if(isFullRole(u.role)&&u.status==='active'&&adminCount()<=1){toast('ต้องมีเจ้าของ/ผู้ดูแลที่ใช้งานอย่างน้อย 1 คน');return}
+      const ns=u.status==='active'?'disabled':'active';
+      if(await dbUser(u.id,{status:ns})){u.status=ns;renderUsers();toast(ns==='active'?'เปิดใช้งานแล้ว':'ปิดใช้งานแล้ว')}};
+    sub.querySelector('.del').onclick=async()=>{
+      if(isFullRole(u.role)&&adminCount()<=1){toast('ต้องมีเจ้าของ/ผู้ดูแลอย่างน้อย 1 คน');return}
+      if(!confirm('ลบ "'+(u.name||u.username)+'" ออกจากระบบ? (ลบบัญชีถาวร)'))return;
+      const {error}=await sb.from('app_users').delete().eq('auth_uid',u.id);
+      if(error){toast('ลบไม่สำเร็จ: '+error.message);return}
+      const i=ROOT.users.findIndex(x=>x.id===u.id);if(i>-1)ROOT.users.splice(i,1);
+      expandedUser=null;renderUsers();updateCounts();toast('ลบแล้ว ✓')};
+  }
+  box.appendChild(row);box.appendChild(sub);
+  if(isFullRole(u.role)){
+    const note=document.createElement('div');note.className='adminnote';note.textContent=roleLabel(u.role)+' — ทุกสิทธิ์ (แก้ไม่ได้)';box.appendChild(note);
+  }else if(!lockAdmin){
+    box.appendChild(permEditor(u));
+  }
+  const asg=document.createElement('div');asg.className='assign';
+  asg.appendChild(chipLabel('สาขาที่ดูแล'));
+  asg.appendChild(assignChips(u,'branchIds',ROOT.branches,b=>b.id,b=>b.name));
+  asg.appendChild(chipLabel('แผนกที่นับ'));
+  asg.appendChild(assignChips(u,'catKeys',depts,d=>d.key,d=>(d.ic?d.ic+' ':'')+d.label));
+  box.appendChild(asg);
+  return box;
 }
 async function dbUser(uid,patch){const {error}=await sb.from('app_users').update(patch).eq('auth_uid',uid);
   if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}return true;}
@@ -1501,13 +1554,20 @@ function applySettingsPerms(){
   const vis=(id,ok)=>{const e=$(id);if(e)e.style.display=ok?'block':'none'};
   vis('#blkShop',can('manageSettings'));
   vis('#blkBranch',can('manageBranches'));
-  vis('#blkStaff',can('manageStaff'));
-  vis('#blkRoles',currentUser&&currentUser.role==='admin');
+  vis('#blkStaff',can('manageStaff')||can('approveStaff'));
+  vis('#blkRoles',isFullRole(currentUser&&currentUser.role));
   vis('#blkUnit',can('manageUnits'));
-  vis('#blkSup',can('manageProducts'));
-  vis('#blkImg',can('manageProducts'));
+  vis('#blkSup',can('manageSuppliers'));
+  vis('#blkImg',can('manageImages'));
   vis('#blkConn',false);   // เลิกใช้ Sheet — เก็บใน Supabase ล้วน
   vis('#blkSave',can('manageSettings'));
+  // ปุ่มย่อยในกล่องพนักงาน
+  const ap=$('#openApprove');if(ap)ap.style.display=can('approveStaff')?'':'none';
+  const mu=$('#openUsers');if(mu)mu.style.display=can('manageStaff')?'':'none';
+  // เวลารีเซ็ต + ชื่อร้าน = เจ้าของ/ผู้ดูแลเท่านั้น
+  const full=isFullRole(currentUser&&currentUser.role);
+  ['#resetTime','#autoResetSwitch','#setShop'].forEach(id=>{const e=$(id);if(e)e.disabled=!full;});
+  const rb=$('#resetTimeBox');if(rb)rb.style.opacity=full?'1':'.5';
 }
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
@@ -1585,23 +1645,25 @@ function applyShop(){$('#shopTitle').textContent=cfg().shop}
 function renderRoles(){
   const wrap=$('#rolesList');wrap.innerHTML='';
   ROLE_ORDER.forEach(rk=>{
-    const r=cfg().roles[rk];const locked=(rk==='admin');
+    const r=cfg().roles[rk];const locked=isFullRole(rk);
     const card=document.createElement('div');card.className='rolecard';
-    card.innerHTML=`<div class="rh">${rk==='admin'?'👑':rk==='manager'?'🧑‍💼':rk==='supervisor'?'🧑‍🔧':'🧑‍🍳'} ${escapeHtml(roleLabel(rk))}${locked?' <span style="font-size:.72rem;color:var(--ink-soft);font-weight:500">(ทุกสิทธิ์ · แก้ไม่ได้)</span>':''}</div>`;
+    card.innerHTML=`<div class="rh">${rk==='owner'?'👑':rk==='admin'?'🛡️':rk==='manager'?'🧑‍💼':rk==='supervisor'?'🧑‍🔧':rk==='warehouse'?'📦':'🧑‍🍳'} ${escapeHtml(roleLabel(rk))}${locked?' <span style="font-size:.72rem;color:var(--ink-soft);font-weight:500">(ทุกสิทธิ์ · แก้ไม่ได้)</span>':''}</div>`;
     PERMS.forEach(p=>{
       const on=!!r.perms[p.key];
-      const rowel=document.createElement('div');rowel.className='permrow'+(locked||p.key==='count'?' locked':'');
+      const rowel=document.createElement('div');rowel.className='permrow'+(locked?' locked':'');
       rowel.innerHTML=`<span>${escapeHtml(p.label)}</span>`;
       const sw=document.createElement('label');sw.className='switch';
-      sw.innerHTML=`<input type="checkbox" ${on?'checked':''} ${(locked||(p.key==='count'))?'disabled':''}><span class="sl"></span>`;
-      sw.querySelector('input').onchange=e=>{r.perms[p.key]=e.target.checked;save();
-        if(currentUser&&currentUser.role===rk)$('#gearBtn').style.display=canAnyManage()?'grid':'none';toast('อัปเดตสิทธิ์แล้ว')};
+      sw.innerHTML=`<input type="checkbox" ${on?'checked':''} ${locked?'disabled':''}><span class="sl"></span>`;
+      sw.querySelector('input').onchange=async e=>{r.perms[p.key]=e.target.checked;
+        const {error}=await sb.from('roles').update({perms:r.perms}).eq('role',rk);
+        if(error){toast('บันทึกไม่สำเร็จ: '+error.message);e.target.checked=!e.target.checked;r.perms[p.key]=e.target.checked;return}
+        if(currentUser&&currentUser.role===rk)layoutHeaderBtns();toast('อัปเดตสิทธิ์ระดับ “'+roleLabel(rk)+'” แล้ว ✓')};
       rowel.appendChild(sw);card.appendChild(rowel);
     });
     wrap.appendChild(card);
   });
 }
-$('#openRoles').onclick=()=>{if(!currentUser||currentUser.role!=='admin')return;renderRoles();show('#rolesOverlay')};
+$('#openRoles').onclick=()=>{if(!isFullRole(currentUser&&currentUser.role))return;renderRoles();show('#rolesOverlay')};
 
 /* ================= approve new staff (Supabase) ================= */
 async function refreshPendingCount(){ if(!can('manageStaff')){$('#pendingCount').textContent='0';return;}
@@ -1616,7 +1678,7 @@ async function renderApprove(){
     const card=document.createElement('div');card.className='ucard';
     card.innerHTML=`<div class="lrow" style="border:none;margin:0;padding:0">
       <div style="flex:1"><b style="font-family:Kanit">${escapeHtml(u.name||u.username)}</b><div style="font-size:.8rem;color:var(--ink-soft)">@${escapeHtml(u.username)}</div></div>
-      <select class="role" style="width:120px"><option value="staff">พนักงาน</option><option value="supervisor">หัวหน้าแผนก</option><option value="manager">ผู้จัดการ</option><option value="warehouse">คลัง (จัดของ)</option><option value="admin">ผู้ดูแล</option></select>
+      <select class="role" style="width:120px"><option value="staff">พนักงาน</option><option value="supervisor">หัวหน้าแผนก</option><option value="warehouse">คลัง (จัดของ)</option><option value="manager">ผู้จัดการ</option><option value="admin">ผู้ดูแล</option><option value="owner">เจ้าของ</option></select>
       </div>
       <div class="actions" style="margin-top:8px"><button class="act send" data-act="ok">✓ อนุมัติ</button><button class="act ghost" data-act="no"><span class="danger">ปฏิเสธ</span></button></div>`;
     const role=card.querySelector('.role');
@@ -1631,7 +1693,7 @@ async function renderApprove(){
     wrap.appendChild(card);
   });
 }
-$('#openApprove').onclick=()=>{if(!can('manageStaff'))return;renderApprove();show('#approveOverlay')};
+$('#openApprove').onclick=()=>{if(!can('approveStaff'))return;renderApprove();show('#approveOverlay')};
 
 /* ================= report / data viewer ================= */
 let REPORT_ROWS=[];
@@ -1643,7 +1705,7 @@ async function openReport(){
   let q=sb.from('stock_counts').select('*').order('created_at',{ascending:false}).limit(3000);
   // staff เห็นเฉพาะสาขาที่ดูแล (ถ้ากำหนดไว้)
   const accb=accessibleBranches().map(b=>b.id);
-  if(currentUser.role!=='admin'&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
+  if(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
   const {data,error}=await q;
   if(error){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
   REPORT_ROWS=data||[];
@@ -1845,7 +1907,7 @@ $('#addSupBtn').onclick=async()=>{const n=$('#newSupName').value.trim();if(!n)re
   if(SUPPLIERS.some(s=>s.name===n)){toast('มีซัพนี้แล้ว');return;}
   const {error}=await sb.from('suppliers').insert({name:n});if(error){toast('เพิ่มไม่สำเร็จ: '+error.message);return;}
   SUPPLIERS.push({name:n});SUPPLIERS.sort((a,b)=>a.name.localeCompare(b.name,'th'));$('#newSupName').value='';renderSuppliers();refreshSupCount();toast('เพิ่มแล้ว ✓');};
-$('#openSuppliers').onclick=()=>{if(!can('manageProducts'))return;renderSuppliers();show('#supOverlay')};
+$('#openSuppliers').onclick=()=>{if(!can('manageSuppliers'))return;renderSuppliers();show('#supOverlay')};
 
 /* ================= product config: supplier + location ================= */
 function uniqueProducts(){ // รวมตามชื่อ: ซัพร่วม, จุดจัดเก็บแยกตามสาขา
@@ -1890,7 +1952,7 @@ function renderProdCfg(){
   });
 }
 $('#pcSearch').oninput=renderProdCfg;
-$('#openProdCfg').onclick=()=>{if(!can('manageProducts'))return;renderProdCfg();show('#prodCfgOverlay')};
+$('#openProdCfg').onclick=()=>{if(!can('manageSuppliers'))return;renderProdCfg();show('#prodCfgOverlay')};
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
