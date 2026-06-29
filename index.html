@@ -732,6 +732,7 @@
       </div>
       <div class="rquick">
         <button class="rchip" id="dRefresh" style="border-color:var(--red);color:var(--red)">🔄 รีเฟรช</button>
+        <button class="act line" id="dLine" style="padding:6px 14px;font-size:.82rem">📲 ส่งเข้าไลน์</button>
         <button class="act send" id="dPrint" style="padding:6px 14px;font-size:.82rem">🖨️ พิมพ์ใบส่งของ / PDF</button>
         <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV</button>
       </div>
@@ -805,6 +806,7 @@ async function sbLoadData(prof){
     sb.from('config').select('*'),
     sb.from('suppliers').select('*').order('name')]);
   if(br.error||pr.error)throw (br.error||pr.error);
+  try{const lg=await sb.from('line_groups').select('*').order('seen_at',{ascending:false});LINE_GROUPS=(lg&&lg.data)?lg.data:[];}catch(e){LINE_GROUPS=[];}
   const conf={};(cf.data||[]).forEach(r=>conf[r.key]=r.value);
   const roles={};(rl.data||[]).forEach(r=>roles[r.role]={label:r.label,perms:r.perms||{}});
   if(roles.admin)PERMS.forEach(p=>roles.admin.perms[p.key]=true);   // admin = ทุกสิทธิ์เสมอ
@@ -827,7 +829,7 @@ async function sbLoadData(prof){
   try{const {data}=await sb.from('stock_current').select('*');if(data)data.forEach(r=>{const x=ITEM_INDEX[r.product_id];if(x)x.item.qty=(r.qty==null?null:+r.qty);});}catch(e){}
   subscribeRealtime();
 }
-let ITEM_INDEX={}, RT_CHAN=null, SUPPLIERS=[];
+let ITEM_INDEX={}, RT_CHAN=null, SUPPLIERS=[], LINE_GROUPS=[];
 function supInfo(name){return SUPPLIERS.find(s=>s.name===(name||''))||null;}
 function subscribeRealtime(){
   if(RT_CHAN)return;   // ครั้งเดียว
@@ -1943,6 +1945,47 @@ $('#dispatchBtn').onclick=openDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
 $('#dPrint').onclick=printDispatch;
+$('#dLine').onclick=sendDispatchLine;
+async function sendDispatchLine(){
+  const rows=dispatchFiltered();
+  if(!rows.length){toast('ไม่มีออเดอร์ให้ส่ง');return;}
+  const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
+  const supMap={};SUPPLIERS.forEach(s=>supMap[s.name]=s);
+  // จัดกลุ่มตามซัพ → ในซัพแยกตามสาขา
+  const bySup={};rows.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(bySup[s]=bySup[s]||[]).push(r);});
+  const toSend=[], noGroup=[];
+  Object.keys(bySup).forEach(sname=>{
+    const sup=supMap[sname];const gid=sup&&sup.line_group_id;
+    if(!gid){noGroup.push(sname);return;}
+    const items=bySup[sname];const byBranch={};
+    items.forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
+    let txt='🛒 ออเดอร์ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n🏷️ '+sname+'\n';
+    Object.keys(byBranch).forEach(bn=>{txt+='\n🏪 '+bn+'\n';
+      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+(+r.ordered)+' '+(r.unit||'')+'\n';});});
+    txt+='\nรวม '+items.length+' รายการ';
+    toSend.push({sname,gid,txt,n:items.length});
+  });
+  if(!toSend.length){toast('ยังไม่ได้ผูกกลุ่มไลน์ให้ซัพเลย — ไปผูกที่ 🏭 จัดการซัพพลายเออร์ ('+noGroup.join(', ')+')');return;}
+  let msg='ส่งออเดอร์เข้าไลน์ '+toSend.length+' ซัพ?\n\n'+toSend.map(t=>'• '+t.sname+' ('+t.n+' รายการ)').join('\n');
+  if(noGroup.length)msg+='\n\n⚠️ ข้าม '+noGroup.length+' ซัพที่ยังไม่ผูกกลุ่ม:\n'+noGroup.join(', ');
+  if(!confirm(msg))return;
+  const btn=$('#dLine');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังส่ง...';
+  let ok=0,fail=0,failNames=[];
+  for(const it of toSend){
+    try{
+      const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
+        body:JSON.stringify({to:it.gid,text:it.txt})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ok++;}else{fail++;failNames.push(it.sname);console.log('LINE fail',it.sname,j);}
+    }catch(e){fail++;failNames.push(it.sname);console.log('send err',it.sname,e);}
+  }
+  btn.disabled=false;btn.textContent=old;
+  let res='ส่งไลน์เสร็จ ✓ สำเร็จ '+ok+' ซัพ';
+  if(fail)res+=' · ❌ ล้มเหลว '+fail+' ('+failNames.join(', ')+')';
+  if(noGroup.length)res+=' · ข้าม '+noGroup.length;
+  toast(res);
+}
 $('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
 
 /* ================= suppliers manager ================= */
@@ -1968,6 +2011,7 @@ function nextDow(base,key){const order=['sun','mon','tue','wed','thu','fri','sat
 function scheduleSummary(sc){if(!sc||typeof sc!=='object')return '';
   const parts=DOW.filter(d=>sc[d[0]]).map(d=>dowShort(d[0])+'→'+dowShort(sc[d[0]]));
   return parts.length?('สั่ง '+parts.join(' · ')):'';}
+function lgLabel(g){return (g.name&&g.name.trim())?g.name:('กลุ่ม '+String(g.group_id).slice(0,10)+'…');}
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
@@ -2009,12 +2053,21 @@ function renderSuppliers(){
     if(open){
       const body=document.createElement('div');body.className='supbody';
       const sched=(s.schedule&&typeof s.schedule==='object')?s.schedule:{};
+      const curLg=LINE_GROUPS.find(g=>g.group_id===s.line_group_id);
+      const curLgName=curLg?(curLg.name||''):'';
+      const lgOpts='<option value="">— ไม่ผูกกลุ่ม —</option>'+LINE_GROUPS.map(g=>`<option value="${g.group_id}" ${s.line_group_id===g.group_id?'selected':''}>${escapeHtml(lgLabel(g))}</option>`).join('');
       const dayRows=DOW.map(d=>{const on=!!sched[d[0]];
         return `<div class="schrow"><label class="schk"><input type="checkbox" class="sc_on" data-d="${d[0]}" ${on?'checked':''}> ${d[1]}</label>
           <span class="scarr">→ ส่ง</span>
           <select class="sc_to" data-d="${d[0]}" ${on?'':'disabled'}>${DOW.map(x=>`<option value="${x[0]}" ${sched[d[0]]===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>`;}).join('');
       body.innerHTML=`<div class="sfield"><label>📅 รอบสั่ง → วันได้ของ (ติ๊กวันที่สั่งได้ แล้วเลือกวันส่ง)</label>
           <div class="schgrid">${dayRows}</div></div>
+        <div class="sfield" style="background:#eafaf0;border:1px solid #b9e6cc;border-radius:10px;padding:9px 10px">
+          <label>📲 กลุ่มไลน์สำหรับส่งออเดอร์อัตโนมัติ</label>
+          <select class="f_lg">${lgOpts}</select>
+          <input class="f_lgname" placeholder="ตั้งชื่อกลุ่มนี้ (จำง่าย เช่น 'กลุ่ม Ajinomoto')" value="${escapeHtml(curLgName)}" style="margin-top:6px">
+          <p class="hint" style="margin:4px 0 0">เชิญบอท LINE OA เข้ากลุ่มซัพ + พิมพ์ 1 ข้อความในกลุ่ม → กลุ่มจะโผล่ในรายการ (กด 🔄 รีโหลดถ้ายังไม่เห็น)</p>
+        </div>
         <div class="sfield"><label>เวลาตัดรอบสั่ง (ถ้ามี)</label><input class="f_cut" placeholder="เช่น 21:00" value="${escapeHtml(s.cutoff||'')}"></div>
         <div class="sfield"><label>ช่วงหยุด/เทศกาล</label>
           <div class="s3">
@@ -2031,6 +2084,13 @@ function renderSuppliers(){
         if(e.target.checked){sched[d]=selEl.value;selEl.disabled=false;}else{delete sched[d];selEl.disabled=true;}saveSched();});
       body.querySelectorAll('.sc_to').forEach(se=>se.onchange=e=>{const d=e.target.dataset.d;if(sched[d]!==undefined){sched[d]=e.target.value;saveSched();}});
       body.querySelector('.f_cut').onchange=e=>save({cutoff:e.target.value.trim()||null});
+      body.querySelector('.f_lg').onchange=e=>{const gid=e.target.value||null;save({line_group_id:gid});
+        const g=LINE_GROUPS.find(x=>x.group_id===gid);body.querySelector('.f_lgname').value=g?(g.name||''):'';};
+      body.querySelector('.f_lgname').onchange=async e=>{const gid=body.querySelector('.f_lg').value;
+        if(!gid){toast('เลือกกลุ่มก่อนถึงตั้งชื่อได้');e.target.value='';return;}
+        const nm=e.target.value.trim()||null;const {error}=await sb.from('line_groups').update({name:nm}).eq('group_id',gid);
+        if(error){toast('ตั้งชื่อไม่สำเร็จ: '+error.message);return;}
+        const g=LINE_GROUPS.find(x=>x.group_id===gid);if(g)g.name=nm;toast('ตั้งชื่อกลุ่มแล้ว ✓');};
       body.querySelector('.f_lo').onchange=e=>{save({last_order_date:e.target.value||null}).then(()=>renderSuppliers())};
       body.querySelector('.f_ld').onchange=e=>save({last_delivery_date:e.target.value||null});
       body.querySelector('.f_re').onchange=e=>{save({reopen_date:e.target.value||null}).then(()=>renderSuppliers())};
@@ -2047,7 +2107,9 @@ $('#addSupBtn').onclick=async()=>{const n=$('#newSupName').value.trim();if(!n)re
   if(SUPPLIERS.some(s=>s.name===n)){toast('มีซัพนี้แล้ว');return;}
   const {error}=await sb.from('suppliers').insert({name:n});if(error){toast('เพิ่มไม่สำเร็จ: '+error.message);return;}
   SUPPLIERS.push({name:n});SUPPLIERS.sort((a,b)=>a.name.localeCompare(b.name,'th'));$('#newSupName').value='';renderSuppliers();refreshSupCount();toast('เพิ่มแล้ว ✓');};
-$('#openSuppliers').onclick=()=>{if(!can('manageSuppliers'))return;renderSuppliers();show('#supOverlay')};
+$('#openSuppliers').onclick=async()=>{if(!can('manageSuppliers'))return;
+  try{const lg=await sb.from('line_groups').select('*').order('seen_at',{ascending:false});if(lg&&lg.data)LINE_GROUPS=lg.data;}catch(e){}
+  renderSuppliers();show('#supOverlay')};
 $('#supSearch').oninput=renderSuppliers;
 
 /* ================= product config: supplier + location ================= */
