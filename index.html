@@ -276,6 +276,12 @@
   .ditem .dn{min-width:0;word-break:break-word}
   .ditem .dn small{color:var(--ink-soft);font-size:.82em}
   .ditem .dq{font-family:'Kanit';font-weight:700;color:var(--red);white-space:nowrap;font-size:.95rem}
+  .ditem .dn{flex:1}
+  .ditem .dchk{flex:0 0 42px;text-align:center}
+  .ditem .dchk .cb{display:inline-block;width:19px;height:19px;border:1.5px solid #b59a86;border-radius:5px;vertical-align:middle}
+  .ditem.dhead{font-size:.7rem;color:var(--ink-soft);font-weight:700;border-bottom:1px solid var(--line)}
+  .ditem.dhead .dq{color:var(--ink-soft);font-size:.7rem}
+  .ditem.dhead .dchk{font-size:.64rem;line-height:1.05}
   body.dispatch-only .tabs,body.dispatch-only main,body.dispatch-only .bar,body.dispatch-only #centralBtn,body.dispatch-only #branchChip{display:none!important}
   body.dispatch-only #dispClose{display:none!important}
   body.dispatch-only #dispLogout{display:inline-block!important;width:auto;padding:0 14px;font-size:.82rem;font-weight:600;background:rgba(164,27,34,.12);border-radius:9px}
@@ -409,9 +415,13 @@
     body.printing .dgroup{color:#A41B22!important;border-bottom:1px solid #ccc}
     body.printing .ditem{border-bottom:1px solid #ddd}
     body.printing .ditem .dq{color:#111!important}
+    body.printing .ditem .dchk .cb{border:1.3px solid #555}
+    body.printing .ditem.dhead{color:#333!important}
     body.printing .dsign{display:flex!important;justify-content:space-between;gap:14px;margin:30px 6px 0;page-break-inside:avoid}
     body.printing .dsign .ds{flex:1;text-align:center;font-size:11px;color:#333}
     body.printing .dsign .dsline{height:38px;border-bottom:1px dotted #555;margin-bottom:5px}
+    body.printing .dsign .dstime{display:flex;align-items:flex-end;gap:4px;margin-top:9px;font-size:10px;color:#666}
+    body.printing .dsign .dstime::after{content:"";flex:1;border-bottom:1px dotted #777;margin-bottom:2px}
     /* พิมพ์สลิป/ครัวกลาง (โหมดเดิม) */
     body:not(.printing) header,body:not(.printing) .tabs,body:not(.printing) main,body:not(.printing) .bar,body:not(.printing) .gear,body:not(.printing) .sheet-head,body:not(.printing) .actions,body:not(.printing) .hint,body:not(.printing) .field,body:not(.printing) .two,body:not(.printing) .divider,body:not(.printing) .sub-title{display:none!important}
     body:not(.printing) .overlay{position:static;background:#fff;display:block!important;backdrop-filter:none}
@@ -1884,19 +1894,20 @@ function renderDispatch(){
     const sumQ=b.items.reduce((a,r)=>a+(+r.ordered||0),0);
     const div=document.createElement('div');div.className='dbranch';
     let html='<div class="dbranch-h"><span>🏪 '+escapeHtml(b.name||'')+'</span><span class="dbtot">'+b.items.length+' รายการ · รวม '+Math.round(sumQ*100)/100+'</span></div><div class="dbranch-body">';
+    html+='<div class="ditem dhead"><span class="dn">รายการ</span><span class="dq">จำนวน</span><span class="dchk">จัด<br>เสร็จ</span><span class="dchk">ทวน<br>ออเดอร์</span></div>';
     // จัดกลุ่มตามซัพพลายเออร์ในแต่ละสาขา
     const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
     Object.keys(sup).forEach(s=>{
       html+='<div class="dgroup">🏷️ '+escapeHtml(s)+'</div>';
       sup[s].forEach(r=>{const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?' <small style="color:var(--gold-bright)">📍'+escapeHtml(ix.item.location)+'</small>':'';
-        html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span></div>';});
+        html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span><span class="dchk"><span class="cb"></span></span><span class="dchk"><span class="cb"></span></span></div>';});
     });
     html+='</div>';
     html+='<div class="dsign">'
-      +'<div class="ds"><div class="dsline"></div>ผู้คอนเฟิร์มออเดอร์</div>'
-      +'<div class="ds"><div class="dsline"></div>ผู้จัดของ</div>'
-      +'<div class="ds"><div class="dsline"></div>ผู้ส่งของ</div>'
-      +'<div class="ds"><div class="dsline"></div>ผู้รับของ</div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้คอนเฟิร์มออเดอร์<div class="dstime">เวลา</div></div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้จัดของ<div class="dstime">เวลา</div></div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้ส่งของ<div class="dstime">เวลา</div></div>'
+      +'<div class="ds"><div class="dsline"></div>ผู้รับของ<div class="dstime">เวลา</div></div>'
       +'</div>';
     div.innerHTML=html;board.appendChild(div);
   });
