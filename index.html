@@ -134,7 +134,7 @@
   .overlay{position:fixed;inset:0;z-index:100;background:rgba(42,23,19,.55);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .overlay.show{display:flex}
   /* sub-managers opened from inside settings must stack ABOVE it */
-  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay,#supOverlay,#prodCfgOverlay,#dispPrintOverlay{z-index:130}
+  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay,#supOverlay,#prodCfgOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
   .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
@@ -386,35 +386,28 @@
   .toast.show{opacity:1;transform:translateX(-50%)}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-  /* dispatch sheet preview (on screen) */
-  #dispSheet{background:#fff;color:#111;padding:6px}
-  #dispSheet .sheet{padding:16px 18px;margin-bottom:14px;border:1px solid #e7dcc6;border-radius:8px}
-  #dispSheet .hd{display:flex;align-items:center;gap:12px;border-bottom:3px solid #A41B22;padding-bottom:10px;margin-bottom:12px}
-  #dispSheet .hd img{width:50px;height:50px;border-radius:9px;object-fit:cover}
-  #dispSheet .shop{font-size:19px;font-weight:700;color:#A41B22;line-height:1.2;font-family:'Kanit'}
-  #dispSheet .ttl{font-size:13px;color:#555}
-  #dispSheet .meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5}
-  #dispSheet .sup{font-weight:700;color:#A41B22;margin:13px 0 4px;font-size:14px;font-family:'Kanit'}
-  #dispSheet table{width:100%;border-collapse:collapse;margin-bottom:4px}
-  #dispSheet th,#dispSheet td{border:1px solid #888;padding:5px 7px;font-size:12.5px;vertical-align:middle}
-  #dispSheet th{background:#f0e6d2;text-align:left}
-  #dispSheet td.c,#dispSheet th.c{text-align:center;width:32px;font-size:15px}
-  #dispSheet td.q,#dispSheet th.q{text-align:right;width:64px;font-weight:700}
-  #dispSheet td.loc{color:#7a5c00}
-  #dispSheet .tot{text-align:right;font-weight:700;margin-top:6px;font-size:13px}
-  #dispSheet .sign{display:flex;justify-content:space-between;margin-top:40px;font-size:12px;gap:30px}
-  #dispSheet .sign div{flex:1;text-align:center;border-top:1px dotted #999;padding-top:6px}
-  .ptool{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--paper);border-bottom:1px solid var(--line);z-index:3}
+  /* dispatch print header (เห็นเฉพาะตอนพิมพ์) */
+  #dPrintHead{display:none;align-items:center;gap:12px;border-bottom:3px solid #A41B22;padding-bottom:10px;margin-bottom:12px}
+  #dPrintHead img{width:50px;height:50px;border-radius:9px;object-fit:cover}
+  #dPrintHead .ph-shop{font-size:19px;font-weight:700;color:#A41B22;font-family:'Kanit';line-height:1.2}
+  #dPrintHead .ph-ttl{font-size:13px;color:#555}
+  #dPrintHead .ph-meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5;color:#333}
   @media print{
     @page{margin:11mm}
-    /* พิมพ์เฉพาะใบส่งของ */
+    /* พิมพ์เฉพาะกระดานคลัง */
     body.printing>*{display:none!important}
-    body.printing #dispPrintOverlay{display:block!important;position:static!important;background:#fff!important;backdrop-filter:none!important}
-    body.printing #dispPrintOverlay>.sheet{max-width:none!important;max-height:none!important;box-shadow:none!important;border-radius:0!important}
-    body.printing .noprint{display:none!important}
-    body.printing #dispSheet{padding:0}
-    body.printing #dispSheet .sheet{page-break-after:always;border:none;margin:0}
-    body.printing #dispSheet .sheet:last-child{page-break-after:auto}
+    body.printing #dispatchOverlay{display:block!important;position:static!important;background:#fff!important;backdrop-filter:none!important;color:#111}
+    body.printing #dispatchOverlay>.sheet{max-width:none!important;max-height:none!important;box-shadow:none!important;border-radius:0!important}
+    body.printing .sheet-head,body.printing .rfilters,body.printing .rquick{display:none!important}
+    body.printing .sheet-body{padding:0!important}
+    body.printing #dPrintHead{display:flex!important}
+    body.printing #dSum{justify-content:flex-start;gap:18px;background:none;border:none;padding:0 0 8px;color:#333}
+    body.printing .dbranch{border:none!important;box-shadow:none!important;margin:0 0 6px;page-break-after:always}
+    body.printing .dbranch:last-child{page-break-after:auto}
+    body.printing .dbranch-h{background:#f0e6d2!important;color:#A41B22!important;border:1px solid #A41B22;border-radius:0}
+    body.printing .dgroup{color:#A41B22!important;border-bottom:1px solid #ccc}
+    body.printing .ditem{border-bottom:1px solid #ddd}
+    body.printing .ditem .dq{color:#111!important}
     /* พิมพ์สลิป/ครัวกลาง (โหมดเดิม) */
     body:not(.printing) header,body:not(.printing) .tabs,body:not(.printing) main,body:not(.printing) .bar,body:not(.printing) .gear,body:not(.printing) .sheet-head,body:not(.printing) .actions,body:not(.printing) .hint,body:not(.printing) .field,body:not(.printing) .two,body:not(.printing) .divider,body:not(.printing) .sub-title{display:none!important}
     body:not(.printing) .overlay{position:static;background:#fff;display:block!important;backdrop-filter:none}
@@ -727,23 +720,13 @@
         <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV</button>
       </div>
       <div class="rsum" id="dSum"></div>
+      <div id="dPrintHead"></div>
       <div id="dBoard"></div>
     </div>
   </div>
 </div>
 
 <!-- Report / data viewer -->
-<div class="overlay" id="dispPrintOverlay">
-  <div class="sheet" style="max-width:820px">
-    <div class="ptool noprint">
-      <button class="act ghost" id="dPrintClose" style="padding:7px 14px">✕ ปิด</button>
-      <span style="flex:1"></span>
-      <button class="act send" id="dDoPrint" style="padding:7px 16px">🖨️ พิมพ์ / บันทึก PDF</button>
-    </div>
-    <div id="dispSheet"></div>
-  </div>
-</div>
-
 <div class="overlay" id="reportOverlay">
   <div class="sheet">
     <div class="sheet-head"><h3>📊 ดูข้อมูลสต็อก / สั่งของ</h3><button class="x" data-close>✕</button></div>
@@ -1920,58 +1903,22 @@ function exportDispatchCSV(){
   a.href=url;a.download='jjmk-dispatch-'+($('#dDate').value||'all')+'.csv';a.click();URL.revokeObjectURL(url);
   toast('ส่งออก '+rows.length+' รายการแล้ว ✓');
 }
-const PRINT_CSS=`*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Sarabun','TH Sarabun New',Tahoma,sans-serif;color:#111;font-size:13px}
-.sheet{padding:16px 18px;page-break-after:always}
-.sheet:last-child{page-break-after:auto}
-.hd{display:flex;align-items:center;gap:12px;border-bottom:3px solid #A41B22;padding-bottom:10px;margin-bottom:12px}
-.hd img{width:50px;height:50px;border-radius:9px;object-fit:cover}
-.shop{font-size:19px;font-weight:700;color:#A41B22;line-height:1.2}
-.ttl{font-size:13px;color:#555}
-.meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5}
-.sup{font-weight:700;color:#A41B22;margin:13px 0 4px;font-size:14px}
-table{width:100%;border-collapse:collapse;margin-bottom:4px}
-th,td{border:1px solid #888;padding:5px 7px;font-size:12.5px;vertical-align:middle}
-th{background:#f0e6d2;text-align:left}
-td.c,th.c{text-align:center;width:32px;font-size:15px}
-td.q,th.q{text-align:right;width:64px;font-weight:700}
-td.loc{color:#7a5c00}
-.tot{text-align:right;font-weight:700;margin-top:6px;font-size:13px}
-.sign{display:flex;justify-content:space-between;margin-top:40px;font-size:12px;gap:30px}
-.sign div{flex:1;text-align:center;border-top:1px dotted #999;padding-top:6px}
-@media print{@page{margin:11mm}}`;
 function printDispatch(){
   const rows=dispatchFiltered();
   if(!rows.length){toast('ไม่มีออเดอร์ให้พิมพ์');return;}
   const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
-  const branches={};rows.forEach(r=>{(branches[r.branch_id]=branches[r.branch_id]||{name:r.branch_name,items:[]}).items.push(r);});
-  let body='';
-  Object.keys(branches).forEach(bid=>{
-    const b=branches[bid];
-    const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
-    const totQ=b.items.reduce((a,r)=>a+(+r.ordered||0),0);
-    let sec='<div class="sheet"><div class="hd"><img src="'+LOGO+'"><div><div class="shop">'+escapeHtml(cfg().shop||'จริงใจหมูกระทะ')+'</div><div class="ttl">ใบจัดส่งสินค้า · Dispatch Sheet</div></div><div class="meta">วันที่ '+dateLabel+'<br>สาขา: <b>'+escapeHtml(b.name||'')+'</b></div></div>';
-    Object.keys(sup).sort((a,b)=>a.localeCompare(b,'th')).forEach(s=>{
-      sec+='<div class="sup">🏷️ '+escapeHtml(s)+'</div><table><thead><tr><th class="c">จัด</th><th>สินค้า</th><th>จุดจัดเก็บ</th><th class="q">จำนวน</th><th>หน่วย</th><th>หมายเหตุ</th></tr></thead><tbody>';
-      sup[s].slice().sort((a,b)=>{const la=(ITEM_INDEX[a.product_id]||{}).item,lb=(ITEM_INDEX[b.product_id]||{}).item;
-        return ((la&&la.location)||'~').localeCompare((lb&&lb.location)||'~','th')||(a.name||'').localeCompare(b.name||'','th');}).forEach(r=>{
-        const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?escapeHtml(ix.item.location):'';
-        sec+='<tr><td class="c">☐</td><td>'+escapeHtml(r.name||'')+'</td><td class="loc">'+loc+'</td><td class="q">'+(+r.ordered)+'</td><td>'+escapeHtml(r.unit||'')+'</td><td></td></tr>';});
-      sec+='</tbody></table>';
-    });
-    sec+='<div class="tot">รวม '+b.items.length+' รายการ · '+Math.round(totQ*100)/100+' หน่วย</div>';
-    sec+='<div class="sign"><div>ผู้จัดสินค้า</div><div>ผู้ตรวจ</div><div>ผู้รับสินค้า</div></div></div>';
-    body+=sec;
-  });
-  $('#dispSheet').innerHTML=body;
-  show('#dispPrintOverlay');
+  const totQ=rows.reduce((a,r)=>a+(+r.ordered||0),0);
+  $('#dPrintHead').innerHTML='<img src="'+LOGO+'"><div class="ph-info"><div class="ph-shop">'+escapeHtml(cfg().shop||'จริงใจหมูกระทะ')+'</div>'
+    +'<div class="ph-ttl">ใบจัดส่งสินค้า · Dispatch Sheet</div></div>'
+    +'<div class="ph-meta">วันที่ '+dateLabel+'<br>'+rows.length+' รายการ · รวม '+Math.round(totQ*100)/100+' หน่วย</div>';
+  document.body.classList.add('printing');
+  setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('printing'),400);},80);
 }
 $('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;
+$('#dispatchBtn').onclick=openDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
 $('#dPrint').onclick=printDispatch;
-$('#dDoPrint').onclick=()=>{document.body.classList.add('printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('printing'),300);},60);};
-$('#dPrintClose').onclick=()=>$('#dispPrintOverlay').classList.remove('show');
 $('#dispClose').onclick=()=>{ if(isDispatchOnly())return; hideAll(); };
 
 /* ================= suppliers manager ================= */
