@@ -277,9 +277,9 @@
   .ditem .dn small{color:var(--ink-soft);font-size:.82em}
   .ditem .dq{font-family:'Kanit';font-weight:700;color:var(--red);white-space:nowrap;font-size:.95rem}
   .ditem .dn{flex:1}
-  .ditem .dchk{flex:0 0 42px;text-align:center}
+  .ditem .dchk{flex:0 0 42px;text-align:center;display:none}
   .ditem .dchk .cb{display:inline-block;width:19px;height:19px;border:1.5px solid #b59a86;border-radius:5px;vertical-align:middle}
-  .ditem.dhead{font-size:.7rem;color:var(--ink-soft);font-weight:700;border-bottom:1px solid var(--line)}
+  .ditem.dhead{display:none;font-size:.7rem;color:var(--ink-soft);font-weight:700;border-bottom:1px solid var(--line)}
   .ditem.dhead .dq{color:var(--ink-soft);font-size:.7rem}
   .ditem.dhead .dchk{font-size:.64rem;line-height:1.05}
   body.dispatch-only .tabs,body.dispatch-only main,body.dispatch-only .bar,body.dispatch-only #centralBtn,body.dispatch-only #branchChip{display:none!important}
@@ -415,6 +415,8 @@
     body.printing .dgroup{color:#A41B22!important;border-bottom:1px solid #ccc}
     body.printing .ditem{border-bottom:1px solid #ddd}
     body.printing .ditem .dq{color:#111!important}
+    body.printing .ditem .dchk{display:block!important}
+    body.printing .ditem.dhead{display:flex!important}
     body.printing .ditem .dchk .cb{border:1.3px solid #555}
     body.printing .ditem.dhead{color:#333!important}
     body.printing .dsign{display:flex!important;justify-content:space-between;gap:14px;margin:30px 6px 0;page-break-inside:avoid}
