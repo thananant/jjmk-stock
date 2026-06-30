@@ -519,6 +519,13 @@
     <div class="sheet-head"><h3 id="editTitle">แก้ไขรายการ</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
       <div class="field"><label>ชื่อสินค้า</label><input id="editName" placeholder="เช่น ผักบุ้ง"></div>
+      <div class="field" id="editI18nWrap">
+        <label>🌏 คำแปลชื่อ (สำหรับพนักงานต่างชาติ)</label>
+        <input id="editEn" placeholder="English name" style="margin-bottom:5px">
+        <input id="editLo" placeholder="ชື່ ລາວ (Lao)" style="margin-bottom:5px">
+        <input id="editMy" placeholder="မြန်မာ (Burmese)">
+        <p class="hint" style="margin:4px 0 0">เว้นว่าง = ใช้ชื่อไทย · บันทึกเข้า DB ทันทีที่กดบันทึก</p>
+      </div>
       <div class="field"><label>หน่วยนับ</label><select id="editUnit"></select></div>
       <div class="field">
         <label>รูปสินค้า</label>
@@ -879,7 +886,7 @@ async function sbLoadData(prof){
   const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
   (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
-    cmap[k].items.push({id:p.id,name:p.name,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:p.image_url||null});});
+    cmap[k].items.push({id:p.id,name:p.name,i18n:(p.i18n&&typeof p.i18n==='object')?p.i18n:null,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:p.image_url||null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'||prof.role==='owner'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
@@ -1320,7 +1327,7 @@ function itemCard(it,cat){
   const thumb=showImg?`<div class="thumb">${it.img?`<img src="${it.img}">`:'🖼'}</div>`:'';
   const editDot=can('manageProducts')?'<button class="edit-dot" title="แก้ไข">✎</button>':'';
   el.innerHTML=`
-    <div class="item-top">${thumb}<div class="item-name">${escapeHtml(it.name)}</div>${editDot}</div>
+    <div class="item-top">${thumb}<div class="item-name">${escapeHtml(itemName(it))}</div>${editDot}</div>
     <div class="row2">
       <div class="unit-wrap"><select class="unit-sel">${unitOptions(it.unit)}</select></div>
       <div class="stepper">
@@ -1374,7 +1381,7 @@ function buildSlip(){
   if(!groups.length){h+=`<div class="slip-empty">ยังไม่ได้นับรายการใด</div>`}
   else{h+='<div class="slip-body">';
     groups.forEach(({c,its})=>{h+=`<div class="slip-cat">${c.ic} ${escapeHtml(c.label)}</div>`;
-      its.forEach(i=>{h+=`<div class="slip-row${isOut(i)?' z':''}"><span>${escapeHtml(i.name)}</span><span class="q">${isOut(i)?'หมด':fmt(i.qty)+' '+escapeHtml(i.unit||'')}</span></div>`})});
+      its.forEach(i=>{h+=`<div class="slip-row${isOut(i)?' z':''}"><span>${escapeHtml(itemName(i))}</span><span class="q">${isOut(i)?'หมด':fmt(i.qty)+' '+escapeHtml(i.unit||'')}</span></div>`})});
     h+='</div>';h+=`<div class="slip-tot"><span>นับแล้ว ${t.cn} รายการ</span><span>หมด ${t.out} รายการ</span></div>`}
   slip.innerHTML=h;
 }
@@ -1411,7 +1418,7 @@ function buildOrder(){
     const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>'+tr('col_item')+'</span><span>'+tr('col_left')+'</span><span>safety</span><span>max</span><span>'+tr('col_rec')+'</span><span>'+tr('col_order')+'</span>';box.appendChild(hd);
     sup[s].forEach(i=>{const rec=needQty(i);
       const row=document.createElement('div');row.className='orow';
-      row.innerHTML=`<div class="on">${escapeHtml(i.name)} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
+      row.innerHTML=`<div class="on">${escapeHtml(itemName(i))} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
         <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov">${i.max==null?'–':fmt(i.max)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
@@ -1460,6 +1467,8 @@ function setEditPreview(){const p=$('#imgPreview');const canImg=can('manageImage
 function openEdit(cat,item){if(!can('manageProducts')&&!can('manageImages'))return;editCtx={cat,item};editImg=item?(item.img||null):null;
   $('#editTitle').textContent=item?'แก้ไขสินค้า':'เพิ่มสินค้าใหม่';
   $('#editName').value=item?item.name:'';$('#editUnit').innerHTML=unitOptions(item?item.unit:units()[0]);
+  const i18 =(item&&item.i18n)?item.i18n:{};$('#editEn').value=i18.en||'';$('#editLo').value=i18.lo||'';$('#editMy').value=i18.my||'';
+  $('#editI18nWrap').style.display=can('manageProducts')?'':'none';
   const canImg=can('manageImages');$('#pickImg').style.display=canImg?'':'none';
   const canProd=can('manageProducts');$('#editName').disabled=!canProd;$('#editUnit').disabled=!canProd;
   $('#editSave').style.display=canProd?'':'none';
@@ -1476,10 +1485,13 @@ $('#removeImg').onclick=async()=>{
   if(!can('manageImages')){toast('แก้รูปได้เฉพาะผู้ดูแล');return}
   if(editCtx.item&&editCtx.item.img){try{await clearProductImage(editCtx.item.name);renderTabs();renderMain();}catch(err){toast('ลบรูปไม่สำเร็จ: '+((err&&err.message)||err));return}}
   editImg=null;setEditPreview();toast('ลบรูปแล้ว')};
-$('#editSave').onclick=()=>{const name=$('#editName').value.trim(),unit=$('#editUnit').value;
+$('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('#editUnit').value;
   if(!name){toast('ใส่ชื่อสินค้าก่อน');return}
-  if(editCtx.item){editCtx.item.name=name;editCtx.item.unit=unit;editCtx.item.img=editImg}
-  else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg})}
+  const en=$('#editEn').value.trim(),lo=$('#editLo').value.trim(),my=$('#editMy').value.trim();
+  const i18obj=(en||lo||my)?{en:en||null,lo:lo||null,my:my||null}:null;
+  if(editCtx.item){editCtx.item.name=name;editCtx.item.unit=unit;editCtx.item.img=editImg;editCtx.item.i18n=i18obj;
+    try{await sb.from('products').update({i18n:i18obj}).eq('name',editCtx.item.name);}catch(e){toast('บันทึกคำแปลไม่สำเร็จ: '+((e&&e.message)||e));}}
+  else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg,i18n:i18obj})}
   save();hideAll();renderTabs();renderMain();refreshCounters();toast('บันทึกแล้ว ✓')};
 $('#editDelete').onclick=()=>{if(!editCtx.item)return;if(!confirm('ลบ "'+editCtx.item.name+'" ออก?'))return;
   editCtx.cat.items=editCtx.cat.items.filter(i=>i!==editCtx.item);save();hideAll();renderTabs();renderMain();refreshCounters();toast('ลบแล้ว')};
@@ -2074,6 +2086,7 @@ function scheduleSummary(sc){if(!sc||typeof sc!=='object')return '';
   const parts=DOW.filter(d=>sc[d[0]]).map(d=>dowShort(d[0])+'→'+dowShort(sc[d[0]]));
   return parts.length?('สั่ง '+parts.join(' · ')):'';}
 function lgLabel(g){return (g.name&&g.name.trim())?g.name:('กลุ่ม '+String(g.group_id).slice(0,10)+'…');}
+function itemName(it){return (it&&it.i18n&&it.i18n[LANG])?it.i18n[LANG]:(it?(it.name||''):'');}
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
