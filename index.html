@@ -6,7 +6,7 @@
 <title>เช็คสต็อกสินค้าคงเหลือ — จริงใจหมูกระทะ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -430,27 +430,35 @@
     body:not(.printing) .sheet{max-height:none;box-shadow:none;border-radius:0}
     body:not(.printing) .sheet-body{padding:0}body:not(.printing) .slip{box-shadow:none;border:none;margin:0}
   }
+  body[data-lang="lo"] *{font-family:'Noto Sans Lao','Kanit','Sarabun',sans-serif !important}
+  body[data-lang="my"] *{font-family:'Noto Sans Myanmar','Kanit','Sarabun',sans-serif !important}
+  .langsw{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .langsw button{padding:6px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:.84rem;cursor:pointer;font-family:'Kanit','Noto Sans Lao','Noto Sans Myanmar',sans-serif}
+  .langsw button.on{background:var(--gold);color:var(--red-deep);border-color:var(--gold);font-weight:700}
+  .hlang{display:flex;gap:4px;flex-wrap:wrap}
+  .hlang button{padding:4px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:#fff;font-size:.74rem;cursor:pointer;font-family:'Kanit','Noto Sans Lao','Noto Sans Myanmar',sans-serif}
+  .hlang button.on{background:var(--gold);color:var(--red-deep);font-weight:700}
 </style>
-</head>
 <body>
 
 <!-- ===== Login ===== -->
 <div class="login show" id="login">
   <div class="lseal" id="lseal"><img id="lsealImg" alt="โลโก้จริงใจหมูกระทะ"></div>
   <h2 id="loginShop">จริงใจหมูกระทะ</h2>
-  <div class="sub">เช็คสต็อกสินค้าคงเหลือ</div>
+  <div class="sub" data-i18n="shop_sub">เช็คสต็อกสินค้าคงเหลือ</div>
   <div class="loginform">
-    <input id="loginName" class="linput" placeholder="ชื่อ-สกุล (กรอกเฉพาะตอนสมัคร)" autocapitalize="words" style="display:none">
-    <input id="loginUser" class="linput" placeholder="ชื่อผู้ใช้ (username)" autocomplete="username" autocapitalize="off" autocorrect="off">
+    <input id="loginName" class="linput" data-i18n-ph="ph_name" placeholder="ชื่อ-สกุล (กรอกเฉพาะตอนสมัคร)" autocapitalize="words" style="display:none">
+    <input id="loginUser" class="linput" data-i18n-ph="ph_user" placeholder="ชื่อผู้ใช้ (username)" autocomplete="username" autocapitalize="off" autocorrect="off">
     <div class="pwrap">
-      <input id="loginPass" class="linput" type="password" placeholder="รหัสผ่าน (password)" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <input id="loginPass" class="linput" type="password" data-i18n-ph="ph_pass" placeholder="รหัสผ่าน (password)" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
       <button id="togglePass" class="eye" type="button" aria-label="แสดงรหัสผ่าน">👁</button>
     </div>
-    <button id="loginBtn" class="lbtn">เข้าสู่ระบบ</button>
-    <button id="signupBtn" class="lbtn alt" type="button">สมัครพนักงานใหม่</button>
+    <button id="loginBtn" class="lbtn" data-i18n="btn_login">เข้าสู่ระบบ</button>
+    <button id="signupBtn" class="lbtn alt" type="button" data-i18n="btn_signup">สมัครพนักงานใหม่</button>
   </div>
   <div class="msg" id="loginMsg"></div>
   <div class="hint2" id="loginHint"></div>
+  <div class="langsw" id="langSwitchLogin"></div>
 </div>
 
 <header>
@@ -458,7 +466,7 @@
     <div class="seal" id="seal"><img id="sealImg" alt="โลโก้"></div>
     <div>
       <h1 id="shopTitle">จริงใจหมูกระทะ</h1>
-      <p>เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
+      <p data-i18n="shop_sub2">เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
     </div>
   </div>
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none">⚙️</button>
@@ -466,8 +474,9 @@
   <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none">📊</button>
   <button class="gear" id="dispatchBtn" aria-label="คลัง" style="display:none">📥</button>
   <div class="ctx">
+    <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn">ออก</button></div>
+    <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
 
@@ -477,27 +486,27 @@
 <div class="bar">
   <div class="info">
     <b id="barCount">นับแล้ว 0 / 0</b>
-    <span id="barHint">แตะ ＋ − หรือกรอกจำนวนคงเหลือของแต่ละรายการ</span>
+    <span id="barHint" data-i18n="bar_hint">แตะ ＋ − หรือกรอกจำนวนคงเหลือของแต่ละรายการ</span>
   </div>
-  <button class="btn-main" id="summaryBtn" disabled>📦 สรุปสต็อก</button>
+  <button class="btn-main" id="summaryBtn" disabled>📦 <span data-i18n="summary_btn">สรุปสต็อก</span></button>
 </div>
 
 <!-- Summary -->
 <div class="overlay" id="sumOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>สรุปการนับสต็อก</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-head"><h3 data-i18n="sum_title">สรุปการนับสต็อก</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
       <div class="two">
-        <div class="field"><label>ผู้ตรวจนับ</label><input id="counterInput" readonly></div>
-        <div class="field"><label>วันที่นับ</label><input id="countDate" type="date"></div>
+        <div class="field"><label data-i18n="lbl_counter">ผู้ตรวจนับ</label><input id="counterInput" readonly></div>
+        <div class="field"><label data-i18n="lbl_date">วันที่นับ</label><input id="countDate" type="date"></div>
       </div>
       <div class="slip" id="slip"></div>
       <div id="orderBox"></div>
-      <div class="actions"><button class="act send wide" id="sendBtn">💾 บันทึกลง Supabase</button></div>
+      <div class="actions"><button class="act send wide" id="sendBtn">💾 <span data-i18n="btn_save">บันทึกลง Supabase</span></button></div>
       <div class="actions">
-        <button class="act copy" id="copyBtn">📑 คัดลอก</button>
-        <button class="act ghost" id="printBtn">🖨️ พิมพ์</button>
-        <button class="act ghost" id="clearBtn"><span class="danger">↺ ล้างการนับ</span></button>
+        <button class="act copy" id="copyBtn">📑 <span data-i18n="btn_copy">คัดลอก</span></button>
+        <button class="act ghost" id="printBtn">🖨️ <span data-i18n="btn_print">พิมพ์</span></button>
+        <button class="act ghost" id="clearBtn"><span class="danger">↺ <span data-i18n="btn_clear">ล้างการนับ</span></span></button>
       </div>
       <p class="hint">บันทึกเข้าฐานข้อมูล Supabase พร้อมระบุ <b>สาขา</b> และ <b>ผู้ตรวจนับ</b> อัตโนมัติ · ทุกเครื่องเห็นเรียลไทม์</p>
     </div>
@@ -791,6 +800,55 @@ const SB_URL='https://aikyxvluaiubdidqxwnd.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpa3l4dmx1YWl1YmRpZHF4d25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mjc1MjQsImV4cCI6MjA5ODIwMzUyNH0.YSZ-dWsdVisRd3diGA_Cos6U2YQYQZPJzSXYuGp7FfM';
 const EMAIL_DOMAIN='@jjmk.local';
 const sb=window.supabase.createClient(SB_URL,SB_ANON);
+
+/* ================= i18n (TH / EN / LO / MY) ================= */
+const I18N={
+  th:{lang_name:'ไทย',shop_sub:'เช็คสต็อกสินค้าคงเหลือ',shop_sub2:'เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK',
+    ph_name:'ชื่อ-สกุล (กรอกเฉพาะตอนสมัคร)',ph_user:'ชื่อผู้ใช้ (username)',ph_pass:'รหัสผ่าน (password)',
+    btn_login:'เข้าสู่ระบบ',btn_signup:'สมัครพนักงานใหม่',logout:'ออก',
+    bar_hint:'แตะ ＋ − หรือกรอกจำนวนคงเหลือของแต่ละรายการ',bar_counted:'นับแล้ว {a} / {b}',
+    summary_btn:'สรุปสต็อก',sum_title:'สรุปการนับสต็อก',lbl_counter:'ผู้ตรวจนับ',lbl_date:'วันที่นับ',
+    btn_save:'บันทึก',btn_copy:'คัดลอก',btn_print:'พิมพ์',btn_clear:'ล้างการนับ',
+    col_item:'สินค้า',col_left:'เหลือ',col_rec:'แนะนำ',col_order:'สั่งจริง'},
+  en:{lang_name:'EN',shop_sub:'Stock Check',shop_sub2:'Stock Check',
+    ph_name:'Full name (sign-up only)',ph_user:'Username',ph_pass:'Password',
+    btn_login:'Sign in',btn_signup:'Register new staff',logout:'Log out',
+    bar_hint:'Tap ＋ − or enter the remaining quantity for each item',bar_counted:'Counted {a} / {b}',
+    summary_btn:'Summary',sum_title:'Stock Count Summary',lbl_counter:'Counted by',lbl_date:'Count date',
+    btn_save:'Save',btn_copy:'Copy',btn_print:'Print',btn_clear:'Clear counts',
+    col_item:'Item',col_left:'Left',col_rec:'Suggest',col_order:'Order'},
+  lo:{lang_name:'ລາວ',shop_sub:'ກວດສິນຄ້າຄົງເຫຼືອ',shop_sub2:'ກວດສິນຄ້າຄົງເຫຼືອ · STOCK CHECK',
+    ph_name:'ຊື່-ນາມສະກຸນ (ສະເພາະຕອນສະໝັກ)',ph_user:'ຊື່ຜູ້ໃຊ້ (username)',ph_pass:'ລະຫັດຜ່ານ (password)',
+    btn_login:'ເຂົ້າສູ່ລະບົບ',btn_signup:'ສະໝັກພະນັກງານໃໝ່',logout:'ອອກ',
+    bar_hint:'ແຕະ ＋ − ຫຼື ໃສ່ຈຳນວນຄົງເຫຼືອຂອງແຕ່ລະລາຍການ',bar_counted:'ນັບແລ້ວ {a} / {b}',
+    summary_btn:'ສະຫຼຸບສະຕັອກ',sum_title:'ສະຫຼຸບການນັບສະຕັອກ',lbl_counter:'ຜູ້ນັບ',lbl_date:'ວັນທີ່ນັບ',
+    btn_save:'ບັນທຶກ',btn_copy:'ສຳເນົາ',btn_print:'ພິມ',btn_clear:'ລ້າງການນັບ',
+    col_item:'ສິນຄ້າ',col_left:'ເຫຼືອ',col_rec:'ແນະນຳ',col_order:'ສັ່ງຈິງ'},
+  my:{lang_name:'မြန်မာ',shop_sub:'ပစ္စည်းလက်ကျန် စစ်ဆေးရန်',shop_sub2:'ပစ္စည်းလက်ကျန် စစ်ဆေးရန် · STOCK CHECK',
+    ph_name:'အမည် (စာရင်းသွင်းချိန်သာ)',ph_user:'အသုံးပြုသူအမည် (username)',ph_pass:'စကားဝှက် (password)',
+    btn_login:'ဝင်ရန်',btn_signup:'ဝန်ထမ်းအသစ် စာရင်းသွင်းရန်',logout:'ထွက်ရန်',
+    bar_hint:'＋ − ကိုနှိပ်ပါ (သို့) ပစ္စည်းတစ်ခုစီ၏ လက်ကျန်အရေအတွက်ကို ထည့်ပါ',bar_counted:'ရေတွက်ပြီး {a} / {b}',
+    summary_btn:'အကျဉ်းချုပ်',sum_title:'ပစ္စည်းရေတွက်မှု အကျဉ်းချုပ်',lbl_counter:'ရေတွက်သူ',lbl_date:'ရေတွက်သည့်ရက်',
+    btn_save:'သိမ်းရန်',btn_copy:'ကူးယူရန်',btn_print:'ပရင့်ထုတ်ရန်',btn_clear:'ရေတွက်မှုရှင်းရန်',
+    col_item:'ပစ္စည်း',col_left:'ကျန်',col_rec:'အကြံပြု',col_order:'မှာယူ'}
+};
+let LANG='th';
+try{const s=localStorage.getItem('jjmk_lang');if(s&&I18N[s])LANG=s;}catch(e){}
+function t(key,vars){let s=(I18N[LANG]&&I18N[LANG][key])||(I18N.th[key])||key;
+  if(vars)Object.keys(vars).forEach(k=>{s=s.replace('{'+k+'}',vars[k]);});return s;}
+const tr=t;
+function applyI18n(){
+  document.body.setAttribute('data-lang',LANG);
+  document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.getAttribute('data-i18n'));});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{el.setAttribute('placeholder',t(el.getAttribute('data-i18n-ph')));});
+  buildLangSwitch('langSwitchLogin','langsw');buildLangSwitch('langSwitchHeader','hlang');
+  try{if(typeof updateCounts==='function')updateCounts();}catch(e){}
+  try{if(typeof applyReport==='function'&&$('#reportOverlay')&&$('#reportOverlay').classList.contains('show'))applyReport();}catch(e){}
+}
+function setLang(l){if(!I18N[l])return;LANG=l;try{localStorage.setItem('jjmk_lang',l);}catch(e){}applyI18n();}
+function buildLangSwitch(id,cls){const box=document.getElementById(id);if(!box)return;box.className=cls;box.innerHTML='';
+  ['th','en','lo','my'].forEach(l=>{const b=document.createElement('button');b.textContent=I18N[l].lang_name;
+    if(l===LANG)b.classList.add('on');b.onclick=()=>setLang(l);box.appendChild(b);});}
 const uname2email=u=>u.toLowerCase().trim()+EMAIL_DOMAIN;
 async function sbSignup(u,p,name){const {data,error}=await sb.auth.signUp({email:uname2email(u),password:p,options:{data:{name:name||u}}});if(error)throw error;return data;}
 async function sbLogin(u,p){const {error}=await sb.auth.signInWithPassword({email:uname2email(u),password:p});if(error)throw error;}
@@ -1294,7 +1352,7 @@ function rerenderCard(el,it){
 }
 function refreshCounters(){
   const t=totals();
-  $('#barCount').textContent=`นับแล้ว ${t.cn} / ${t.all}`;
+  $('#barCount').textContent=tr('bar_counted',{a:t.cn,b:t.all});
   $('#barHint').innerHTML=t.out?`มีของ ${t.cn-t.out} · <span class="o">หมด ${t.out} รายการ</span>`:(t.cn?'นับครบพร้อมสรุปสต็อก':'แตะ ＋ − หรือกรอกจำนวนคงเหลือของแต่ละรายการ');
   $('#summaryBtn').disabled=t.cn===0;
   vcats().forEach((c,idx)=>{const tab=tabsEl.children[idx];if(!tab)return;const cc=catCounted(c),co=catOut(c);
@@ -1346,7 +1404,7 @@ function buildOrder(){
         sh.appendChild(note);}
     }
     box.appendChild(sh);
-    const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>safety</span><span>max</span><span>แนะนำ</span><span>สั่งจริง</span>';box.appendChild(hd);
+    const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>'+tr('col_item')+'</span><span>'+tr('col_left')+'</span><span>safety</span><span>max</span><span>'+tr('col_rec')+'</span><span>'+tr('col_order')+'</span>';box.appendChild(hd);
     sup[s].forEach(i=>{const rec=needQty(i);
       const row=document.createElement('div');row.className='orow';
       row.innerHTML=`<div class="on">${escapeHtml(i.name)} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
@@ -2284,6 +2342,7 @@ setInterval(checkDailyReset,60000);
 })();
 
 /* init — Supabase */
+applyI18n();
 boot();
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible')checkDailyReset();
