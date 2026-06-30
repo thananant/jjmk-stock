@@ -531,6 +531,18 @@
         <p class="hint" style="margin:4px 0 0">เว้นว่าง = ใช้ชื่อไทย · บันทึกเข้า DB ทันทีที่กดบันทึก</p>
       </div>
       <div class="field"><label>หน่วยนับ</label><select id="editUnit"></select></div>
+      <div class="field" id="editPackWrap">
+        <label>📦 หน่วยสั่งซื้อ (ปัดเต็มลัง · เว้นว่าง = สั่งตามหน่วยนับ)</label>
+        <div style="display:flex;gap:6px;margin-bottom:5px">
+          <input id="editPack" inputmode="numeric" placeholder="ต่อลัง เช่น 12" style="flex:1">
+          <input id="editPackUnit" placeholder="หน่วย (ลัง)" style="flex:1">
+        </div>
+        <div style="display:flex;gap:6px">
+          <input id="editStep" inputmode="numeric" placeholder="สั่งทีละ เช่น 5" style="flex:1">
+          <input id="editStepUnit" placeholder="หน่วย (โล)" style="flex:1">
+        </div>
+        <p class="hint" style="margin:4px 0 0">ต่อลัง = กี่[หน่วยนับ] = 1 ลัง · สั่งทีละ = ยอดต้องหารลงตัว · บันทึกเข้า DB ทันที</p>
+      </div>
       <div class="field">
         <label>รูปสินค้า</label>
         <div class="img-edit">
@@ -1509,6 +1521,9 @@ function openEdit(cat,item){if(!can('manageProducts')&&!can('manageImages'))retu
   $('#editTitle').textContent=item?'แก้ไขสินค้า':'เพิ่มสินค้าใหม่';
   $('#editName').value=item?item.name:'';$('#editUnit').innerHTML=unitOptions(item?item.unit:units()[0]);
   const i18 =(item&&item.i18n)?item.i18n:{};$('#editEn').value=i18.en||'';$('#editLo').value=i18.lo||'';$('#editMy').value=i18.my||'';
+  $('#editPack').value=(item&&item.pack!=null)?item.pack:'';$('#editPackUnit').value=(item&&item.pack_unit)||'';
+  $('#editStep').value=(item&&item.order_step!=null)?item.order_step:'';$('#editStepUnit').value=(item&&item.step_unit)||'';
+  $('#editPackWrap').style.display=can('manageProducts')?'':'none';
   $('#editI18nWrap').style.display=can('manageProducts')?'':'none';
   const canImg=can('manageImages');$('#pickImg').style.display=canImg?'':'none';
   const canProd=can('manageProducts');$('#editName').disabled=!canProd;$('#editUnit').disabled=!canProd;
@@ -1530,9 +1545,15 @@ $('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('
   if(!name){toast('ใส่ชื่อสินค้าก่อน');return}
   const en=$('#editEn').value.trim(),lo=$('#editLo').value.trim(),my=$('#editMy').value.trim();
   const i18obj=(en||lo||my)?{en:en||null,lo:lo||null,my:my||null}:null;
+  const toIntN=v=>{v=(v||'').toString().trim();if(v==='')return null;const n=parseInt(v.replace(/[^\d]/g,''),10);return isNaN(n)?null:n;};
+  const pack=toIntN($('#editPack').value),packUnit=($('#editPackUnit').value.trim()||null);
+  const step=toIntN($('#editStep').value),stepUnit=($('#editStepUnit').value.trim()||null);
   if(editCtx.item){editCtx.item.name=name;editCtx.item.unit=unit;editCtx.item.img=editImg;editCtx.item.i18n=i18obj;
-    try{await sb.from('products').update({i18n:i18obj}).eq('name',editCtx.item.name);}catch(e){toast('บันทึกคำแปลไม่สำเร็จ: '+((e&&e.message)||e));}}
-  else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg,i18n:i18obj})}
+    editCtx.item.pack=pack;editCtx.item.pack_unit=packUnit;editCtx.item.order_step=step;editCtx.item.step_unit=stepUnit;
+    try{await sb.from('products').update({i18n:i18obj}).eq('name',editCtx.item.name);
+      await sb.from('products').update({pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit}).eq('id',editCtx.item.id);
+    }catch(e){toast('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}}
+  else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg,i18n:i18obj,pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit})}
   save();hideAll();renderTabs();renderMain();refreshCounters();toast('บันทึกแล้ว ✓')};
 $('#editDelete').onclick=async()=>{if(!editCtx.item)return;if(!confirm('ลบ "'+editCtx.item.name+'" ออกจากสาขานี้?\n(กู้คืนได้ภายหลังที่ 🗑 ถังขยะ)'))return;
   const it=editCtx.item;
