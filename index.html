@@ -2047,7 +2047,12 @@ function dispatchFiltered(){
     if(d&&r.count_date!==d)return;
     if(c&&r.cat_label!==c)return;
     const k=r.branch_id+'|'+r.product_id;if(seen[k])return;seen[k]=1;
-    if(+r.ordered>0)out.push(r);
+    // คิดสด: เทียบกับ safety/max + คงเหลือ ปัจจุบัน (ถ้านับล่าสุดแล้ว)
+    let ord=+r.ordered;
+    const x=ITEM_INDEX[r.product_id];
+    if(x&&x.item&&x.item.qty!=null){const ln=needQty(x.item);
+      if(ln!=null){if(ln<=0)return; ord=ln;}}   // ของพอแล้ว=ไม่โชว์ · ไม่งั้นใช้ยอดสด
+    if(ord>0)out.push(Object.assign({},r,{ordered:ord}));
   });
   return out;
 }
