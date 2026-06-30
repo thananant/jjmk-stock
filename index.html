@@ -917,7 +917,7 @@ async function sbLoadData(prof){
   const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
   (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
-    cmap[k].items.push({id:p.id,name:p.name,i18n:(p.i18n&&typeof p.i18n==='object')?p.i18n:null,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),qty:null,img:p.image_url||null});});
+    cmap[k].items.push({id:p.id,name:p.name,i18n:(p.i18n&&typeof p.i18n==='object')?p.i18n:null,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),pack:(p.pack==null?null:+p.pack),pack_unit:p.pack_unit||null,order_step:(p.order_step==null?null:+p.order_step),step_unit:p.step_unit||null,qty:null,img:p.image_url||null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'||prof.role==='owner'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
@@ -2120,9 +2120,7 @@ async function sendDispatchLineOne(){
   Object.keys(bySup).forEach(sn=>{txt+='\n🏷️ '+sn+'\n';
     const byBranch={};bySup[sn].forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
     Object.keys(byBranch).forEach(bn=>{txt+='🏪 '+bn+'\n';
-      byBranch[bn].forEach(r=>{const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);
-        txt+=cc?('• '+(r.name||'')+' — '+cc.cases+' ลัง (= '+cc.eq+' ซอง)\n')
-              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(rowUnit(r)||'')+'\n');});});});
+      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+orderText(r)+'\n';});});});
   txt+='\nรวม '+rows.length+' รายการ';
   if(!confirm('ส่งออเดอร์รวม '+rows.length+' รายการ เข้ากลุ่ม:\n"'+lgLabel(g)+'" ?'))return;
   const btn=$('#dLineOne');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังส่ง...';
@@ -2151,9 +2149,7 @@ async function sendDispatchLine(){
     items.forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
     let txt='🛒 ออเดอร์ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n🏷️ '+sname+'\n';
     Object.keys(byBranch).forEach(bn=>{txt+='\n🏪 '+bn+'\n';
-      byBranch[bn].forEach(r=>{const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);
-        txt+=cc?('• '+(r.name||'')+' — '+cc.cases+' ลัง (= '+cc.eq+' ซอง)\n')
-              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(rowUnit(r)||'')+'\n');});});
+      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+orderText(r)+'\n';});});
     txt+='\nรวม '+items.length+' รายการ';
     toSend.push({sname,gid,txt,n:items.length});
   });
@@ -2205,15 +2201,29 @@ function scheduleSummary(sc){if(!sc||typeof sc!=='object')return '';
   return parts.length?('สั่ง '+parts.join(' · ')):'';}
 function lgLabel(g){return (g.name&&g.name.trim())?g.name:('กลุ่ม '+String(g.group_id).slice(0,10)+'…');}
 function itemName(it){return (it&&it.i18n&&it.i18n[LANG])?it.i18n[LANG]:(it?(it.name||''):'');}
-/* ซอง → ลัง (สั่งเต็มลัง ปัดขึ้น) ต่อซัพ */
-const CASE_PACK={'Smoosh':24}; // ซองต่อลัง
-function casePack(sup){return CASE_PACK[(sup||'').trim()]||0;}
-function toCases(sup,unit,sachets){const per=casePack(sup);
-  if(!per||!(sachets>0)||!unit||!/ซอง/.test(unit))return null;
-  const cases=Math.ceil(sachets/per);return {cases,per,eq:cases*per};}
+/* ===== สั่งของเต็มหน่วย: ปัดเป็นลัง (pack) + สั่งทีละ/หารลงตัว (step) ต่อสินค้า ===== */
+const CASE_PACK={'Smoosh':24}; // legacy fallback (ก่อนรัน SQL pack); ใช้เมื่อสินค้ายังไม่มีค่า pack
 function rowSup(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.sup)||r.sup||'';}
 function rowUnit(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.unit)||r.unit||'';}
-function dispQty(r){const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);return cc?('<b>'+cc.cases+' ลัง</b> <small style="color:var(--ink-soft)">('+cc.eq+' ซอง)</small>'):((+r.ordered)+' '+(rowUnit(r)||''));}
+function pmeta(r){const ix=ITEM_INDEX[r.product_id];const it=ix&&ix.item;const unit=rowUnit(r);
+  let pack=(it&&it.pack!=null)?+it.pack:0, pu=(it&&it.pack_unit)||'ลัง';
+  let step=(it&&it.order_step!=null)?+it.order_step:0, su=(it&&it.step_unit)||'';
+  if(!pack){const lp=CASE_PACK[(rowSup(r)||'').trim()];if(lp&&/ซอง/.test(unit)){pack=lp;pu='ลัง';}} // legacy
+  if(pack===1&&pu===unit)pack=0; // 1:1 = ไม่ต้องแปลง
+  return {unit,pack,pu,step,su};}
+function toOrder(r){const m=pmeta(r);let q=+r.ordered;if(!(q>0))return null;
+  const base=q;
+  if(m.step&&m.su===m.unit)q=Math.ceil(q/m.step)*m.step;   // หารลงตัวในหน่วยนับ
+  if(m.pack){let cases=Math.ceil(q/m.pack);
+    if(m.step&&m.su===m.pu)cases=Math.ceil(cases/m.step)*m.step; // หารลงตัวในหน่วยลัง
+    return {conv:true,cases,pu:m.pu,eq:cases*m.pack,unit:m.unit};}
+  if(q!==base)return {conv:false,qty:q,unit:m.unit};        // step เปลี่ยนยอด แต่ไม่แปลงลัง
+  return null;}
+function orderText(r){const o=toOrder(r);if(!o)return (+r.ordered)+' '+(rowUnit(r)||'');
+  return o.conv?(o.cases+' '+o.pu+' (= '+o.eq+' '+o.unit+')'):(o.qty+' '+o.unit);}
+function orderHtml(r){const o=toOrder(r);if(!o)return (+r.ordered)+' '+(rowUnit(r)||'');
+  return o.conv?('<b>'+o.cases+' '+o.pu+'</b> <small style="color:var(--ink-soft)">(= '+o.eq+' '+o.unit+')</small>'):('<b>'+o.qty+' '+o.unit+'</b>');}
+function dispQty(r){return orderHtml(r);}
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
