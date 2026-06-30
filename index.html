@@ -134,7 +134,7 @@
   .overlay{position:fixed;inset:0;z-index:100;background:rgba(42,23,19,.55);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .overlay.show{display:flex}
   /* sub-managers opened from inside settings must stack ABOVE it */
-  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay,#supOverlay,#prodCfgOverlay{z-index:130}
+  #branchMgrOverlay,#userOverlay,#unitOverlay,#imgMgrOverlay,#branchOverlay,#rolesOverlay,#centralOverlay,#approveOverlay,#reportOverlay,#supOverlay,#prodCfgOverlay,#trashOverlay{z-index:130}
   .ccat{font-family:'Kanit';font-weight:600;color:var(--red);font-size:.92rem;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
   .crow{display:grid;grid-template-columns:1fr 50px 52px 52px 56px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.86rem}
   .crow .cn{min-width:0;word-break:break-word}
@@ -399,6 +399,9 @@
   #dPrintHead .ph-ttl{font-size:13px;color:#555}
   #dPrintHead .ph-meta{margin-left:auto;text-align:right;font-size:12px;line-height:1.5;color:#333}
   .dsign{display:none}
+  .casenote{font-family:'Sarabun';font-size:.82rem;color:#1559c7;background:#eef4ff;border:1px solid #cfe0fb;border-radius:8px;padding:4px 10px;margin:-2px 0 7px}
+  .casenote b{font-family:'Kanit';font-weight:700}
+  .casenote .cseq{color:var(--ink-soft);font-weight:500}
   @media print{
     @page{margin:11mm}
     /* พิมพ์เฉพาะกระดานคลัง */
@@ -559,9 +562,31 @@
   <div class="sheet">
     <div class="sheet-head"><h3>จัดการสาขา</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
-      <div class="addbox"><input id="newBranch" placeholder="ชื่อสาขาใหม่ เช่น สาขาลาดพร้าว"><button class="addbtn" id="addBranchBtn">เพิ่ม</button></div>
+      <div class="sub-title" style="margin-top:0">➕ เพิ่มสาขาใหม่ (ก๊อปเมนูจากสาขาเดิม)</div>
+      <div class="field"><label>ชื่อสาขาใหม่</label><input id="nbName" placeholder="เช่น สาขาวังหิน"></div>
+      <div class="two">
+        <div class="field"><label>ก๊อปเมนูจาก</label><select id="nbMenu"></select></div>
+        <div class="field"><label>ดึง Safety/Max จาก</label><select id="nbSM"></select></div>
+      </div>
+      <div class="actions"><button class="act send wide" id="nbCreate">➕ สร้างสาขา + ก๊อปเมนู</button></div>
+      <p class="hint">ก๊อปสินค้าทุกตัว (ชื่อ/หมวด/หน่วย/ซัพ/จุดเก็บ/รูป/คำแปล) · เลือกได้ว่าจะดึง Safety/Max จากสาขาไหน</p>
+      <div class="divider"></div>
+      <div class="sub-title">🏪 สาขาทั้งหมด</div>
       <div id="branchMgrList"></div>
-      <p class="hint">สาขาใหม่จะเริ่มจากรายการสินค้าเริ่มต้น · ข้อมูลการนับ/รูป แยกกันแต่ละสาขา</p>
+      <div class="actions"><button class="act ghost wide" id="openTrash">🗑 ถังขยะสินค้า (กู้คืน)</button></div>
+      <p class="hint">แก้ชื่อสาขา = อัปเดตในเครื่อง · เพิ่ม/ลบสาขาจริง ใช้ปุ่มสร้างด้านบน</p>
+    </div>
+  </div>
+</div>
+
+<!-- Trash / restore -->
+<div class="overlay" id="trashOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h3>🗑 ถังขยะสินค้า — กู้คืน</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>สาขา</label><select id="trashBranch"></select></div>
+      <div id="trashList"></div>
+      <p class="hint">สินค้าที่ลบจะมาอยู่ที่นี่ · กดกู้คืนเพื่อนำกลับมาใช้ · ลบถาวรจะหายตลอดไป</p>
     </div>
   </div>
 </div>
@@ -869,7 +894,7 @@ function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.
 async function sbLoadData(prof){
   const [br,pr,un,rl,cf,sp]=await Promise.all([
     sb.from('branches').select('*').order('sort'),
-    sb.from('products').select('*').order('sort'),
+    sb.from('products').select('*').is('deleted_at',null).order('sort'),
     sb.from('units').select('*').order('sort'),
     sb.from('roles').select('*'),
     sb.from('config').select('*'),
@@ -1422,9 +1447,17 @@ function buildOrder(){
         <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov">${i.max==null?'–':fmt(i.max)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
-      inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v)};
-      inp.onfocus=()=>inp.select();
       box.appendChild(row);
+      // ซัพที่สั่งเป็นลัง (เช่น Smoosh) → แสดง ลัง + (กี่ซอง)
+      let caseUpd=null;
+      if(casePack(i.sup)&&/ซอง/.test(i.unit||'')){
+        const cn=document.createElement('div');cn.className='casenote';box.appendChild(cn);
+        caseUpd=()=>{const cc=toCases(i.sup,i.unit,orderOf(i));
+          cn.innerHTML=cc?('📦 สั่งจริง <b>'+cc.cases+' ลัง</b> <span class="cseq">(= '+cc.eq+' ซอง · '+cc.per+' ซอง/ลัง)</span>'):'<span style="color:var(--ink-soft)">— ไม่ต้องสั่ง —</span>';};
+        caseUpd();
+      }
+      inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v);if(caseUpd)caseUpd();};
+      inp.onfocus=()=>inp.select();
     });
   });
 }
@@ -1493,30 +1526,76 @@ $('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('
     try{await sb.from('products').update({i18n:i18obj}).eq('name',editCtx.item.name);}catch(e){toast('บันทึกคำแปลไม่สำเร็จ: '+((e&&e.message)||e));}}
   else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg,i18n:i18obj})}
   save();hideAll();renderTabs();renderMain();refreshCounters();toast('บันทึกแล้ว ✓')};
-$('#editDelete').onclick=()=>{if(!editCtx.item)return;if(!confirm('ลบ "'+editCtx.item.name+'" ออก?'))return;
-  editCtx.cat.items=editCtx.cat.items.filter(i=>i!==editCtx.item);save();hideAll();renderTabs();renderMain();refreshCounters();toast('ลบแล้ว')};
+$('#editDelete').onclick=async()=>{if(!editCtx.item)return;if(!confirm('ลบ "'+editCtx.item.name+'" ออกจากสาขานี้?\n(กู้คืนได้ภายหลังที่ 🗑 ถังขยะ)'))return;
+  const it=editCtx.item;
+  if(it.id&&String(it.id).startsWith('it')){ // มีใน DB → soft delete เฉพาะแถวสาขานี้ (by id)
+    const {error}=await sb.from('products').update({deleted_at:new Date().toISOString()}).eq('id',it.id);
+    if(error){toast('ลบไม่สำเร็จ: '+error.message);return;}
+  }
+  editCtx.cat.items=editCtx.cat.items.filter(i=>i!==it);save();hideAll();renderTabs();renderMain();refreshCounters();toast('ลบแล้ว (กู้คืนได้ที่ถังขยะ)')};
 
 /* lightbox */
 function openLight(src){$('#lightImg').src=src;$('#lightbox').classList.add('show')}
 $('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
 
 /* ================= branch manager ================= */
+function fillBranchSelect(sel,selId){sel.innerHTML=ROOT.branches.map(b=>`<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)}</option>`).join('');}
 function renderBranchMgr(){
   const wrap=$('#branchMgrList');wrap.innerHTML='';
   ROOT.branches.forEach((b,idx)=>{const row=document.createElement('div');row.className='lrow';
     row.innerHTML=`<input class="nm" value="${escapeHtml(b.name)}"><button class="del" title="ลบ">🗑</button>`;
     const inp=row.querySelector('.nm');
-    inp.onchange=()=>{const nv=inp.value.trim();if(!nv){inp.value=b.name;return}b.name=nv;save();renderContext();updateCounts();toast('แก้ชื่อสาขาแล้ว')};
-    row.querySelector('.del').onclick=()=>{if(ROOT.branches.length<=1){toast('ต้องมีอย่างน้อย 1 สาขา');return}
-      if(!confirm(`ลบสาขา "${b.name}" พร้อมข้อมูลการนับทั้งหมด?`))return;
+    inp.onchange=async()=>{const nv=inp.value.trim();if(!nv){inp.value=b.name;return}
+      try{await sb.from('branches').update({name:nv}).eq('id',b.id);}catch(e){}
+      b.name=nv;save();renderContext();updateCounts();toast('แก้ชื่อสาขาแล้ว')};
+    row.querySelector('.del').onclick=async()=>{if(ROOT.branches.length<=1){toast('ต้องมีอย่างน้อย 1 สาขา');return}
+      if(!confirm(`ลบสาขา "${b.name}"?\n⚠️ ลบสินค้า+การนับของสาขานี้ทั้งหมด (กู้คืนยาก)`))return;
+      try{await sb.from('products').delete().eq('branch_id',b.id);await sb.from('branches').delete().eq('id',b.id);}
+      catch(e){toast('ลบสาขาไม่สำเร็จ: '+e.message);return;}
       ROOT.branches.splice(idx,1);if(currentBranchId===b.id){currentBranchId=ROOT.branches[0].id;active=0}
-      save();renderBranchMgr();renderContext();renderTabs();renderMain();refreshCounters();updateCounts();toast('ลบสาขาแล้ว')};
+      save();renderBranchMgr();renderContext();renderTabs();renderMain();refreshCounters();updateCounts();
+      fillBranchSelect($('#nbMenu'));fillBranchSelect($('#nbSM'));toast('ลบสาขาแล้ว')};
     wrap.appendChild(row)});
+  fillBranchSelect($('#nbMenu'));fillBranchSelect($('#nbSM'));
 }
-$('#addBranchBtn').onclick=()=>{const v=$('#newBranch').value.trim();if(!v){toast('พิมพ์ชื่อสาขาก่อน');return}
-  ROOT.branches.push({id:uid('b'),name:v,data:{categories:defaultCatalog()}});$('#newBranch').value='';
-  save();renderBranchMgr();updateCounts();toast('เพิ่มสาขาแล้ว ✓')};
+$('#nbCreate').onclick=async()=>{
+  const name=$('#nbName').value.trim();if(!name){toast('ใส่ชื่อสาขาใหม่ก่อน');return}
+  const menu=$('#nbMenu').value, sm=$('#nbSM').value;
+  if(!confirm('สร้างสาขา "'+name+'"\nก๊อปเมนูจาก: '+menu+'\nดึง Safety/Max จาก: '+sm+' ?'))return;
+  const btn=$('#nbCreate');btn.disabled=true;btn.textContent='⏳ กำลังสร้าง...';
+  try{const {data,error}=await sb.rpc('add_branch_copy',{new_branch_name:name,menu_from:menu,sm_from:sm});
+    if(error)throw error;
+    if(typeof data==='string'&&data.startsWith('❌')){toast(data);btn.disabled=false;btn.textContent='➕ สร้างสาขา + ก๊อปเมนู';return;}
+    toast(data||'สร้างสาขาแล้ว ✓ กำลังโหลดใหม่...');
+    $('#nbName').value='';
+    const prof=await sbProfile();await sbLoadData(prof);renderBranchMgr();renderContext();renderTabs();renderMain();refreshCounters();updateCounts();
+  }catch(e){toast('สร้างไม่สำเร็จ: '+((e&&e.message)||e));}
+  btn.disabled=false;btn.textContent='➕ สร้างสาขา + ก๊อปเมนู';
+};
 $('#openBranchMgr').onclick=()=>{renderBranchMgr();show('#branchMgrOverlay')};
+// ===== Trash / restore =====
+$('#openTrash').onclick=()=>{const ts=$('#trashBranch');ts.innerHTML=ROOT.branches.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  ts.value=currentBranchId;renderTrash();show('#trashOverlay')};
+$('#trashBranch').onchange=renderTrash;
+async function renderTrash(){
+  const wrap=$('#trashList');wrap.innerHTML='<p class="hint">กำลังโหลด...</p>';
+  const bid=$('#trashBranch').value;
+  const {data,error}=await sb.from('products').select('*').eq('branch_id',bid).not('deleted_at','is',null).order('cat_label');
+  if(error){wrap.innerHTML='<p class="hint">โหลดไม่สำเร็จ: '+error.message+'</p>';return;}
+  if(!data||!data.length){wrap.innerHTML='<p class="hint">— ไม่มีสินค้าที่ถูกลบ —</p>';return;}
+  wrap.innerHTML='';
+  data.forEach(p=>{const row=document.createElement('div');row.className='lrow';
+    row.innerHTML=`<div style="flex:1"><b>${escapeHtml(p.name)}</b> <span style="color:var(--ink-soft);font-size:.82em">${escapeHtml(p.cat_label||'')} · ${escapeHtml(p.unit||'')}</span></div>
+      <button class="act ghost" style="padding:6px 12px;font-size:.82rem">↩️ กู้คืน</button>
+      <button class="del" title="ลบถาวร">🗑</button>`;
+    row.querySelector('.act').onclick=async()=>{const {error}=await sb.from('products').update({deleted_at:null}).eq('id',p.id);
+      if(error){toast('กู้คืนไม่สำเร็จ: '+error.message);return;}
+      toast('กู้คืน "'+p.name+'" แล้ว ✓ กำลังโหลดใหม่...');const prof=await sbProfile();await sbLoadData(prof);renderTabs();renderMain();refreshCounters();renderTrash();};
+    row.querySelector('.del').onclick=async()=>{if(!confirm('ลบถาวร "'+p.name+'"?\n⚠️ หายตลอดไป กู้คืนไม่ได้'))return;
+      const {error}=await sb.from('products').delete().eq('id',p.id);
+      if(error){toast('ลบไม่สำเร็จ: '+error.message);return;}toast('ลบถาวรแล้ว');renderTrash();};
+    wrap.appendChild(row);});
+}
 
 /* ================= user manager ================= */
 function adminCount(){return ROOT.users.filter(u=>isFullRole(u.role)).length}
@@ -2035,7 +2114,9 @@ async function sendDispatchLine(){
     items.forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
     let txt='🛒 ออเดอร์ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n🏷️ '+sname+'\n';
     Object.keys(byBranch).forEach(bn=>{txt+='\n🏪 '+bn+'\n';
-      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+(+r.ordered)+' '+(r.unit||'')+'\n';});});
+      byBranch[bn].forEach(r=>{const cc=toCases(r.sup,r.unit,+r.ordered);
+        txt+=cc?('• '+(r.name||'')+' — '+cc.cases+' ลัง (= '+cc.eq+' ซอง)\n')
+              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(r.unit||'')+'\n');});});
     txt+='\nรวม '+items.length+' รายการ';
     toSend.push({sname,gid,txt,n:items.length});
   });
@@ -2087,6 +2168,12 @@ function scheduleSummary(sc){if(!sc||typeof sc!=='object')return '';
   return parts.length?('สั่ง '+parts.join(' · ')):'';}
 function lgLabel(g){return (g.name&&g.name.trim())?g.name:('กลุ่ม '+String(g.group_id).slice(0,10)+'…');}
 function itemName(it){return (it&&it.i18n&&it.i18n[LANG])?it.i18n[LANG]:(it?(it.name||''):'');}
+/* ซอง → ลัง (สั่งเต็มลัง ปัดขึ้น) ต่อซัพ */
+const CASE_PACK={'Smoosh':24}; // ซองต่อลัง
+function casePack(sup){return CASE_PACK[(sup||'').trim()]||0;}
+function toCases(sup,unit,sachets){const per=casePack(sup);
+  if(!per||!(sachets>0)||!unit||!/ซอง/.test(unit))return null;
+  const cases=Math.ceil(sachets/per);return {cases,per,eq:cases*per};}
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
