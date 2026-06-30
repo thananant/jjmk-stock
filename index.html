@@ -744,6 +744,7 @@
     <div class="sheet-body">
       <div class="addbox"><input id="newSupName" placeholder="ชื่อซัพพลายเออร์ใหม่" style="flex:1 1 160px"><button class="addbtn" id="addSupBtn">เพิ่ม</button></div>
       <button class="act ghost wide" id="reloadGroups" style="margin-bottom:8px">🔄 รีโหลดรายการกลุ่มไลน์ (<span id="lgCount">0</span> กลุ่ม)</button>
+      <button class="act ghost wide" id="backupLineMap" style="margin-bottom:8px">📥 สำรองข้อมูลจับคู่ ซัพ ↔ กลุ่มไลน์</button>
       <input id="supSearch" placeholder="🔍 ค้นหาซัพพลายเออร์..." style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';margin-bottom:8px;background:var(--paper);color:var(--ink)">
       <div id="supList"></div>
       <p class="hint">คลิกชื่อเพื่อกางตั้งค่า · 🟢 เปิดรับปกติ · 🟡 ใกล้ปิดรับ · 🔴 หยุดส่ง</p>
@@ -2284,6 +2285,30 @@ $('#openSuppliers').onclick=async()=>{if(!can('manageSuppliers'))return;
 $('#reloadGroups').onclick=async()=>{const b=$('#reloadGroups');b.disabled=true;
   await reloadLineGroups();renderSuppliers();b.disabled=false;
   toast(LINE_GROUPS.length?('เจอ '+LINE_GROUPS.length+' กลุ่ม ✓'):'ยังไม่เจอกลุ่ม — เชิญบอทเข้ากลุ่ม + พิมพ์ 1 ข้อความ');};
+$('#backupLineMap').onclick=async()=>{
+  await reloadLineGroups();
+  const lgName={};LINE_GROUPS.forEach(g=>lgName[g.group_id]=g.name||'');
+  const linked=SUPPLIERS.filter(s=>s.line_group_id);
+  if(!linked.length){toast('ยังไม่มีซัพที่ผูกกลุ่มไลน์');return;}
+  const date=new Date().toISOString().slice(0,10);
+  const sqlEsc=s=>String(s==null?'':s).replace(/'/g,"''");
+  // ----- CSV -----
+  const csv=['ซัพพลายเออร์,group_id,ชื่อกลุ่ม']
+    .concat(linked.map(s=>`"${(s.name||'').replace(/"/g,'""')}","${s.line_group_id}","${(lgName[s.line_group_id]||'').replace(/"/g,'""')}"`)).join('\n');
+  // ----- restore SQL -----
+  let sql='-- JJMK backup: ซัพ ↔ กลุ่มไลน์ · '+date+'\n-- รันไฟล์นี้เพื่อกู้คืนการจับคู่ทั้งหมด\n\n';
+  sql+='-- 1) ชื่อกลุ่มไลน์\n';
+  LINE_GROUPS.forEach(g=>{sql+=`insert into line_groups(group_id,name,seen_at) values ('${sqlEsc(g.group_id)}','${sqlEsc(g.name)}',now()) on conflict (group_id) do update set name=excluded.name;\n`;});
+  sql+='\n-- 2) จับคู่ซัพ → กลุ่ม\n';
+  linked.forEach(s=>{sql+=`update suppliers set line_group_id='${sqlEsc(s.line_group_id)}' where name='${sqlEsc(s.name)}';\n`;});
+  // ----- JSON -----
+  const json=JSON.stringify({backup_date:date,mapping:linked.map(s=>({supplier:s.name,group_id:s.line_group_id,group_name:lgName[s.line_group_id]||''})),groups:LINE_GROUPS.map(g=>({group_id:g.group_id,name:g.name||''}))},null,2);
+  const dl=(name,text,type)=>{const b=new Blob([type.includes('csv')?'\ufeff'+text:text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);};
+  dl('jjmk-line-mapping-'+date+'.csv',csv,'text/csv;charset=utf-8');
+  dl('jjmk-line-restore-'+date+'.sql',sql,'text/plain;charset=utf-8');
+  dl('jjmk-line-mapping-'+date+'.json',json,'application/json');
+  toast('สำรองแล้ว ✓ ('+linked.length+' ซัพ) — โหลด 3 ไฟล์: CSV / SQL กู้คืน / JSON');
+};
 $('#supSearch').oninput=renderSuppliers;
 
 /* ================= product config: supplier + location ================= */
