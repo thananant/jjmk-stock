@@ -743,6 +743,7 @@
     <div class="sheet-head"><h3>🏭 จัดการซัพพลายเออร์</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
       <div class="addbox"><input id="newSupName" placeholder="ชื่อซัพพลายเออร์ใหม่" style="flex:1 1 160px"><button class="addbtn" id="addSupBtn">เพิ่ม</button></div>
+      <button class="act ghost wide" id="reloadGroups" style="margin-bottom:8px">🔄 รีโหลดรายการกลุ่มไลน์ (<span id="lgCount">0</span> กลุ่ม)</button>
       <input id="supSearch" placeholder="🔍 ค้นหาซัพพลายเออร์..." style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';margin-bottom:8px;background:var(--paper);color:var(--ink)">
       <div id="supList"></div>
       <p class="hint">คลิกชื่อเพื่อกางตั้งค่า · 🟢 เปิดรับปกติ · 🟡 ใกล้ปิดรับ · 🔴 หยุดส่ง</p>
@@ -2273,9 +2274,16 @@ $('#addSupBtn').onclick=async()=>{const n=$('#newSupName').value.trim();if(!n)re
   if(SUPPLIERS.some(s=>s.name===n)){toast('มีซัพนี้แล้ว');return;}
   const {error}=await sb.from('suppliers').insert({name:n});if(error){toast('เพิ่มไม่สำเร็จ: '+error.message);return;}
   SUPPLIERS.push({name:n});SUPPLIERS.sort((a,b)=>a.name.localeCompare(b.name,'th'));$('#newSupName').value='';renderSuppliers();refreshSupCount();toast('เพิ่มแล้ว ✓');};
-$('#openSuppliers').onclick=async()=>{if(!can('manageSuppliers'))return;
+async function reloadLineGroups(){
   try{const lg=await sb.from('line_groups').select('*').order('seen_at',{ascending:false});if(lg&&lg.data)LINE_GROUPS=lg.data;}catch(e){}
+  const c=$('#lgCount');if(c)c.textContent=LINE_GROUPS.length;
+}
+$('#openSuppliers').onclick=async()=>{if(!can('manageSuppliers'))return;
+  await reloadLineGroups();
   renderSuppliers();show('#supOverlay')};
+$('#reloadGroups').onclick=async()=>{const b=$('#reloadGroups');b.disabled=true;
+  await reloadLineGroups();renderSuppliers();b.disabled=false;
+  toast(LINE_GROUPS.length?('เจอ '+LINE_GROUPS.length+' กลุ่ม ✓'):'ยังไม่เจอกลุ่ม — เชิญบอทเข้ากลุ่ม + พิมพ์ 1 ข้อความ');};
 $('#supSearch').oninput=renderSuppliers;
 
 /* ================= product config: supplier + location ================= */
