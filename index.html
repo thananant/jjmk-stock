@@ -402,6 +402,7 @@
   .casenote{font-family:'Sarabun';font-size:.82rem;color:#1559c7;background:#eef4ff;border:1px solid #cfe0fb;border-radius:8px;padding:4px 10px;margin:-2px 0 7px}
   .casenote b{font-family:'Kanit';font-weight:700}
   .casenote .cseq{color:var(--ink-soft);font-weight:500}
+  .ord.ordcase{background:#eef4ff;border-color:#cfe0fb;font-weight:700;color:#1559c7}
   @media print{
     @page{margin:11mm}
     /* พิมพ์เฉพาะกระดานคลัง */
@@ -1450,15 +1451,7 @@ function buildOrder(){
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
       box.appendChild(row);
-      // ซัพที่สั่งเป็นลัง (เช่น Smoosh) → แสดง ลัง + (กี่ซอง)
-      let caseUpd=null;
-      if(casePack(i.sup)&&/ซอง/.test(i.unit||'')){
-        const cn=document.createElement('div');cn.className='casenote';box.appendChild(cn);
-        caseUpd=()=>{const cc=toCases(i.sup,i.unit,orderOf(i));
-          cn.innerHTML=cc?('📦 สั่งจริง <b>'+cc.cases+' ลัง</b> <span class="cseq">(= '+cc.eq+' ซอง · '+cc.per+' ซอง/ลัง)</span>'):'<span style="color:var(--ink-soft)">— ไม่ต้องสั่ง —</span>';};
-        caseUpd();
-      }
-      inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v);if(caseUpd)caseUpd();};
+      inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v);};
       inp.onfocus=()=>inp.select();
     });
   });
@@ -2061,11 +2054,11 @@ function renderDispatch(){
     let html='<div class="dbranch-h"><span>🏪 '+escapeHtml(b.name||'')+'</span><span class="dbtot">'+b.items.length+' รายการ · รวม '+Math.round(sumQ*100)/100+'</span></div><div class="dbranch-body">';
     html+='<div class="ditem dhead"><span class="dn">รายการ</span><span class="dq">จำนวน</span><span class="dchk">จัด<br>เสร็จ</span><span class="dchk">ทวน<br>ออเดอร์</span></div>';
     // จัดกลุ่มตามซัพพลายเออร์ในแต่ละสาขา
-    const sup={};b.items.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
+    const sup={};b.items.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
     Object.keys(sup).forEach(s=>{
       html+='<div class="dgroup">🏷️ '+escapeHtml(s)+'</div>';
       sup[s].forEach(r=>{const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?' <small style="color:var(--gold-bright)">📍'+escapeHtml(ix.item.location)+'</small>':'';
-        html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+(+r.ordered)+' '+escapeHtml(r.unit||'')+'</span><span class="dchk"><span class="cb"></span></span><span class="dchk"><span class="cb"></span></span></div>';});
+        html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+dispQty(r)+'</span><span class="dchk"><span class="cb"></span></span><span class="dchk"><span class="cb"></span></span></div>';});
     });
     html+='</div>';
     html+='<div class="dsign">'
@@ -2113,7 +2106,7 @@ async function sendDispatchLine(){
   const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
   const supMap={};SUPPLIERS.forEach(s=>supMap[s.name]=s);
   // จัดกลุ่มตามซัพ → ในซัพแยกตามสาขา
-  const bySup={};rows.forEach(r=>{const s=(r.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(bySup[s]=bySup[s]||[]).push(r);});
+  const bySup={};rows.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(bySup[s]=bySup[s]||[]).push(r);});
   const toSend=[], noGroup=[];
   Object.keys(bySup).forEach(sname=>{
     const sup=supMap[sname];const gid=sup&&sup.line_group_id;
@@ -2122,9 +2115,9 @@ async function sendDispatchLine(){
     items.forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
     let txt='🛒 ออเดอร์ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n🏷️ '+sname+'\n';
     Object.keys(byBranch).forEach(bn=>{txt+='\n🏪 '+bn+'\n';
-      byBranch[bn].forEach(r=>{const cc=toCases(r.sup,r.unit,+r.ordered);
+      byBranch[bn].forEach(r=>{const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);
         txt+=cc?('• '+(r.name||'')+' — '+cc.cases+' ลัง (= '+cc.eq+' ซอง)\n')
-              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(r.unit||'')+'\n');});});
+              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(rowUnit(r)||'')+'\n');});});
     txt+='\nรวม '+items.length+' รายการ';
     toSend.push({sname,gid,txt,n:items.length});
   });
@@ -2182,6 +2175,9 @@ function casePack(sup){return CASE_PACK[(sup||'').trim()]||0;}
 function toCases(sup,unit,sachets){const per=casePack(sup);
   if(!per||!(sachets>0)||!unit||!/ซอง/.test(unit))return null;
   const cases=Math.ceil(sachets/per);return {cases,per,eq:cases*per};}
+function rowSup(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.sup)||r.sup||'';}
+function rowUnit(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.unit)||r.unit||'';}
+function dispQty(r){const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);return cc?('<b>'+cc.cases+' ลัง</b> <small style="color:var(--ink-soft)">('+cc.eq+' ซอง)</small>'):((+r.ordered)+' '+(rowUnit(r)||''));}
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
