@@ -1425,6 +1425,13 @@ function buildText(){
 }
 let ORDER={};
 function orderOf(it){ if(ORDER[it.id]!=null)return ORDER[it.id]; const n=needQty(it); return (n!=null&&n>0)?n:0; }
+// ดึง safety/max/pack/step ล่าสุดจาก DB มาทับในหน่วยความจำ (ไม่แตะ qty ที่กำลังนับ)
+function refreshMeta(){return sb.from('products').select('id,safety,max,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
+  .then(({data})=>{if(!data)return;data.forEach(p=>{const x=ITEM_INDEX[p.id];if(!x)return;const it=x.item;
+    it.safety=(p.safety==null?null:+p.safety);it.max=(p.max==null?null:+p.max);
+    it.pack=(p.pack==null?null:+p.pack);it.pack_unit=p.pack_unit||null;
+    it.order_step=(p.order_step==null?null:+p.order_step);it.step_unit=p.step_unit||null;});})
+  .catch(e=>console.log('refreshMeta',e));}
 function buildOrder(){
   const box=$('#orderBox');box.innerHTML='';
   // counted items that have a recommended order (safety set, counted, safety>stock)
@@ -1473,8 +1480,10 @@ function gasAvailable(){return typeof google!=='undefined'&&google.script&&googl
 $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
   const picked=[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({c,i}))));
   if(!picked.length){toast('ยังไม่มีรายการที่นับ');return}
-  btn.disabled=true;btn.textContent='⏳ กำลังบันทึก...';
+  btn.disabled=true;btn.textContent='⏳ ดึงค่าล่าสุด...';
   const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Supabase'};
+  await refreshMeta();
+  btn.textContent='⏳ กำลังบันทึก...';
   const cd=$('#countDate').value||todayStr();
   const histRows=picked.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
     counter:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id,
@@ -1487,6 +1496,7 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
     const r2=await sb.from('stock_current').upsert(curRows,{onConflict:'branch_id,product_id'});
     if(r2.error)throw r2.error;
     done('บันทึกลง Supabase แล้ว ✓ '+picked.length+' รายการ');
+    buildSlip();buildOrder();renderTabs();refreshCounters();
   }catch(e){done('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}
 };
 
