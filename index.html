@@ -778,7 +778,8 @@
       </div>
       <div class="rquick">
         <button class="rchip" id="dRefresh" style="border-color:var(--red);color:var(--red)">🔄 รีเฟรช</button>
-        <button class="act line" id="dLine" style="padding:6px 14px;font-size:.82rem">📲 ส่งเข้าไลน์</button>
+        <button class="act line" id="dLine" style="padding:6px 14px;font-size:.82rem">📲 ส่งเข้าไลน์ (แยกซัพ)</button>
+        <button class="act line" id="dLineOne" style="padding:6px 14px;font-size:.82rem;background:#0a7">📲 ส่งรวมกลุ่มเดียว</button>
         <button class="act send" id="dPrint" style="padding:6px 14px;font-size:.82rem">🖨️ พิมพ์ใบส่งของ / PDF</button>
         <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV</button>
       </div>
@@ -2102,6 +2103,39 @@ $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
 $('#dPrint').onclick=printDispatch;
 $('#dLine').onclick=sendDispatchLine;
+async function sendDispatchLineOne(){
+  const rows=dispatchFiltered();
+  if(!rows.length){toast('ไม่มีออเดอร์ให้ส่ง');return;}
+  await reloadLineGroups();
+  if(!LINE_GROUPS.length){toast('ยังไม่มีกลุ่มไลน์ — เชิญบอทเข้ากลุ่มก่อน');return;}
+  const list=LINE_GROUPS.map((g,i)=>(i+1)+'. '+lgLabel(g)).join('\n');
+  const ans=prompt('📲 ส่งออเดอร์ทั้งหมด "รวม" เข้ากลุ่มเดียว\n\nเลือกกลุ่มปลายทาง (พิมพ์เลข):\n\n'+list);
+  if(ans===null)return;
+  const idx=parseInt(String(ans).trim(),10)-1;
+  if(isNaN(idx)||idx<0||idx>=LINE_GROUPS.length){toast('เลขกลุ่มไม่ถูกต้อง');return;}
+  const g=LINE_GROUPS[idx];
+  const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
+  const bySup={};rows.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพ)';(bySup[s]=bySup[s]||[]).push(r);});
+  let txt='🛒 ออเดอร์รวม '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n';
+  Object.keys(bySup).forEach(sn=>{txt+='\n🏷️ '+sn+'\n';
+    const byBranch={};bySup[sn].forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
+    Object.keys(byBranch).forEach(bn=>{txt+='🏪 '+bn+'\n';
+      byBranch[bn].forEach(r=>{const cc=toCases(rowSup(r),rowUnit(r),+r.ordered);
+        txt+=cc?('• '+(r.name||'')+' — '+cc.cases+' ลัง (= '+cc.eq+' ซอง)\n')
+              :('• '+(r.name||'')+' — '+(+r.ordered)+' '+(rowUnit(r)||'')+'\n');});});});
+  txt+='\nรวม '+rows.length+' รายการ';
+  if(!confirm('ส่งออเดอร์รวม '+rows.length+' รายการ เข้ากลุ่ม:\n"'+lgLabel(g)+'" ?'))return;
+  const btn=$('#dLineOne');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังส่ง...';
+  try{const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
+      body:JSON.stringify({to:g.group_id,text:txt})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok)toast('ส่งรวมเข้า "'+lgLabel(g)+'" สำเร็จ ✓');
+    else{toast('ส่งไม่สำเร็จ: '+(j.error||r.status));console.log('LINE one fail',j);}
+  }catch(e){toast('ส่งไม่สำเร็จ: '+e.message);}
+  btn.disabled=false;btn.textContent=old;
+}
+$('#dLineOne').onclick=sendDispatchLineOne;
 async function sendDispatchLine(){
   const rows=dispatchFiltered();
   if(!rows.length){toast('ไม่มีออเดอร์ให้ส่ง');return;}
