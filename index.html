@@ -1725,6 +1725,10 @@ function buildUserEditor(u,isSelf,lockAdmin,depts){
       expandedUser=null;renderUsers();updateCounts();toast('ลบแล้ว ✓')};
   }
   box.appendChild(row);box.appendChild(sub);
+  if(currentUser&&isFullRole(currentUser.role)&&!lockAdmin){
+    const pr=document.createElement('button');pr.className='ubtn';pr.style.cssText='margin:6px 0 2px;border-color:var(--gold-bright)';
+    pr.textContent='🔑 รีเซ็ตรหัสผ่าน';pr.onclick=()=>resetUserPassword(u);box.appendChild(pr);
+  }
   if(isFullRole(u.role)){
     const note=document.createElement('div');note.className='adminnote';note.textContent=roleLabel(u.role)+' — ทุกสิทธิ์ (แก้ไม่ได้)';box.appendChild(note);
   }else if(!lockAdmin){
@@ -1740,6 +1744,23 @@ function buildUserEditor(u,isSelf,lockAdmin,depts){
 }
 async function dbUser(uid,patch){const {error}=await sb.from('app_users').update(patch).eq('auth_uid',uid);
   if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}return true;}
+async function resetUserPassword(u){
+  if(!(currentUser&&isFullRole(currentUser.role))){toast('เฉพาะผู้ดูแล/เจ้าของรีเซ็ตรหัสได้');return;}
+  const pw=prompt('ตั้งรหัสผ่านใหม่ให้ "'+(u.name||u.username||'')+'"\n(อย่างน้อย 6 ตัวอักษร)');
+  if(pw==null)return; const p=pw.trim();
+  if(p.length<6){toast('รหัสผ่านสั้นไป (อย่างน้อย 6 ตัว)');return;}
+  toast('กำลังรีเซ็ตรหัส...');
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const token=session&&session.access_token; if(!token){toast('เซสชันหมดอายุ ล็อกอินใหม่');return;}
+    const r=await fetch(SB_URL+'/functions/v1/admin-reset-password',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SB_ANON},
+      body:JSON.stringify({target_uid:u.id,new_password:p})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok)toast('รีเซ็ตรหัสให้ '+(u.name||u.username)+' แล้ว ✓');
+    else toast('รีเซ็ตไม่สำเร็จ: '+(j.error||('HTTP '+r.status)));
+  }catch(e){toast('ผิดพลาด: '+((e&&e.message)||e));}
+}
 function permEditor(u){
   const box=document.createElement('div');box.className='permedit';
   const custom=!!(u.perms&&typeof u.perms==='object');
@@ -2143,17 +2164,38 @@ $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
 $('#dPrint').onclick=printDispatch;
 $('#dLine').onclick=sendDispatchLine;
+// modal เลือกกลุ่มไลน์ (เลื่อนดู + ค้นหา) แทน prompt ที่เห็นไม่ครบ
+function pickLineGroup(titleText){
+  return new Promise(resolve=>{
+    const groups=LINE_GROUPS.slice();
+    const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:200';
+    const itemStyle="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font-family:'Sarabun';font-size:.92rem;cursor:pointer;width:100%";
+    const rowsHtml=groups.map((g,i)=>`<button class="lgpick-item" data-i="${i}" style="${itemStyle}">${escapeHtml(lgLabel(g))}</button>`).join('');
+    ov.innerHTML=`<div class="sheet" style="max-width:460px">
+      <div class="sheet-head"><h3>${escapeHtml(titleText||'เลือกกลุ่มไลน์')}</h3><button class="x" data-cancel>✕</button></div>
+      <div class="sheet-body">
+        <input class="lgpick-search" placeholder="🔍 พิมพ์ค้นหาชื่อกลุ่ม..." style="width:100%;padding:10px;margin-bottom:8px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun';font-size:.9rem">
+        <div class="lgpick-list" style="max-height:58vh;overflow:auto;display:flex;flex-direction:column;gap:6px">${rowsHtml}</div>
+        <p class="hint" style="margin:8px 0 0">ทั้งหมด ${groups.length} กลุ่ม · แตะเพื่อเลือก</p>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const close=v=>{ov.remove();resolve(v);};
+    ov.querySelector('[data-cancel]').onclick=()=>close(null);
+    ov.onclick=e=>{if(e.target===ov)close(null);};
+    const search=ov.querySelector('.lgpick-search'),listEl=ov.querySelector('.lgpick-list');
+    search.oninput=()=>{const q=search.value.trim().toLowerCase();
+      listEl.querySelectorAll('.lgpick-item').forEach(b=>{b.style.display=(!q||lgLabel(groups[+b.dataset.i]).toLowerCase().includes(q))?'':'none';});};
+    listEl.querySelectorAll('.lgpick-item').forEach(b=>b.onclick=()=>close(groups[+b.dataset.i]));
+    setTimeout(()=>search.focus(),200);
+  });
+}
 async function sendDispatchLineOne(){
   const rows=dispatchFiltered();
   if(!rows.length){toast('ไม่มีออเดอร์ให้ส่ง');return;}
   await reloadLineGroups();
   if(!LINE_GROUPS.length){toast('ยังไม่มีกลุ่มไลน์ — เชิญบอทเข้ากลุ่มก่อน');return;}
-  const list=LINE_GROUPS.map((g,i)=>(i+1)+'. '+lgLabel(g)).join('\n');
-  const ans=prompt('📲 ส่งออเดอร์ทั้งหมด "รวม" เข้ากลุ่มเดียว\n\nเลือกกลุ่มปลายทาง (พิมพ์เลข):\n\n'+list);
-  if(ans===null)return;
-  const idx=parseInt(String(ans).trim(),10)-1;
-  if(isNaN(idx)||idx<0||idx>=LINE_GROUPS.length){toast('เลขกลุ่มไม่ถูกต้อง');return;}
-  const g=LINE_GROUPS[idx];
+  const g=await pickLineGroup('📲 เลือกกลุ่มปลายทาง (ส่งรวมกลุ่มเดียว)');
+  if(!g)return;
   const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
   const bySup={};rows.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพ)';(bySup[s]=bySup[s]||[]).push(r);});
   let txt='🛒 ออเดอร์รวม '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n';
