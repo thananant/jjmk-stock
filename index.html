@@ -786,6 +786,7 @@
     <div class="sheet-body">
       <div class="rfilters">
         <select id="dDate"></select>
+        <select id="dBranch"></select>
         <select id="dCat"></select>
       </div>
       <div class="rquick">
@@ -2058,14 +2059,17 @@ async function openDispatch(){
   if(dates.length)dd.value=dates[0];
   const dc=$('#dCat');const cats=[...new Set(DISPATCH_ROWS.map(r=>r.cat_label).filter(Boolean))];
   dc.innerHTML='';dc.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>dc.appendChild(opt(c,c)));
+  const db=$('#dBranch');const bmap={};DISPATCH_ROWS.forEach(r=>{if(r.branch_id)bmap[r.branch_id]=r.branch_name||r.branch_id;});
+  db.innerHTML='';db.appendChild(opt('','🏪 ทุกสาขา'));Object.keys(bmap).forEach(id=>db.appendChild(opt(id,bmap[id])));
   renderDispatch();
 }
 function dispatchFiltered(){
-  const d=$('#dDate').value,c=$('#dCat').value;
+  const d=$('#dDate').value,c=$('#dCat').value,bf=$('#dBranch').value;
   // dedupe: เก็บแถวล่าสุดต่อ สาขา+สินค้า (รายการเรียงใหม่ไปเก่าอยู่แล้ว)
   const seen={},out=[];
   DISPATCH_ROWS.forEach(r=>{
     if(d&&r.count_date!==d)return;
+    if(bf&&r.branch_id!==bf)return;
     if(c&&r.cat_label!==c)return;
     const k=r.branch_id+'|'+r.product_id;if(seen[k])return;seen[k]=1;
     // คิดสด: เทียบกับ safety/max + คงเหลือ ปัจจุบัน (ถ้านับล่าสุดแล้ว)
@@ -2133,7 +2137,7 @@ function printDispatch(){
   document.body.classList.add('printing');
   setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('printing'),400);},80);
 }
-$('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;
+$('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;$('#dBranch').onchange=renderDispatch;
 $('#dispatchBtn').onclick=openDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
