@@ -785,7 +785,10 @@
     <div class="sheet-head"><h3>📥 คลัง — ออเดอร์ที่ต้องจัด <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">ลัง✓ v2</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
-        <select id="dDate"></select>
+        <div style="display:flex;gap:6px">
+          <input type="date" id="dDate" style="flex:1;min-width:0">
+          <button type="button" id="dAllDays" class="rchip" style="white-space:nowrap">📅 ทุกวัน</button>
+        </div>
         <select id="dBranch"></select>
         <select id="dCat"></select>
       </div>
@@ -2084,18 +2087,26 @@ $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
 
 /* ================= dispatch / warehouse (คลัง) ================= */
-let DISPATCH_ROWS=[];
+let DISPATCH_ROWS=[], DISPATCH_DATES=[];
 async function openDispatch(){
   show('#dispatchOverlay');
   $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
-  let q=sb.from('stock_counts').select('*').gt('ordered',0).order('created_at',{ascending:false}).limit(5000);
+  // 1) รายการวันที่ทั้งหมดที่มีออเดอร์ (คอลัมน์เดียว ไม่โดน limit ตัดวันเก่า)
+  const {data:dd,error:derr}=await sb.from('stock_counts').select('count_date').gt('ordered',0).order('count_date',{ascending:false}).limit(100000);
+  if(derr){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
+  DISPATCH_DATES=[...new Set((dd||[]).map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  const di=$('#dDate');
+  if(DISPATCH_DATES.length){di.min=DISPATCH_DATES[DISPATCH_DATES.length-1];di.max=DISPATCH_DATES[0];}
+  await loadDispatchRows(DISPATCH_DATES[0]||'');
+}
+async function loadDispatchRows(date){
+  $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
+  let q=sb.from('stock_counts').select('*').gt('ordered',0).order('created_at',{ascending:false});
+  if(date)q=q.eq('count_date',date); else q=q.limit(5000);
   const {data,error}=await q;
   if(error){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
   DISPATCH_ROWS=data||[];
-  // ตัวกรองวัน
-  const dd=$('#dDate');const dates=[...new Set(DISPATCH_ROWS.map(r=>r.count_date).filter(Boolean))].sort().reverse();
-  dd.innerHTML='';dd.appendChild(opt('','📅 ทุกวัน'));dates.forEach(d=>dd.appendChild(opt(d,fmtDate(d))));
-  if(dates.length)dd.value=dates[0];
+  $('#dDate').value=date||'';
   const dc=$('#dCat');const cats=[...new Set(DISPATCH_ROWS.map(r=>r.cat_label).filter(Boolean))];
   dc.innerHTML='';dc.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>dc.appendChild(opt(c,c)));
   const db=$('#dBranch');const bmap={};DISPATCH_ROWS.forEach(r=>{if(r.branch_id)bmap[r.branch_id]=r.branch_name||r.branch_id;});
@@ -2176,7 +2187,11 @@ function printDispatch(){
   document.body.classList.add('printing');
   setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('printing'),400);},80);
 }
-$('#dDate').onchange=renderDispatch;$('#dCat').onchange=renderDispatch;$('#dBranch').onchange=renderDispatch;
+$('#dDate').onchange=()=>{const v=$('#dDate').value;
+  if(v&&DISPATCH_DATES.length&&!DISPATCH_DATES.includes(v))toast('วันที่ '+fmtDate(v)+' ไม่มีออเดอร์');
+  loadDispatchRows(v);};
+$('#dCat').onchange=renderDispatch;$('#dBranch').onchange=renderDispatch;
+$('#dAllDays').onclick=()=>loadDispatchRows('');
 $('#dispatchBtn').onclick=openDispatch;
 $('#dRefresh').onclick=openDispatch;
 $('#dExport').onclick=exportDispatchCSV;
