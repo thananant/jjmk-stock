@@ -810,7 +810,10 @@
     <div class="sheet-body">
       <div class="rfilters">
         <select id="rBranch"></select>
-        <select id="rDate"></select>
+        <div style="display:flex;gap:6px">
+          <input type="date" id="rDate" style="flex:1;min-width:0">
+          <button type="button" id="rAllDays" class="rchip" style="white-space:nowrap">📅 ทุกวัน</button>
+        </div>
         <select id="rCat"></select>
         <select id="rSup"></select>
         <input id="rSearch" placeholder="🔍 ค้นหาชื่อสินค้า...">
@@ -2005,7 +2008,7 @@ function buildReportFilters(curDate){
   const bs=$('#rBranch'),ds=$('#rDate'),cs=$('#rCat'),ss=$('#rSup');
   bs.innerHTML='';bs.appendChild(opt('','🏪 ทุกสาขา'));
   accessibleBranches().forEach(b=>bs.appendChild(opt(b.id,b.name)));
-  ds.innerHTML='';ds.appendChild(opt('','📅 ทุกวัน'));REPORT_DATES.forEach(d=>ds.appendChild(opt(d,fmtDate(d))));
+  if(REPORT_DATES.length){ds.min=REPORT_DATES[REPORT_DATES.length-1];ds.max=REPORT_DATES[0];}
   ds.value=(curDate!=null)?curDate:(REPORT_DATES[0]||'');
   const cats=[...new Set(REPORT_ROWS.map(r=>r.cat_label).filter(Boolean))];
   cs.innerHTML='';cs.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>cs.appendChild(opt(c,c)));
@@ -2072,7 +2075,10 @@ function exportReportCSV(){
 }
 $('#reportBtn').onclick=openReport;
 ['rBranch','rCat','rSup'].forEach(id=>$('#'+id).onchange=applyReport);
-$('#rDate').onchange=()=>loadReportRows($('#rDate').value);
+$('#rDate').onchange=()=>{const v=$('#rDate').value;
+  if(v&&REPORT_DATES.length&&!REPORT_DATES.includes(v))toast('วันที่ '+fmtDate(v)+' ไม่มีข้อมูลการนับ');
+  loadReportRows(v);};
+$('#rAllDays').onclick=()=>{$('#rDate').value='';loadReportRows('');};
 $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
