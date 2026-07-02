@@ -1503,7 +1503,7 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
   const done=msg=>{toast(msg);btn.disabled=false;btn.textContent='💾 บันทึกลง Supabase'};
   await refreshMeta();
   btn.textContent='⏳ กำลังบันทึก...';
-  const cd=$('#countDate').value||todayStr();
+  const cd=$('#countDate').value||new Date().toISOString().slice(0,10);
   const histRows=picked.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
     counter:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id,
     cat_key:c.key,cat_label:c.label,product_id:i.id,name:i.name,unit:i.unit||'',sup:i.sup||'',
@@ -1992,14 +1992,14 @@ async function openReport(){
   if(staffScoped)dq=dq.in('branch_id',accb);
   const {data:dd,error:derr}=await dq;
   if(derr){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
-  REPORT_DATES=[...new Set((dd||[]).map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  REPORT_DATES=[...new Set((dd||[]).map(r=>isoFromAny(r.count_date)).filter(Boolean))].sort().reverse();
   // 2) โหลดข้อมูลของวันล่าสุด
   await loadReportRows(REPORT_DATES[0]||'');
 }
 async function loadReportRows(date){
   $('#rTable').innerHTML='<div class="rempty">กำลังโหลดข้อมูล...</div>';
   let q=sb.from('stock_counts').select('*').order('created_at',{ascending:false});
-  if(date)q=q.eq('count_date',date); else q=q.limit(5000);  // เจาะจงวัน = ดึงครบทั้งวัน · ทุกวัน = จำกัด 5000
+  if(date)q=q.in('count_date',dateVariants(date)); else q=q.limit(5000);  // เจาะจงวัน = ดึงครบทั้งวัน (รองรับวันที่ฟอร์แมตเก่า) · ทุกวัน = จำกัด 5000
   const accb=accessibleBranches().map(b=>b.id);
   if(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
   const {data,error}=await q;
@@ -2019,6 +2019,12 @@ function buildReportFilters(curDate){
   ss.innerHTML='';ss.appendChild(opt('','🏷️ ทุกซัพพลายเออร์'));sups.forEach(s=>ss.appendChild(opt(s,s)));
 }
 function fmtDate(d){if(!d)return'';const p=String(d).split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
+// วันที่ใน DB อาจปนสองแบบ: '2026-06-30' และแบบเก่า '30/06/2569' (พ.ศ.)
+function isoFromAny(d){d=String(d||'');if(/^\d{4}-\d{2}-\d{2}$/.test(d))return d;
+  const m=d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return d;
+  let y=+m[3];if(y>2400)y-=543;return y+'-'+m[2]+'-'+m[1];}
+function thaiFromIso(d){const p=String(d||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
+function dateVariants(d){if(!d)return[];const v=[d];const t=thaiFromIso(d);if(t!==d)v.push(t);const i=isoFromAny(d);if(!v.includes(i))v.push(i);return v;}
 let reportQuick='all';
 function filteredReport(){
   const b=$('#rBranch').value,d=$('#rDate').value,c=$('#rCat').value,s=$('#rSup').value,
@@ -2026,7 +2032,7 @@ function filteredReport(){
   const seen={},out=[];
   for(const r of REPORT_ROWS){            // REPORT_ROWS เรียงใหม่→เก่า
     if(b&&r.branch_id!==b)continue;
-    if(d&&r.count_date!==d)continue;
+    if(d&&isoFromAny(r.count_date)!==d)continue;
     if(c&&r.cat_label!==c)continue;
     if(s&&r.sup!==s)continue;
     if(kw&&!(r.name||'').toLowerCase().includes(kw))continue;
@@ -2094,7 +2100,7 @@ async function openDispatch(){
   // 1) รายการวันที่ทั้งหมดที่มีออเดอร์ (คอลัมน์เดียว ไม่โดน limit ตัดวันเก่า)
   const {data:dd,error:derr}=await sb.from('stock_counts').select('count_date').gt('ordered',0).order('count_date',{ascending:false}).limit(100000);
   if(derr){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
-  DISPATCH_DATES=[...new Set((dd||[]).map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  DISPATCH_DATES=[...new Set((dd||[]).map(r=>isoFromAny(r.count_date)).filter(Boolean))].sort().reverse();
   const di=$('#dDate');
   if(DISPATCH_DATES.length){di.min=DISPATCH_DATES[DISPATCH_DATES.length-1];di.max=DISPATCH_DATES[0];}
   await loadDispatchRows(DISPATCH_DATES[0]||'');
@@ -2102,7 +2108,7 @@ async function openDispatch(){
 async function loadDispatchRows(date){
   $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
   let q=sb.from('stock_counts').select('*').gt('ordered',0).order('created_at',{ascending:false});
-  if(date)q=q.eq('count_date',date); else q=q.limit(5000);
+  if(date)q=q.in('count_date',dateVariants(date)); else q=q.limit(5000);
   const {data,error}=await q;
   if(error){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
   DISPATCH_ROWS=data||[];
@@ -2118,7 +2124,7 @@ function dispatchFiltered(){
   // dedupe: เก็บแถวล่าสุดต่อ สาขา+สินค้า (รายการเรียงใหม่ไปเก่าอยู่แล้ว)
   const seen={},out=[];
   DISPATCH_ROWS.forEach(r=>{
-    if(d&&r.count_date!==d)return;
+    if(d&&isoFromAny(r.count_date)!==d)return;
     if(bf&&r.branch_id!==bf)return;
     if(c&&r.cat_label!==c)return;
     const k=r.branch_id+'|'+r.product_id;if(seen[k])return;seen[k]=1;
