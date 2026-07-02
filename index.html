@@ -2018,13 +2018,17 @@ function buildReportFilters(curDate){
   const sups=[...new Set(REPORT_ROWS.map(r=>r.sup).filter(Boolean))].sort();
   ss.innerHTML='';ss.appendChild(opt('','🏷️ ทุกซัพพลายเออร์'));sups.forEach(s=>ss.appendChild(opt(s,s)));
 }
-function fmtDate(d){if(!d)return'';const p=String(d).split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
-// วันที่ใน DB อาจปนสองแบบ: '2026-06-30' และแบบเก่า '30/06/2569' (พ.ศ.)
-function isoFromAny(d){d=String(d||'');if(/^\d{4}-\d{2}-\d{2}$/.test(d))return d;
-  const m=d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return d;
-  let y=+m[3];if(y>2400)y-=543;return y+'-'+m[2]+'-'+m[1];}
-function thaiFromIso(d){const p=String(d||'').split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
-function dateVariants(d){if(!d)return[];const v=[d];const t=thaiFromIso(d);if(t!==d)v.push(t);const i=isoFromAny(d);if(!v.includes(i))v.push(i);return v;}
+function fmtDate(d){if(!d)return'';const s=isoFromAny(d),p=s.split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+(+p[0]+543)):d;}
+// วันที่ใน DB อาจถูกเก็บเป็นปี พ.ศ. (เช่น 2569-06-30 จากโค้ดเก่า) → normalize เป็น ค.ศ.
+function isoFromAny(d){d=String(d||'').slice(0,10);
+  let m=d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m){let y=+m[1];if(y>2400)y-=543;return y+'-'+m[2]+'-'+m[3];}
+  m=d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m){let y=+m[3];if(y>2400)y-=543;return y+'-'+m[2]+'-'+m[1];}
+  return d;}
+function dateVariants(d){const iso=isoFromAny(d);if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return[d];
+  const p=iso.split('-');const be=(+p[0]+543)+'-'+p[1]+'-'+p[2]; // เผื่อแถวเก่าที่ยังเป็นปี พ.ศ.
+  return [iso,be];}
 let reportQuick='all';
 function filteredReport(){
   const b=$('#rBranch').value,d=$('#rDate').value,c=$('#rCat').value,s=$('#rSup').value,
