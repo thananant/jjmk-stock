@@ -1974,28 +1974,39 @@ async function renderApprove(){
 $('#openApprove').onclick=()=>{if(!can('approveStaff'))return;renderApprove();show('#approveOverlay')};
 
 /* ================= report / data viewer ================= */
-let REPORT_ROWS=[];
+let REPORT_ROWS=[], REPORT_DATES=[];
 function opt(v,t){const o=document.createElement('option');o.value=v;o.textContent=t;return o;}
 async function openReport(){
   show('#reportOverlay');
   $('#rTable').innerHTML='<div class="rempty">กำลังโหลดข้อมูล...</div>';
-  // โหลดข้อมูลการนับล่าสุด (สูงสุด 3000 แถว)
-  let q=sb.from('stock_counts').select('*').order('created_at',{ascending:false}).limit(3000);
-  // staff เห็นเฉพาะสาขาที่ดูแล (ถ้ากำหนดไว้)
+  const staffScoped=(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length);
+  const accb=accessibleBranches().map(b=>b.id);
+  // 1) ดึง "รายการวันที่ทั้งหมด" (คอลัมน์เดียว เบา — ไม่โดน limit ตัดวันเก่า)
+  let dq=sb.from('stock_counts').select('count_date').order('count_date',{ascending:false}).limit(100000);
+  if(staffScoped)dq=dq.in('branch_id',accb);
+  const {data:dd,error:derr}=await dq;
+  if(derr){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
+  REPORT_DATES=[...new Set((dd||[]).map(r=>r.count_date).filter(Boolean))].sort().reverse();
+  // 2) โหลดข้อมูลของวันล่าสุด
+  await loadReportRows(REPORT_DATES[0]||'');
+}
+async function loadReportRows(date){
+  $('#rTable').innerHTML='<div class="rempty">กำลังโหลดข้อมูล...</div>';
+  let q=sb.from('stock_counts').select('*').order('created_at',{ascending:false});
+  if(date)q=q.eq('count_date',date); else q=q.limit(5000);  // เจาะจงวัน = ดึงครบทั้งวัน · ทุกวัน = จำกัด 5000
   const accb=accessibleBranches().map(b=>b.id);
   if(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
   const {data,error}=await q;
   if(error){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
   REPORT_ROWS=data||[];
-  buildReportFilters();applyReport();
+  buildReportFilters(date);applyReport();
 }
-function buildReportFilters(){
+function buildReportFilters(curDate){
   const bs=$('#rBranch'),ds=$('#rDate'),cs=$('#rCat'),ss=$('#rSup');
   bs.innerHTML='';bs.appendChild(opt('','🏪 ทุกสาขา'));
   accessibleBranches().forEach(b=>bs.appendChild(opt(b.id,b.name)));
-  const dates=[...new Set(REPORT_ROWS.map(r=>r.count_date).filter(Boolean))].sort().reverse();
-  ds.innerHTML='';ds.appendChild(opt('','📅 ทุกวัน'));dates.forEach(d=>ds.appendChild(opt(d,fmtDate(d))));
-  if(dates.length)ds.value=dates[0];   // ค่าเริ่มต้น = วันล่าสุด
+  ds.innerHTML='';ds.appendChild(opt('','📅 ทุกวัน'));REPORT_DATES.forEach(d=>ds.appendChild(opt(d,fmtDate(d))));
+  ds.value=(curDate!=null)?curDate:(REPORT_DATES[0]||'');
   const cats=[...new Set(REPORT_ROWS.map(r=>r.cat_label).filter(Boolean))];
   cs.innerHTML='';cs.appendChild(opt('','📁 ทุกหมวด'));cats.forEach(c=>cs.appendChild(opt(c,c)));
   const sups=[...new Set(REPORT_ROWS.map(r=>r.sup).filter(Boolean))].sort();
@@ -2060,7 +2071,8 @@ function exportReportCSV(){
   toast('ส่งออก '+rows.length+' รายการแล้ว ✓');
 }
 $('#reportBtn').onclick=openReport;
-['rBranch','rDate','rCat','rSup'].forEach(id=>$('#'+id).onchange=applyReport);
+['rBranch','rCat','rSup'].forEach(id=>$('#'+id).onchange=applyReport);
+$('#rDate').onchange=()=>loadReportRows($('#rDate').value);
 $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
