@@ -1557,12 +1557,30 @@ $('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('
   const toIntN=v=>{v=(v||'').toString().trim();if(v==='')return null;const n=parseInt(v.replace(/[^\d]/g,''),10);return isNaN(n)?null:n;};
   const pack=toIntN($('#editPack').value),packUnit=($('#editPackUnit').value.trim()||null);
   const step=toIntN($('#editStep').value),stepUnit=($('#editStepUnit').value.trim()||null);
-  if(editCtx.item){editCtx.item.name=name;editCtx.item.unit=unit;editCtx.item.img=editImg;editCtx.item.i18n=i18obj;
-    editCtx.item.pack=pack;editCtx.item.pack_unit=packUnit;editCtx.item.order_step=step;editCtx.item.step_unit=stepUnit;
-    try{await sb.from('products').update({i18n:i18obj}).eq('name',editCtx.item.name);
-      await sb.from('products').update({pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit}).eq('id',editCtx.item.id);
-    }catch(e){toast('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}}
-  else{editCtx.cat.items.push({id:uid('it'),name,unit,qty:null,img:editImg,i18n:i18obj,pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit})}
+  if(editCtx.item){const it=editCtx.item;const oldName=it.name;
+    it.name=name;it.unit=unit;it.img=editImg;it.i18n=i18obj;
+    it.pack=pack;it.pack_unit=packUnit;it.order_step=step;it.step_unit=stepUnit;
+    try{
+      const {error}=await sb.from('products').update({name:name,unit:unit,i18n:i18obj,
+        pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit}).eq('id',it.id);
+      if(error)throw error;
+      await sb.from('products').update({i18n:i18obj}).eq('name',name); // แชร์คำแปลข้ามสาขา (ชื่อเดียวกัน)
+    }catch(e){toast('บันทึกลง DB ไม่สำเร็จ: '+((e&&e.message)||e));return;}}
+  else{
+    const nid=uid('it');const c=editCtx.cat;
+    const row={id:nid,branch_id:currentBranchId,cat_key:c.key,cat_label:c.label,cat_ic:c.ic||'📦',
+      name:name,unit:unit,i18n:i18obj,sort:(c.items.length||0)+1,
+      pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit,
+      image_url:(editImg&&/^https?:/.test(editImg))?editImg:null};
+    try{
+      const {error}=await sb.from('products').insert(row);
+      if(error)throw error;
+    }catch(e){toast('เพิ่มสินค้าลง DB ไม่สำเร็จ: '+((e&&e.message)||e));return;}
+    const item={id:nid,name,unit,qty:null,img:editImg,i18n:i18obj,sup:'',location:'',safety:null,max:null,
+      pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit};
+    c.items.push(item);
+    ITEM_INDEX[nid]={item,branchId:currentBranchId};
+  }
   save();hideAll();renderTabs();renderMain();refreshCounters();toast('บันทึกแล้ว ✓')};
 $('#editDelete').onclick=async()=>{if(!editCtx.item)return;if(!confirm('ลบ "'+editCtx.item.name+'" ออกจากสาขานี้?\n(กู้คืนได้ภายหลังที่ 🗑 ถังขยะ)'))return;
   const it=editCtx.item;
