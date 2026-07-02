@@ -58,7 +58,9 @@
   .seal img{width:100%;height:100%;object-fit:cover;display:block}
   .brand h1{font-family:'Kanit';font-weight:700;font-size:1.12rem;margin:0;letter-spacing:.2px}
   .brand p{margin:1px 0 0;font-size:.74rem;color:var(--gold-bright);font-weight:500;letter-spacing:.5px}
-  .gear{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;display:grid;place-items:center;cursor:pointer;font-size:1.05rem}
+  .gear{position:absolute;top:12px;right:14px;min-width:44px;height:40px;padding:0 7px;border-radius:10px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+  .gear .gi{font-size:.95rem;line-height:1.1}
+  .gear .gl{font-size:.55rem;font-family:'Kanit';font-weight:500;line-height:1.1;white-space:nowrap;opacity:.92}
   .gear:active{transform:scale(.94)}
   .ctx{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
   .chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);color:#fff;border-radius:999px;padding:6px 12px;font-family:'Kanit';font-weight:500;font-size:.84rem;cursor:pointer;transition:.12s}
@@ -473,10 +475,10 @@
       <p data-i18n="shop_sub2">เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
     </div>
   </div>
-  <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none">⚙️</button>
-  <button class="gear" id="centralBtn" aria-label="ครัวกลาง" style="display:none;right:58px">📦</button>
-  <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none">📊</button>
-  <button class="gear" id="dispatchBtn" aria-label="คลัง" style="display:none">📥</button>
+  <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
+  <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
+  <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
+  <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button>
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
@@ -730,7 +732,7 @@
 <!-- Central kitchen dispatch -->
 <div class="overlay" id="centralOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📦 ครัวกลาง — Safety/Max &amp; จัดส่ง</h3><button class="x" data-close>✕</button></div>
+    <div class="sheet-head"><h3>📦 Safety/Max &amp; จัดส่ง</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
       <div class="ordhead" style="margin-bottom:10px">⚠️ Safety &amp; Max <b>แยกตามสาขา</b> — เลือกสาขาด้านล่างก่อนตั้งค่า (รัชดา/ลาดพร้าว ตั้งคนละค่าได้)</div>
       <div class="two">
@@ -782,7 +784,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 คลัง — ออเดอร์ที่ต้องจัด <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">ลัง✓ v2</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">ลัง✓ v2</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -991,8 +993,8 @@ const PERMS=[
   {key:'manageBranches',label:'จัดการสาขา'},
   {key:'manageStaff',label:'จัดการพนักงาน'},
   {key:'approveStaff',label:'อนุมัติพนักงานใหม่'},
-  {key:'manageCentral',label:'ครัวกลาง — Safety/Max'},
-  {key:'viewDispatch',label:'คลัง — ดูออเดอร์จัดของ'},
+  {key:'manageCentral',label:'Safety/Max'},
+  {key:'viewDispatch',label:'รายการสั่งของซัพพลายเออร์'},
   {key:'manageSettings',label:'ตั้งค่าร้าน'}
 ];
 const ROLE_ORDER=['owner','admin','manager','supervisor','staff','warehouse'];
@@ -1318,13 +1320,13 @@ function enterApp(){
 }
 function layoutHeaderBtns(){
   const gear=canAnyManage(), central=can('manageCentral'), report=true, dispatch=can('viewDispatch');
-  $('#gearBtn').style.display=gear?'grid':'none';
-  $('#centralBtn').style.display=central?'grid':'none';
-  $('#reportBtn').style.display=report?'grid':'none';
-  $('#dispatchBtn').style.display=dispatch?'grid':'none';
+  $('#gearBtn').style.display=gear?'flex':'none';
+  $('#centralBtn').style.display=central?'flex':'none';
+  $('#reportBtn').style.display=report?'flex':'none';
+  $('#dispatchBtn').style.display=dispatch?'flex':'none';
   let r=14;
   [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#reportBtn',report]].forEach(([sel,on])=>{
-    if(on){$(sel).style.right=r+'px';r+=44;}
+    if(on){const el=$(sel);el.style.right=r+'px';r+=(el.offsetWidth||44)+8;}
   });
 }
 // บัญชี "คลัง": ดูออเดอร์อย่างเดียว ไม่ต้องเห็นหน้านับสต๊อก
