@@ -831,7 +831,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -2094,6 +2094,45 @@ $('#rDate').onchange=()=>{const v=$('#rDate').value;
   if(v&&REPORT_DATES.length&&!REPORT_DATES.includes(v))toast('วันที่ '+fmtDate(v)+' ไม่มีข้อมูลการนับ');
   loadReportRows(v);};
 $('#rAllDays').onclick=()=>{$('#rDate').value='';loadReportRows('');};
+// ส่ง "ข้อมูลสต็อกคงเหลือ" ตามตัวกรองปัจจุบัน เข้ากลุ่มไลน์ (แบ่งข้อความอัตโนมัติถ้ายาว)
+async function sendReportLine(){
+  const rows=filteredReport();
+  if(!rows.length){toast('ไม่มีข้อมูลตามตัวกรอง');return;}
+  await reloadLineGroups();
+  if(!LINE_GROUPS.length){toast('ยังไม่มีกลุ่มไลน์ — เชิญบอทเข้ากลุ่มก่อน');return;}
+  const g=await pickLineGroup('📲 เลือกกลุ่มปลายทาง (ส่งข้อมูลสต็อก)');
+  if(!g)return;
+  const dLbl=$('#rDate').value?fmtDate($('#rDate').value):'ทุกวัน';
+  const bSel=$('#rBranch').value;const bLbl=bSel?((ROOT.branches.find(b=>b.id===bSel)||{}).name||''):'ทุกสาขา';
+  // จัดกลุ่ม สาขา → หมวด
+  const byB={};rows.forEach(r=>{const bn=r.branch_name||'';(byB[bn]=byB[bn]||{});const c=r.cat_label||'อื่นๆ';(byB[bn][c]=byB[bn][c]||[]).push(r);});
+  const header='📋 ข้อมูลสต็อก '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dLbl+' · 🏪 '+bLbl+'\n';
+  const chunks=[];let cur=header;
+  const push=t=>{if((cur+t).length>4200){chunks.push(cur);cur=header+'(ต่อ)\n'+t;}else cur+=t;};
+  Object.keys(byB).forEach(bn=>{push('\n🏪 '+bn+'\n');
+    Object.keys(byB[bn]).forEach(cl=>{push('\n📁 '+cl+'\n');
+      byB[bn][cl].forEach(r=>{
+        const q=(r.qty==null?'-':(+r.qty));const mark=r.out_of_stock?' ❌หมด':((r.safety!=null&&r.qty!=null&&+r.qty<+r.safety)?' ⚠️ต่ำ':'');
+        push('• '+(r.name||'')+' — เหลือ '+q+' '+(rowUnit(r)||'')+mark+'\n');});});});
+  push('\nรวม '+rows.length+' รายการ');
+  chunks.push(cur);
+  if(!confirm('ส่งข้อมูลสต็อก '+rows.length+' รายการ ('+chunks.length+' ข้อความ) เข้ากลุ่ม:\n"'+lgLabel(g)+'" ?'))return;
+  const btn=$('#rLine');btn.disabled=true;const old=btn.textContent;
+  let ok=0,fail=0;
+  for(let i=0;i<chunks.length;i++){
+    btn.textContent='⏳ ส่ง '+(i+1)+'/'+chunks.length+'...';
+    try{const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
+        body:JSON.stringify({to:g.group_id,text:chunks[i]})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok)ok++;else{fail++;console.log('stock line fail',j);}
+    }catch(e){fail++;}
+    if(i<chunks.length-1)await new Promise(rs=>setTimeout(rs,400));
+  }
+  btn.disabled=false;btn.textContent=old;
+  toast(fail?('ส่งแล้ว '+ok+'/'+chunks.length+' ข้อความ · พลาด '+fail):('ส่งข้อมูลสต็อกเข้า "'+lgLabel(g)+'" ✓'));
+}
+$('#rLine').onclick=sendReportLine;
 $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
@@ -2239,26 +2278,38 @@ async function sendDispatchLineOne(){
   if(!rows.length){toast('ไม่มีออเดอร์ให้ส่ง');return;}
   await reloadLineGroups();
   if(!LINE_GROUPS.length){toast('ยังไม่มีกลุ่มไลน์ — เชิญบอทเข้ากลุ่มก่อน');return;}
-  const g=await pickLineGroup('📲 เลือกกลุ่มปลายทาง (ส่งรวมกลุ่มเดียว)');
+  const g=await pickLineGroup('📲 เลือกกลุ่มปลายทาง (แยกข้อความตามซัพ)');
   if(!g)return;
   const dateLabel=$('#dDate').value?fmtDate($('#dDate').value):todayStr();
   const bySup={};rows.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพ)';(bySup[s]=bySup[s]||[]).push(r);});
-  let txt='🛒 ออเดอร์รวม '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n';
-  Object.keys(bySup).forEach(sn=>{txt+='\n🏷️ '+sn+'\n';
-    const byBranch={};bySup[sn].forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
-    Object.keys(byBranch).forEach(bn=>{txt+='🏪 '+bn+'\n';
-      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+orderText(r)+'\n';});});});
-  txt+='\nรวม '+rows.length+' รายการ';
-  if(!confirm('ส่งออเดอร์รวม '+rows.length+' รายการ เข้ากลุ่ม:\n"'+lgLabel(g)+'" ?'))return;
-  const btn=$('#dLineOne');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังส่ง...';
-  try{const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
-      body:JSON.stringify({to:g.group_id,text:txt})});
-    const j=await r.json().catch(()=>({}));
-    if(r.ok&&j.ok)toast('ส่งรวมเข้า "'+lgLabel(g)+'" สำเร็จ ✓');
-    else{toast('ส่งไม่สำเร็จ: '+(j.error||r.status));console.log('LINE one fail',j);}
-  }catch(e){toast('ส่งไม่สำเร็จ: '+e.message);}
+  // 1 ซัพ = 1 ข้อความ (ส่งเข้ากลุ่มเดียวกันเรียงต่อกัน)
+  const toSend=Object.keys(bySup).map(sn=>{
+    const items=bySup[sn];
+    let txt='🛒 ออเดอร์ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 '+dateLabel+'\n🏷️ '+sn+'\n';
+    const byBranch={};items.forEach(r=>{(byBranch[r.branch_name||'']=byBranch[r.branch_name||'']||[]).push(r);});
+    Object.keys(byBranch).forEach(bn=>{txt+='\n🏪 '+bn+'\n';
+      byBranch[bn].forEach(r=>{txt+='• '+(r.name||'')+' — '+orderText(r)+'\n';});});
+    txt+='\nรวม '+items.length+' รายการ';
+    return {sname:sn,gid:g.group_id,txt,n:items.length};
+  });
+  const chosen=await pickSuppliers(toSend,[]);
+  if(!chosen||!chosen.length)return;
+  const sendList=toSend.filter(t=>chosen.includes(t.sname));
+  const btn=$('#dLineOne');btn.disabled=true;const old=btn.textContent;
+  let ok=0,fail=0,failNames=[];
+  for(let i=0;i<sendList.length;i++){const it=sendList[i];
+    btn.textContent='⏳ ส่ง '+(i+1)+'/'+sendList.length+'...';
+    try{const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
+        body:JSON.stringify({to:it.gid,text:it.txt})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok)ok++;else{fail++;failNames.push(it.sname);console.log('LINE one fail',it.sname,j);}
+    }catch(e){fail++;failNames.push(it.sname);}
+    if(i<sendList.length-1)await new Promise(rs=>setTimeout(rs,400)); // เว้นจังหวะกัน rate limit
+  }
   btn.disabled=false;btn.textContent=old;
+  toast(fail?('ส่งแล้ว '+ok+' ซัพ · พลาด '+fail+' ('+failNames.join(', ')+')')
+            :('ส่งเข้า "'+lgLabel(g)+'" ครบ '+ok+' ซัพ ✓ (แยกข้อความ)'));
 }
 $('#dLineOne').onclick=sendDispatchLineOne;
 // modal เลือกว่าจะส่งซัพไหนบ้าง (ติ๊กออกได้) ก่อนส่งแยกซัพ
