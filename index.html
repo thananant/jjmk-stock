@@ -790,7 +790,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v15 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v16 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -1578,10 +1578,17 @@ $('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('
     it.name=name;it.unit=unit;it.img=editImg;it.i18n=i18obj;
     it.pack=pack;it.pack_unit=packUnit;it.order_step=step;it.step_unit=stepUnit;
     try{
-      const {error}=await sb.from('products').update({name:name,unit:unit,i18n:i18obj,
-        pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit}).eq('id',it.id);
+      const {error}=await sb.from('products').update({name:name,unit:unit,i18n:i18obj}).eq('id',it.id);
       if(error)throw error;
-      await sb.from('products').update({i18n:i18obj}).eq('name',name); // แชร์คำแปลข้ามสาขา (ชื่อเดียวกัน)
+      const catL=(editCtx.cat&&editCtx.cat.label)||'';
+      // หน่วยสั่งซื้อ (pack/step) ซิงค์ทุกสาขา: อัปเดตทุกแถวชื่อ+หมวดเดียวกัน
+      const {error:e2}=await sb.from('products').update({pack:pack,pack_unit:packUnit,order_step:step,step_unit:stepUnit})
+        .eq('name',name).eq('cat_label',catL);
+      if(e2)throw e2;
+      await sb.from('products').update({i18n:i18obj}).eq('name',name); // แชร์คำแปลข้ามสาขา
+      // ซิงค์ในหน่วยความจำทุกสาขาด้วย (ไม่ต้องรีโหลด)
+      ROOT.branches.forEach(b=>b.data.categories.forEach(c=>{if(c.label!==catL)return;
+        c.items.forEach(x=>{if(x.name===name){x.pack=pack;x.pack_unit=packUnit;x.order_step=step;x.step_unit=stepUnit;}});}));
     }catch(e){toast('บันทึกลง DB ไม่สำเร็จ: '+((e&&e.message)||e));return;}}
   else{
     const nid=uid('it');const c=editCtx.cat;
