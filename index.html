@@ -790,7 +790,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v14 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v15 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -1390,7 +1390,7 @@ function renderMain(){
 }
 function cardState(it){return isOut(it)?'out':(counted(it)?'on':'')}
 function itemCard(it,cat){
-  const el=document.createElement('div');el.className='item '+cardState(it)+((savedToday()&&it.qty===null)?' missblink':'');
+  const el=document.createElement('div');el.className='item '+cardState(it)+((it.qty===null)?' missblink':'');
   const showImg=cfg().showImages!==false;
   const thumb=showImg?`<div class="thumb">${it.img?`<img src="${it.img}">`:'🖼'}</div>`:'';
   const editDot=can('manageProducts')?'<button class="edit-dot" title="แก้ไข">✎</button>':'';
