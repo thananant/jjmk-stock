@@ -785,7 +785,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v10 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v11 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -2367,11 +2367,13 @@ function dispatchFiltered(){
     if(bf&&r.branch_id!==bf)return;
     if(c&&r.cat_label!==c)return;
     const k=r.branch_id+'|'+r.product_id;if(seen[k])return;seen[k]=1;
-    // คิดสด: เทียบกับ safety/max + คงเหลือ ปัจจุบัน (ถ้านับล่าสุดแล้ว)
+    // ยอดที่แก้มือ (สั่งจริง ≠ แนะนำ) = เคารพค่านั้น ไม่คิดทับ
     let ord=+r.ordered;
-    const x=ITEM_INDEX[r.product_id];
-    if(x&&x.item&&x.item.qty!=null){const ln=needQty(x.item);
-      if(ln!=null){if(ln<=0)return; ord=ln;}}   // ของพอแล้ว=ไม่โชว์ · ไม่งั้นใช้ยอดสด
+    const manual=(r.recommended!=null&&+r.ordered!==+r.recommended);
+    if(!manual){ // เฉพาะยอดอัตโนมัติ: คิดสดเทียบ safety/max + คงเหลือปัจจุบัน
+      const x=ITEM_INDEX[r.product_id];
+      if(x&&x.item&&x.item.qty!=null){const ln=needQty(x.item);
+        if(ln!=null){if(ln<=0)return; ord=ln;}}}
     if(ord>0)out.push(Object.assign({},r,{ordered:ord}));
   });
   return out;
