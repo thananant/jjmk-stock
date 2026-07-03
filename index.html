@@ -739,6 +739,7 @@
         <div class="field"><label>สาขา (ตั้ง Safety/Max แยกแต่ละสาขา)</label><select id="cBranch"></select></div>
         <div class="field"><label>กรอง</label><select id="cFilter"><option value="all">ทั้งหมด (ตั้ง Safety/Max)</option><option value="need">เฉพาะที่ต้องจัด</option></select></div>
       </div>
+      <input id="cSearch" placeholder="🔍 พิมพ์ชื่อสินค้าค้นหา..." style="width:100%;margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
       <div id="cList"></div>
       <div class="slip-tot" id="cTot" style="border-radius:10px;margin:8px 0 14px"><span>ต้องจัดส่ง</span><span>0 รายการ</span></div>
       <div class="actions">
@@ -784,7 +785,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v8 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v9 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -2881,15 +2882,19 @@ function cBranch(){return ROOT.branches.find(b=>b.id===cBranchId)||ROOT.branches
 function renderCentral(){
   const sel=$('#cBranch');sel.innerHTML=ROOT.branches.map(b=>`<option value="${b.id}" ${b.id===cBranchId?'selected':''}>${escapeHtml(b.name)}</option>`).join('');
   const onlyNeed=$('#cFilter').value==='need';
+  const cq=($('#cSearch')?$('#cSearch').value:'').trim().toLowerCase();
   const wrap=$('#cList');wrap.innerHTML='';
   const b=cBranch();let totalNeed=0,uncounted=0;
   b.data.categories.forEach(c=>{
-    const rows=c.items.filter(it=>{const n=needQty(it);if(it.qty===null)uncounted++;return onlyNeed?(n>0):true});
+    const rows=c.items.filter(it=>{const n=needQty(it);if(it.qty===null)uncounted++;
+      if(cq&&!(it.name||'').toLowerCase().includes(cq))return false;
+      return onlyNeed?(n>0):true});
     if(!rows.length)return;
     const head=document.createElement('div');head.className='ccat';head.textContent=c.ic+' '+c.label;wrap.appendChild(head);
     const hd=document.createElement('div');hd.className='chead';hd.innerHTML='<span>สินค้า</span><span>เหลือ</span><span>Safety</span><span>Max</span><span>ต้องจัด</span>';wrap.appendChild(hd);
     c.items.forEach(it=>{
       const n=needQty(it);
+      if(cq&&!(it.name||'').toLowerCase().includes(cq))return;
       if(onlyNeed&&!(n>0))return;
       if(n>0)totalNeed++;
       const row=document.createElement('div');row.className='crow';
@@ -2930,7 +2935,7 @@ function centralText(){
   s+=`\nรวมต้องจัด ${total} รายการ`;return s;
 }
 $('#cBranch').onchange=e=>{cBranchId=e.target.value;renderCentral()};
-$('#cFilter').onchange=renderCentral;
+$('#cFilter').onchange=renderCentral;$('#cSearch').oninput=renderCentral;
 $('#cCopy').onclick=async()=>{const t=centralText();try{await navigator.clipboard.writeText(t);toast('คัดลอกแล้ว ✓')}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('คัดลอกแล้ว ✓')}};
 $('#cLine').onclick=()=>window.open('https://line.me/R/msg/text/?'+encodeURIComponent(centralText()),'_blank');
 $('#cPrint').onclick=()=>window.print();
