@@ -72,6 +72,8 @@
   .tabs::-webkit-scrollbar{display:none}
   .tab{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-family:'Kanit';font-weight:500;font-size:.92rem;color:var(--ink-soft);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all .18s}
   .tab .ic{font-size:1.05rem;line-height:1}
+  .item.missblink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)!important}
+  .item.missblink .item-name::after{content:' ⚠️ ยังไม่นับ';color:var(--red);font-size:.72em;font-weight:700}
   @keyframes tabblink{0%,100%{box-shadow:0 0 0 0 rgba(164,27,34,.55)}50%{box-shadow:0 0 0 6px rgba(164,27,34,0)}}
   .tab.blink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)}
   .tab.blink .cnt{background:var(--red);color:#fff;animation:tabblink 1.1s ease-in-out infinite}
@@ -788,7 +790,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v13 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v14 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -1204,6 +1206,8 @@ function escapeHtml(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 function unitOptions(cur){const set=[...units()];if(cur&&!set.includes(cur))set.unshift(cur);return set.map(u=>`<option ${u===cur?'selected':''}>${escapeHtml(u)}</option>`).join('')}
 const counted=i=>i.qty!==null&&i.qty!==undefined;
 const isOut=i=>i.qty===0;
+function savedKey(){const cd=(document.getElementById('countDate')&&document.getElementById('countDate').value)||new Date().toISOString().slice(0,10);return 'jjmk_saved_'+currentBranchId+'_'+cd;}
+function savedToday(){try{return !!localStorage.getItem(savedKey())}catch(e){return false}}
 function catCounted(c){return c.items.filter(counted).length}
 function catOut(c){return c.items.filter(isOut).length}
 function fmtSize(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(2)+' MB'}
@@ -1386,7 +1390,7 @@ function renderMain(){
 }
 function cardState(it){return isOut(it)?'out':(counted(it)?'on':'')}
 function itemCard(it,cat){
-  const el=document.createElement('div');el.className='item '+cardState(it);
+  const el=document.createElement('div');el.className='item '+cardState(it)+((savedToday()&&it.qty===null)?' missblink':'');
   const showImg=cfg().showImages!==false;
   const thumb=showImg?`<div class="thumb">${it.img?`<img src="${it.img}">`:'🖼'}</div>`:'';
   const editDot=can('manageProducts')?'<button class="edit-dot" title="แก้ไข">✎</button>':'';
@@ -1529,7 +1533,8 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
     const r2=await sb.from('stock_current').upsert(curRows,{onConflict:'branch_id,product_id'});
     if(r2.error)throw r2.error;
     done('บันทึกลง Supabase แล้ว ✓ '+picked.length+' รายการ');
-    buildSlip();buildOrder();renderTabs();refreshCounters();
+    try{localStorage.setItem(savedKey(),'1')}catch(e){}
+    buildSlip();buildOrder();renderTabs();renderMain();refreshCounters();
   }catch(e){done('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}
 };
 
