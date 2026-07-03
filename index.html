@@ -784,7 +784,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v5 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v6 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -831,7 +831,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rUsage" style="background:var(--red);color:#fff;border:none">📈 การใช้ของ (รายวัน/ช่วงวัน)</button><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -2151,6 +2151,69 @@ async function sendReportLine(){
   toast(fail?('ส่งแล้ว '+ok+'/'+chunks.length+' ข้อความ · พลาด '+fail):('ส่งข้อมูลสต็อกเข้า "'+lgLabel(g)+'" ✓'));
 }
 $('#rLine').onclick=sendReportLine;
+/* ===== 📈 การใช้ของ: ใช้ไป = นับ(วัน A) + สั่ง(วัน A) − นับ(วันถัดไป) ต่อสินค้า ===== */
+function openUsage(){
+  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:200';
+  const today=new Date();const iso=d=>d.toISOString().slice(0,10);
+  const from7=new Date(+today-7*86400000);
+  const bOpts='<option value="">🏪 ทุกสาขา</option>'+accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  ov.innerHTML=`<div class="sheet" style="max-width:640px">
+    <div class="sheet-head"><h3>📈 การใช้ของ</h3><button class="x" data-x>✕</button></div>
+    <div class="sheet-body">
+      <div class="rfilters">
+        <select class="u_b">${bOpts}</select>
+        <div style="display:flex;gap:6px;align-items:center"><input type="date" class="u_f" value="${iso(from7)}" style="flex:1;min-width:0"><span>→</span><input type="date" class="u_t" value="${iso(today)}" style="flex:1;min-width:0"></div>
+        <select class="u_m"><option value="sum">รวมทั้งช่วง (ต่อสินค้า)</option><option value="day">รายวัน</option></select>
+      </div>
+      <button class="act wide u_go" style="background:var(--red);color:#fff;border:none;margin:8px 0">คำนวณการใช้ของ</button>
+      <p class="hint" style="margin:0 0 6px">สูตร: นับ(วัน) + สั่ง(วัน) − นับ(ครั้งถัดไป) · ติดลบ = นับเกิน/มีรับของนอกระบบ</p>
+      <div class="u_out"><div class="rempty">เลือกช่วงวันแล้วกดคำนวณ</div></div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('[data-x]').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  ov.querySelector('.u_go').onclick=async()=>{
+    const bf=ov.querySelector('.u_b').value,f=ov.querySelector('.u_f').value,t=ov.querySelector('.u_t').value,mode=ov.querySelector('.u_m').value;
+    const out=ov.querySelector('.u_out');
+    if(!f||!t||f>t){out.innerHTML='<div class="rempty">เลือกช่วงวันให้ถูกต้อง</div>';return;}
+    out.innerHTML='<div class="rempty">กำลังคำนวณ...</div>';
+    const tPlus=new Date(new Date(t+'T00:00:00').getTime()+10*86400000).toISOString().slice(0,10);
+    let q=sb.from('stock_counts').select('branch_id,branch_name,product_id,name,cat_label,unit,qty,ordered,count_date,created_at')
+      .gte('count_date',f).lte('count_date',tPlus).order('created_at',{ascending:false}).limit(20000);
+    if(bf)q=q.eq('branch_id',bf);
+    const {data,error}=await q;
+    if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
+    // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน
+    const seen={},rows=[];
+    (data||[]).forEach(r=>{const d=isoFromAny(r.count_date);const k=r.branch_id+'|'+r.product_id+'|'+d;
+      if(seen[k])return;seen[k]=1;rows.push({...r,d});});
+    // จับคู่วันติดกันต่อสินค้า
+    const byP={};rows.forEach(r=>{(byP[r.branch_id+'|'+r.product_id]=byP[r.branch_id+'|'+r.product_id]||[]).push(r);});
+    const pairs=[];
+    Object.values(byP).forEach(list=>{list.sort((a,b)=>a.d<b.d?-1:1);
+      for(let i=0;i<list.length-1;i++){const a=list[i],b2=list[i+1];
+        if(a.d<f||a.d>t)continue;
+        if(a.qty==null||b2.qty==null)continue;
+        const used=Math.round(((+a.qty)+(+a.ordered||0)-(+b2.qty))*100)/100;
+        pairs.push({br:a.branch_name||'',cat:a.cat_label||'',name:a.name,unit:a.unit||'',d1:a.d,d2:b2.d,used});}});
+    if(!pairs.length){out.innerHTML='<div class="rempty">ไม่มีคู่วันให้คำนวณ (ต้องมีการนับอย่างน้อย 2 วัน)</div>';return;}
+    const line=p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${escapeHtml(p.name)} <small style="color:var(--ink-soft)">${escapeHtml(p.cat)}</small></span><b style="color:${p.used<0?'#b3261e':'var(--red)'}">${fmt(p.used)} ${escapeHtml(p.unit)}</b></div>`;
+    let html='';
+    if(mode==='sum'){
+      const agg={};pairs.forEach(p=>{const k=p.br+'|'+p.name+'|'+p.cat+'|'+p.unit;
+        (agg[k]=agg[k]||{...p,used:0,n:0}).used+=p.used;agg[k].n++;});
+      const byBr={};Object.values(agg).forEach(a=>{a.used=Math.round(a.used*100)/100;(byBr[a.br]=byBr[a.br]||[]).push(a);});
+      Object.keys(byBr).forEach(br=>{const L=byBr[br].sort((a,b)=>(a.cat+a.name).localeCompare(b.cat+b.name,'th'));
+        html+=`<h4 style="margin:12px 0 4px">🏪 ${escapeHtml(br)} <small style="color:var(--ink-soft)">(${escapeHtml(f)} → ${escapeHtml(t)})</small></h4>`+L.map(line).join('');});
+    }else{
+      const byD={};pairs.forEach(p=>{(byD[p.d1]=byD[p.d1]||[]).push(p);});
+      Object.keys(byD).sort().forEach(d=>{const L=byD[d].sort((a,b)=>(a.br+a.cat+a.name).localeCompare(b.br+b.cat+b.name,'th'));
+        html+=`<h4 style="margin:12px 0 4px">📅 ${fmtDate(d)} → ${fmtDate(L[0].d2)}</h4>`+L.map(p=>`<div style="font-size:.78em;color:var(--ink-soft)">${escapeHtml(p.br)}</div>`+line(p)).join('');});
+    }
+    out.innerHTML=html+`<p class="hint" style="margin-top:8px">รวม ${pairs.length} รายการคู่วัน</p>`;
+  };
+}
+$('#rUsage').onclick=openUsage;
 $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
