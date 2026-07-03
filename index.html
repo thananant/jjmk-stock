@@ -477,7 +477,7 @@
   </div>
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
-  <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
+  <button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
   <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
@@ -785,7 +785,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v9 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v10 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -832,7 +832,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act wide" id="rUsage" style="background:var(--red);color:#fff;border:none">📈 การใช้ของ (รายวัน/ช่วงวัน)</button><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -1328,8 +1328,9 @@ function layoutHeaderBtns(){
   $('#reportBtn').style.display=report?'flex':'none';
   $('#dispatchBtn').style.display=dispatch?'flex':'none';
   $('#receiveBtn').style.display=recv?'flex':'none';
+  $('#usageBtn').style.display=report?'flex':'none';
   let r=14;
-  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#reportBtn',report]].forEach(([sel,on])=>{
+  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#usageBtn',report],['#reportBtn',report]].forEach(([sel,on])=>{
     if(on){const el=$(sel);el.style.right=r+'px';r+=(el.offsetWidth||44)+8;}
   });
 }
@@ -2219,7 +2220,7 @@ function openUsage(){
     out.innerHTML=html+`<p class="hint" style="margin-top:8px">รวม ${pairs.length} รายการคู่วัน</p>`;
   };
 }
-$('#rUsage').onclick=openUsage;
+$('#usageBtn').onclick=openUsage;
 /* ===== 🚚 รับของ: เทียบยอดสั่ง (อ่านอย่างเดียว) กับรับจริง + แจ้งไลน์ส่วนต่างแยกซัพ ===== */
 function openReceive(){
   if(!can('receiveGoods')){toast('ไม่มีสิทธิ์รับของ');return;}
