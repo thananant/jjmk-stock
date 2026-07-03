@@ -784,7 +784,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v7 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v8 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -2231,7 +2231,9 @@ function openReceive(){
       <div class="rfilters">
         <select class="rc_b">${bOpts}</select>
         <input type="date" class="rc_d" value="${yest}">
+        <select class="rc_s"><option value="">🏷️ ทุกซัพ</option></select>
       </div>
+      <input class="rc_q" placeholder="🔍 พิมพ์ชื่อสินค้าค้นหา..." style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
       <p class="hint" style="margin:6px 0">วันที่ = วันที่สั่ง (ปกติคือเมื่อวาน) · ยอดสั่งแก้ไม่ได้ · กรอกเฉพาะช่อง "รับจริง" แล้วกดบันทึก</p>
       <div class="rc_out"><div class="rempty">กำลังโหลด...</div></div>
       <button class="act wide rc_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกรับของ + แจ้งไลน์ถ้าไม่ตรง</button>
@@ -2241,42 +2243,59 @@ function openReceive(){
   ov.querySelector('[data-x]').onclick=close;
   const lo=ov.querySelector('[data-lo]');if(lo)lo.onclick=doLogout;
   ov.onclick=e=>{if(e.target===ov&&!isReceiveOnly())close();};
-  let ROWS=[];
+  let ROWS=[],VAL={};
+  function renderList(){
+    const out=ov.querySelector('.rc_out');
+    const fs=ov.querySelector('.rc_s').value,qq=ov.querySelector('.rc_q').value.trim().toLowerCase();
+    if(!ROWS.length){out.innerHTML='<div class="rempty">วันนี้ไม่มีของต้องรับ (ไม่มีออเดอร์วันที่เลือก)</div>';return;}
+    const show=ROWS.filter(r=>{const sn=(rowSup(r)||'(ไม่ระบุซัพ)').trim();
+      if(fs&&sn!==fs)return false;
+      if(qq&&!(r.name||'').toLowerCase().includes(qq))return false;return true;});
+    if(!show.length){out.innerHTML='<div class="rempty">ไม่พบรายการตามตัวกรอง</div>';return;}
+    const bySup={};show.forEach(r=>{const sn=(rowSup(r)||'(ไม่ระบุซัพ)').trim();(bySup[sn]=bySup[sn]||[]).push(r);});
+    let html='';
+    Object.keys(bySup).sort((a,b)=>a.localeCompare(b,'th')).forEach(sn=>{
+      html+=`<div class="osup" style="margin-top:12px">🏷️ ${escapeHtml(sn)}</div>`;
+      bySup[sn].forEach(r=>{const v=(VAL[r.product_id]!==undefined)?VAL[r.product_id]:'';
+        const im=(ITEM_INDEX[r.product_id]||{}).item;const src=im&&im.img;
+        const thumb=src?`<img src="${src}" style="width:46px;height:46px;border-radius:9px;object-fit:cover;flex:none">`
+                       :`<div style="width:46px;height:46px;border-radius:9px;background:var(--paper-deep,#f1e8d8);display:grid;place-items:center;flex:none">🖼</div>`;
+        html+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px dashed var(--line)">
+          ${thumb}
+          <span style="flex:1;min-width:0">${escapeHtml(r.name||'')} <small style="color:var(--ink-soft)">${escapeHtml(r.cat_label||'')}</small><br>
+            <b style="color:var(--red)">สั่ง: ${orderText(r)}</b></span>
+          <input class="rc_in" data-pid="${escapeHtml(r.product_id)}" inputmode="decimal" placeholder="รับจริง"
+            value="${v}" style="width:88px;padding:10px 6px;border:1.5px solid var(--line);border-radius:10px;text-align:center;font-weight:700;font-size:1rem">
+          <span style="width:40px;font-size:.78em;color:var(--ink-soft)">${escapeHtml(rowUnit(r)||'')}</span></div>`;});});
+    out.innerHTML=html;
+    out.querySelectorAll('.rc_in').forEach(inp=>{
+      inp.oninput=()=>{VAL[inp.dataset.pid]=inp.value;};
+      inp.onfocus=()=>inp.select();});
+  }
   async function load(){
     const bf=ov.querySelector('.rc_b').value,d=ov.querySelector('.rc_d').value;
-    const out=ov.querySelector('.rc_out');out.innerHTML='<div class="rempty">กำลังโหลด...</div>';
+    const out=ov.querySelector('.rc_out');out.innerHTML='<div class="rempty">กำลังโหลด...</div>';VAL={};
     let q=sb.from('stock_counts').select('*').gt('ordered',0).in('count_date',dateVariants(d))
       .eq('branch_id',bf).order('created_at',{ascending:false}).limit(5000);
     const {data,error}=await q;
     if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
     const seen={};ROWS=[];
     (data||[]).forEach(r=>{const k=r.product_id;if(seen[k])return;seen[k]=1;ROWS.push(r);});
-    // ดึงที่เคยบันทึกรับแล้ว (เปิดซ้ำได้)
-    let recv={};
     try{const {data:rc}=await sb.from('stock_receipts').select('product_id,received').eq('branch_id',bf).eq('order_date',isoFromAny(d));
-      (rc||[]).forEach(x=>recv[x.product_id]=x.received);}catch(e){}
-    if(!ROWS.length){out.innerHTML='<div class="rempty">วันนี้ไม่มีของต้องรับ (ไม่มีออเดอร์วันที่เลือก)</div>';return;}
-    const bySup={};ROWS.forEach(r=>{const sn=(rowSup(r)||'(ไม่ระบุซัพ)').trim();(bySup[sn]=bySup[sn]||[]).push(r);});
-    let html='';
-    Object.keys(bySup).sort((a,b)=>a.localeCompare(b,'th')).forEach(sn=>{
-      html+=`<h4 style="margin:12px 0 4px">🏷️ ${escapeHtml(sn)}</h4>`;
-      bySup[sn].forEach(r=>{const rv=recv[r.product_id];
-        html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)">
-          <span style="flex:1">${escapeHtml(r.name||'')} <small style="color:var(--ink-soft)">${escapeHtml(r.cat_label||'')}</small><br>
-            <b>สั่ง: ${orderText(r)}</b></span>
-          <input class="rc_in" data-pid="${escapeHtml(r.product_id)}" inputmode="decimal" placeholder="รับจริง"
-            value="${rv==null?'':rv}" style="width:92px;padding:9px;border:1px solid var(--line);border-radius:9px;text-align:center">
-          <span style="width:44px;font-size:.8em;color:var(--ink-soft)">${escapeHtml(rowUnit(r)||'')}</span></div>`;});});
-    out.innerHTML=html;
+      (rc||[]).forEach(x=>{if(x.received!=null)VAL[x.product_id]=x.received;});}catch(e){}
+    const ss=ov.querySelector('.rc_s');const sups=[...new Set(ROWS.map(r=>(rowSup(r)||'(ไม่ระบุซัพ)').trim()))].sort((a,b)=>a.localeCompare(b,'th'));
+    ss.innerHTML='<option value="">🏷️ ทุกซัพ</option>'+sups.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
+    renderList();
   }
   ov.querySelector('.rc_b').onchange=load;ov.querySelector('.rc_d').onchange=load;
+  ov.querySelector('.rc_s').onchange=renderList;ov.querySelector('.rc_q').oninput=renderList;
   load();
   ov.querySelector('.rc_save').onclick=async()=>{
     const bf=ov.querySelector('.rc_b').value,d=isoFromAny(ov.querySelector('.rc_d').value);
     const bname=(accessibleBranches().find(b=>b.id===bf)||{}).name||'';
     const ins=[];const byPid={};ROWS.forEach(r=>byPid[r.product_id]=r);
-    ov.querySelectorAll('.rc_in').forEach(inp=>{const v=inp.value.trim();if(v==='')return;
-      const r=byPid[inp.dataset.pid];if(!r)return;
+    Object.keys(VAL).forEach(pid=>{const v=String(VAL[pid]).trim();if(v==='')return;
+      const r=byPid[pid];if(!r)return;
       const rec=Math.max(0,parseFloat(v.replace(',','.'))||0);
       ins.push({branch_id:bf,branch_name:bname,product_id:r.product_id,name:r.name,cat_label:r.cat_label,
         unit:rowUnit(r)||'',sup:(rowSup(r)||'').trim(),order_date:d,ordered:+r.ordered,received:rec,
