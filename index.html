@@ -785,7 +785,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v11 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v12 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -2015,9 +2015,9 @@ async function openReport(){
   const staffScoped=(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length);
   const accb=accessibleBranches().map(b=>b.id);
   // 1) ดึง "รายการวันที่ทั้งหมด" (คอลัมน์เดียว เบา — ไม่โดน limit ตัดวันเก่า)
-  let dq=sb.from('stock_counts').select('count_date').order('count_date',{ascending:false}).limit(100000);
-  if(staffScoped)dq=dq.in('branch_id',accb);
-  const {data:dd,error:derr}=await dq;
+  const dqb=()=>{let dq=sb.from('stock_counts').select('count_date').order('count_date',{ascending:false});
+    if(staffScoped)dq=dq.in('branch_id',accb);return dq;};
+  const {data:dd,error:derr}=await sbAll(dqb,40);
   if(derr){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
   REPORT_DATES=[...new Set((dd||[]).map(r=>isoFromAny(r.count_date)).filter(Boolean))].sort().reverse();
   // 2) โหลดข้อมูลของวันล่าสุด
@@ -2053,6 +2053,10 @@ function isoFromAny(d){d=String(d||'').slice(0,10);
   m=d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if(m){let y=+m[3];if(y>2400)y-=543;return y+'-'+m[2]+'-'+m[1];}
   return d;}
+async function sbAll(build,maxPages){maxPages=maxPages||25;let out=[];
+  for(let p=0;p<maxPages;p++){const {data,error}=await build().range(p*1000,p*1000+999);
+    if(error)return {error};out=out.concat(data||[]);if(!data||data.length<1000)break;}
+  return {data:out};}
 function dateVariants(d){const iso=isoFromAny(d);if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return[d];
   const p=iso.split('-');const be=(+p[0]+543)+'-'+p[1]+'-'+p[2]; // เผื่อแถวเก่าที่ยังเป็นปี พ.ศ.
   return [iso,be];}
@@ -2185,10 +2189,10 @@ function openUsage(){
     if(!f||!t||f>t){out.innerHTML='<div class="rempty">เลือกช่วงวันให้ถูกต้อง</div>';return;}
     out.innerHTML='<div class="rempty">กำลังคำนวณ...</div>';
     const tPlus=new Date(new Date(t+'T00:00:00').getTime()+10*86400000).toISOString().slice(0,10);
-    let q=sb.from('stock_counts').select('branch_id,branch_name,product_id,name,cat_label,unit,qty,ordered,count_date,created_at')
-      .gte('count_date',f).lte('count_date',tPlus).order('created_at',{ascending:false}).limit(20000);
-    if(bf)q=q.eq('branch_id',bf);
-    const {data,error}=await q;
+    const build=()=>{let q=sb.from('stock_counts').select('branch_id,branch_name,product_id,name,cat_label,unit,qty,ordered,count_date,created_at')
+      .gte('count_date',f).lte('count_date',tPlus).order('created_at',{ascending:false});
+      if(bf)q=q.eq('branch_id',bf);return q;};
+    const {data,error}=await sbAll(build,30);
     if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
     // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน
     const seen={},rows=[];
@@ -2337,7 +2341,7 @@ async function openDispatch(){
   show('#dispatchOverlay');
   $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
   // 1) รายการวันที่ทั้งหมดที่มีออเดอร์ (คอลัมน์เดียว ไม่โดน limit ตัดวันเก่า)
-  const {data:dd,error:derr}=await sb.from('stock_counts').select('count_date').gt('ordered',0).order('count_date',{ascending:false}).limit(100000);
+  const {data:dd,error:derr}=await sbAll(()=>sb.from('stock_counts').select('count_date').gt('ordered',0).order('count_date',{ascending:false}),40);
   if(derr){$('#dBoard').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
   DISPATCH_DATES=[...new Set((dd||[]).map(r=>isoFromAny(r.count_date)).filter(Boolean))].sort().reverse();
   const di=$('#dDate');
