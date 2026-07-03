@@ -784,7 +784,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v3 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v5 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -2667,12 +2667,41 @@ function supMultiplier(supName,dateStr){
   const ok=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
   if(!sc[ok])return 1;                      // วันนี้ไม่ใช่วันสั่งของซัพนี้
   const d1=DOW_IDX[sc[ok]];
-  let bk=null,bg=8;
-  keys.forEach(k=>{let g=(DOW_IDX[k]-DOW_IDX[ok]+7)%7;if(g===0)g=7;if(g<bg){bg=g;bk=k;}});
-  if(bk==null)return 1;
+  let bk=null,bg=99;
+  keys.forEach(k=>{let g=(DOW_IDX[k]-DOW_IDX[ok]+7)%7;if(g===0)g=7;
+    if(DOW_IDX[sc[k]]===d1)return;           // ส่งวันเดียวกับรอบนี้ = ล็อตเดียวกัน ข้ามไปหารอบส่งถัดไปจริง
+    if(g<bg){bg=g;bk=k;}});
+  if(bk==null)return 7;                       // ทุกวันสั่งส่งวันเดียวกัน/สัปดาห์ละล็อต = ของต้องพอ 7 วัน
   const d2=DOW_IDX[sc[bk]];
   let m=(d2-d1+7)%7;if(m===0)m=7;
-  return Math.max(1,Math.min(7,m));
+  m=Math.max(1,Math.min(7,m));
+  // ── ช่วงหยุด/เทศกาล (last_delivery_date + reopen_date): ออเดอร์สุดท้ายก่อนหยุด ต้องพอถึงรอบส่งแรกหลังเปิด ──
+  const ld=s.last_delivery_date, ro=s.reopen_date;
+  if(ld&&ro){
+    const p=n=>String(n).padStart(2,'0');
+    const ymdD=x=>x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate());
+    if(ro>=ymdD(d)){                              // ช่วงหยุดยังไม่ผ่านไป (ผ่านแล้ว = รีเซ็ต ไม่คิด)
+      let del1=new Date(d);while(del1.getDay()!==d1)del1.setDate(del1.getDate()+1);   // วันส่งของรอบนี้
+      const nd=new Date(del1);nd.setDate(nd.getDate()+m);                              // วันส่งรอบถัดไปตามปกติ
+      if(ymdD(del1)<=ld&&ymdD(nd)>ld){            // รอบนี้คือ "ส่งสุดท้ายก่อนหยุด"
+        const DK=['sun','mon','tue','wed','thu','fri','sat'];
+        let x=new Date(ro+'T00:00:00'),fd=null,g=0;
+        while(g<21&&!fd){const k=DK[x.getDay()];
+          if(sc[k]){const dw=DOW_IDX[sc[k]];const y=new Date(x);let g2=0;while(y.getDay()!==dw&&g2<8){y.setDate(y.getDate()+1);g2++;}fd=y;}
+          else{x.setDate(x.getDate()+1);g++;}}
+        if(fd){const days=Math.round((fd-del1)/86400000);return Math.max(m,Math.min(30,days));}
+      }
+    }
+  }
+  return m;
+}
+// วันรอของนานสุดของซัพ (สั่ง→ได้ของ กี่วัน) ใช้แนะนำ safety
+function supLeadWorst(supName){
+  const s=SUPPLIERS.find(x=>x.name===(supName||'').trim());
+  const sc=s&&s.schedule; if(!sc||typeof sc!=='object')return 0;
+  let w=0;Object.keys(sc).forEach(k=>{if(DOW_IDX[k]!=null&&sc[k]&&DOW_IDX[sc[k]]!=null){
+    const l=(DOW_IDX[sc[k]]-DOW_IDX[k]+7)%7;if(l>w)w=l;}});
+  return w;
 }
 function cBranch(){return ROOT.branches.find(b=>b.id===cBranchId)||ROOT.branches[0]}
 function renderCentral(){
@@ -2691,11 +2720,17 @@ function renderCentral(){
       if(n>0)totalNeed++;
       const row=document.createElement('div');row.className='crow';
       const stockTxt=(it.qty===null||it.qty===undefined)?'ยังไม่นับ':fmt(it.qty);
-      row.innerHTML=`<div class="cn">${escapeHtml(it.name)} <span style="color:var(--ink-soft);font-size:.8em">${escapeHtml(it.unit||'')}</span></div>
+      const lead=supLeadWorst(it.sup);
+      const sug=(lead>0&&it.max!=null&&it.max!=='')?Math.ceil((+it.max)*lead):null;
+      const showSug=(sug!=null&&sug>0&&(it.safety==null||sug>+it.safety));
+      row.innerHTML=`<div class="cn">${escapeHtml(it.name)} <span style="color:var(--ink-soft);font-size:.8em">${escapeHtml(it.unit||'')}</span>${showSug?`<br><span class="sughint" style="font-size:.72em;color:#1a7f4b;cursor:pointer">💡 safety แนะนำ ≥ ${fmt(sug)} (รอของ ${lead} วัน)</span>`:''}</div>
         <div class="cstock ${it.qty===null?'un':''}">${stockTxt}</div>
         <input class="csafe" inputmode="decimal" value="${(it.safety===null||it.safety===undefined)?'':fmt(it.safety)}" placeholder="–">
         <input class="cmax" inputmode="decimal" value="${(it.max===null||it.max===undefined)?'':fmt(it.max)}" placeholder="–">
         <div class="cneed ${n>0?'go':''}">${n===null?'—':fmt(n)}</div>`;
+      const sg=row.querySelector('.sughint');
+      if(sg)sg.onclick=async()=>{it.safety=sug;renderCentral();
+        const {error}=await sb.from('products').update({safety:sug}).eq('id',it.id);if(error)toast('บันทึก safety ไม่สำเร็จ: '+error.message);else toast('ตั้ง safety = '+fmt(sug)+' ✓');};
       const sf=row.querySelector('.csafe'),mx=row.querySelector('.cmax');
       sf.onchange=async()=>{const t=sf.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
         const {error}=await sb.from('products').update({safety:it.safety}).eq('id',it.id);if(error)toast('บันทึก safety ไม่สำเร็จ: '+error.message);};
