@@ -478,7 +478,7 @@
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
   <button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
-  <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button>
+  <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
@@ -784,7 +784,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v6 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v7 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -995,6 +995,7 @@ const PERMS=[
   {key:'approveStaff',label:'อนุมัติพนักงานใหม่'},
   {key:'manageCentral',label:'Safety/Max'},
   {key:'viewDispatch',label:'รายการสั่งของซัพพลายเออร์'},
+  {key:'receiveGoods',label:'รับของ (ตรวจรับ)'},
   {key:'manageSettings',label:'ตั้งค่าร้าน'}
 ];
 const ROLE_ORDER=['owner','admin','manager','supervisor','staff','warehouse'];
@@ -1316,19 +1317,23 @@ function enterApp(){
   applyShop();renderContext();renderTabs();renderMain();refreshCounters();
   // บัญชีคลัง → เปิดกระดานจัดของเลย ซ่อนหน้านับ
   if(isDispatchOnly()){ document.body.classList.add('dispatch-only'); openDispatch(); }
+  else if(isReceiveOnly()){ document.body.classList.add('dispatch-only'); openReceive(); }
   else document.body.classList.remove('dispatch-only');
 }
 function layoutHeaderBtns(){
-  const gear=canAnyManage(), central=can('manageCentral'), report=true, dispatch=can('viewDispatch');
+  const gear=canAnyManage(), central=can('manageCentral'), report=true, dispatch=can('viewDispatch'), recv=can('receiveGoods');
   $('#gearBtn').style.display=gear?'flex':'none';
   $('#centralBtn').style.display=central?'flex':'none';
   $('#reportBtn').style.display=report?'flex':'none';
   $('#dispatchBtn').style.display=dispatch?'flex':'none';
+  $('#receiveBtn').style.display=recv?'flex':'none';
   let r=14;
-  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#reportBtn',report]].forEach(([sel,on])=>{
+  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#reportBtn',report]].forEach(([sel,on])=>{
     if(on){const el=$(sel);el.style.right=r+'px';r+=(el.offsetWidth||44)+8;}
   });
 }
+// บัญชี "รับของ": เห็นเฉพาะหน้ารับของ
+function isReceiveOnly(){return !can('count')&&can('receiveGoods')&&!can('viewDispatch');}
 // บัญชี "คลัง": ดูออเดอร์อย่างเดียว ไม่ต้องเห็นหน้านับสต๊อก
 function isDispatchOnly(){return !can('count')&&can('viewDispatch');}
 async function doLogout(){try{await sb.auth.signOut()}catch(e){}currentUser=null;document.body.classList.remove('dispatch-only');hideAll();showLogin();}
@@ -2214,6 +2219,93 @@ function openUsage(){
   };
 }
 $('#rUsage').onclick=openUsage;
+/* ===== 🚚 รับของ: เทียบยอดสั่ง (อ่านอย่างเดียว) กับรับจริง + แจ้งไลน์ส่วนต่างแยกซัพ ===== */
+function openReceive(){
+  if(!can('receiveGoods')){toast('ไม่มีสิทธิ์รับของ');return;}
+  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:200';
+  const yest=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  ov.innerHTML=`<div class="sheet" style="max-width:680px">
+    <div class="sheet-head"><h3>🚚 รับของ</h3>${isReceiveOnly()?'<button class="x" data-lo>ออก ↩</button>':''}<button class="x" data-x>✕</button></div>
+    <div class="sheet-body">
+      <div class="rfilters">
+        <select class="rc_b">${bOpts}</select>
+        <input type="date" class="rc_d" value="${yest}">
+      </div>
+      <p class="hint" style="margin:6px 0">วันที่ = วันที่สั่ง (ปกติคือเมื่อวาน) · ยอดสั่งแก้ไม่ได้ · กรอกเฉพาะช่อง "รับจริง" แล้วกดบันทึก</p>
+      <div class="rc_out"><div class="rempty">กำลังโหลด...</div></div>
+      <button class="act wide rc_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกรับของ + แจ้งไลน์ถ้าไม่ตรง</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('[data-x]').onclick=close;
+  const lo=ov.querySelector('[data-lo]');if(lo)lo.onclick=doLogout;
+  ov.onclick=e=>{if(e.target===ov&&!isReceiveOnly())close();};
+  let ROWS=[];
+  async function load(){
+    const bf=ov.querySelector('.rc_b').value,d=ov.querySelector('.rc_d').value;
+    const out=ov.querySelector('.rc_out');out.innerHTML='<div class="rempty">กำลังโหลด...</div>';
+    let q=sb.from('stock_counts').select('*').gt('ordered',0).in('count_date',dateVariants(d))
+      .eq('branch_id',bf).order('created_at',{ascending:false}).limit(5000);
+    const {data,error}=await q;
+    if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
+    const seen={};ROWS=[];
+    (data||[]).forEach(r=>{const k=r.product_id;if(seen[k])return;seen[k]=1;ROWS.push(r);});
+    // ดึงที่เคยบันทึกรับแล้ว (เปิดซ้ำได้)
+    let recv={};
+    try{const {data:rc}=await sb.from('stock_receipts').select('product_id,received').eq('branch_id',bf).eq('order_date',isoFromAny(d));
+      (rc||[]).forEach(x=>recv[x.product_id]=x.received);}catch(e){}
+    if(!ROWS.length){out.innerHTML='<div class="rempty">วันนี้ไม่มีของต้องรับ (ไม่มีออเดอร์วันที่เลือก)</div>';return;}
+    const bySup={};ROWS.forEach(r=>{const sn=(rowSup(r)||'(ไม่ระบุซัพ)').trim();(bySup[sn]=bySup[sn]||[]).push(r);});
+    let html='';
+    Object.keys(bySup).sort((a,b)=>a.localeCompare(b,'th')).forEach(sn=>{
+      html+=`<h4 style="margin:12px 0 4px">🏷️ ${escapeHtml(sn)}</h4>`;
+      bySup[sn].forEach(r=>{const rv=recv[r.product_id];
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)">
+          <span style="flex:1">${escapeHtml(r.name||'')} <small style="color:var(--ink-soft)">${escapeHtml(r.cat_label||'')}</small><br>
+            <b>สั่ง: ${orderText(r)}</b></span>
+          <input class="rc_in" data-pid="${escapeHtml(r.product_id)}" inputmode="decimal" placeholder="รับจริง"
+            value="${rv==null?'':rv}" style="width:92px;padding:9px;border:1px solid var(--line);border-radius:9px;text-align:center">
+          <span style="width:44px;font-size:.8em;color:var(--ink-soft)">${escapeHtml(rowUnit(r)||'')}</span></div>`;});});
+    out.innerHTML=html;
+  }
+  ov.querySelector('.rc_b').onchange=load;ov.querySelector('.rc_d').onchange=load;
+  load();
+  ov.querySelector('.rc_save').onclick=async()=>{
+    const bf=ov.querySelector('.rc_b').value,d=isoFromAny(ov.querySelector('.rc_d').value);
+    const bname=(accessibleBranches().find(b=>b.id===bf)||{}).name||'';
+    const ins=[];const byPid={};ROWS.forEach(r=>byPid[r.product_id]=r);
+    ov.querySelectorAll('.rc_in').forEach(inp=>{const v=inp.value.trim();if(v==='')return;
+      const r=byPid[inp.dataset.pid];if(!r)return;
+      const rec=Math.max(0,parseFloat(v.replace(',','.'))||0);
+      ins.push({branch_id:bf,branch_name:bname,product_id:r.product_id,name:r.name,cat_label:r.cat_label,
+        unit:rowUnit(r)||'',sup:(rowSup(r)||'').trim(),order_date:d,ordered:+r.ordered,received:rec,
+        diff:Math.round((rec-(+r.ordered))*100)/100,receiver:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id});});
+    if(!ins.length){toast('ยังไม่ได้กรอกรับจริงสักรายการ');return;}
+    const btn=ov.querySelector('.rc_save');btn.disabled=true;btn.textContent='⏳ กำลังบันทึก...';
+    const {error}=await sb.from('stock_receipts').upsert(ins,{onConflict:'branch_id,product_id,order_date'});
+    if(error){toast('บันทึกไม่สำเร็จ: '+error.message);btn.disabled=false;btn.textContent='💾 บันทึกรับของ + แจ้งไลน์ถ้าไม่ตรง';return;}
+    // แจ้งไลน์เฉพาะซัพที่มีส่วนต่าง
+    const mism={};ins.filter(x=>x.diff!==0).forEach(x=>{(mism[x.sup]=mism[x.sup]||[]).push(x);});
+    const sups=Object.keys(mism);let sent=0,noGrp=[];
+    for(let i=0;i<sups.length;i++){const sn=sups[i];
+      const sinfo=SUPPLIERS.find(s=>s.name===sn);const gid=sinfo&&sinfo.line_group_id;
+      if(!gid){noGrp.push(sn);continue;}
+      let txt='🚚 รับของ '+(cfg().shop||'จริงใจหมูกระทะ')+'\n📅 ออเดอร์วันที่ '+fmtDate(d)+'\n🏪 '+bname+'\n🏷️ '+sn+'\n\n⚠️ ของไม่ตรงกับที่สั่ง:\n';
+      mism[sn].forEach(x=>{const a=Math.abs(x.diff);
+        txt+='• '+x.name+' — สั่ง '+fmt(x.ordered)+' รับ '+fmt(x.received)+' ('+(x.diff<0?'ขาด ':'เกิน ')+fmt(a)+' '+x.unit+')\n';});
+      btn.textContent='⏳ แจ้งไลน์ '+(i+1)+'/'+sups.length+'...';
+      try{const r=await fetch(SB_URL+'/functions/v1/line-order',{method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
+          body:JSON.stringify({to:gid,text:txt})});
+        const j=await r.json().catch(()=>({}));if(r.ok&&j.ok)sent++;}catch(e){}
+      if(i<sups.length-1)await new Promise(rs=>setTimeout(rs,400));
+    }
+    btn.disabled=false;btn.textContent='💾 บันทึกรับของ + แจ้งไลน์ถ้าไม่ตรง';
+    toast('บันทึกรับของ '+ins.length+' รายการ ✓'+(sups.length?(' · แจ้งไลน์ '+sent+'/'+sups.length+' ซัพ'):' · ของตรงครบ ไม่ต้องแจ้ง')+(noGrp.length?(' · ไม่มีกลุ่ม: '+noGrp.join(', ')):''));
+  };
+}
+$('#receiveBtn').onclick=openReceive;
 $('#rSearch').oninput=applyReport;
 $('#rExport').onclick=exportReportCSV;
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
