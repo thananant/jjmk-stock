@@ -75,6 +75,7 @@
   .tab .ic{font-size:1.05rem;line-height:1}
   .item.missblink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)!important}
   .item.missblink .item-name::after{content:' ⚠️ ยังไม่นับ';color:var(--red);font-size:.72em;font-weight:700}
+  .verb{position:absolute;top:3px;right:16px;font-size:.55rem;color:var(--gold-bright);font-family:Kanit;font-weight:500;opacity:.95;z-index:5}
   @keyframes tabblink{0%,100%{box-shadow:0 0 0 0 rgba(164,27,34,.55)}50%{box-shadow:0 0 0 6px rgba(164,27,34,0)}}
   .tab.blink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)}
   .tab.blink .cnt{background:var(--red);color:#fff;animation:tabblink 1.1s ease-in-out infinite}
@@ -481,7 +482,7 @@
       <p data-i18n="shop_sub2">เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
     </div>
   </div>
-  <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
+  <span class="verb">v19 ✓</span><button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
   <button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
   <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
@@ -493,6 +494,7 @@
 </header>
 
 <nav class="tabs" id="tabs"></nav>
+<div style="padding:8px 14px 0"><input id="itemSearch" placeholder="🔍 พิมพ์ชื่อสินค้าค้นหา (ทุกหมวด)..." style="width:100%;padding:11px;border:1.5px solid var(--line);border-radius:11px;font-family:'Sarabun';font-size:.95rem;background:#fff"></div>
 <main id="main"></main>
 
 <div class="bar">
@@ -791,7 +793,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v17 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์</h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -838,7 +840,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act wide" id="rXlsx" style="background:#1a7f4b;color:#fff;border:none">📗 ส่งออก Excel ทั้งหมด (ล่าสุดต่อวัน)</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act wide" id="rFillI18n" style="background:#4b3fa7;color:#fff;border:none">🌐 เติมคำแปลที่ขาด (อัตโนมัติ)</button><button class="act wide" id="rXlsx" style="background:#1a7f4b;color:#fff;border:none">📗 ส่งออก Excel ทั้งหมด (ล่าสุดต่อวัน)</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -915,7 +917,35 @@ function applyI18n(){
   }}catch(e){}
   try{if(typeof applyReport==='function'&&$('#reportOverlay')&&$('#reportOverlay').classList.contains('show'))applyReport();}catch(e){}
 }
-function setLang(l){if(!I18N[l])return;LANG=l;try{localStorage.setItem('jjmk_lang',l);}catch(e){}applyI18n();}
+// ---- แปลอัตโนมัติ + คำแปลหมวด/ปุ่ม ----
+async function gtx(text,to){ // th -> en/lo/my ผ่าน Google translate (endpoint สาธารณะ)
+  try{const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl='+to+'&dt=t&q='+encodeURIComponent(text));
+    const j=await r.json();return (j&&j[0]&&j[0].map(x=>x[0]).join(''))||null;}catch(e){return null;}}
+async function autoI18n(name,cur){ // เติมเฉพาะช่องที่ว่าง
+  const o={en:(cur&&cur.en)||null,lo:(cur&&cur.lo)||null,my:(cur&&cur.my)||null};
+  for(const L of ['en','lo','my']){if(!o[L]){o[L]=await gtx(name,L);await new Promise(r=>setTimeout(r,120));}}
+  return (o.en||o.lo||o.my)?o:null;}
+const CAT_I18N={
+ 'ผัก':{en:'Vegetables',lo:'ຜັກ',my:'ဟင်းသီးဟင်းရွက်'},
+ 'ของสด':{en:'Fresh',lo:'ຂອງສົດ',my:'လတ်ဆတ်သောပစ္စည်း'},
+ 'ของหวาน':{en:'Dessert',lo:'ຂອງຫວານ',my:'အချိုပွဲ'},
+ 'สไลด์':{en:'Sliced Meat',lo:'ຊີ້ນສະໄລ້',my:'အသားလွှာ'},
+ 'บาร์น้ำ':{en:'Drink Bar',lo:'ບາໜ້ຳ',my:'ဖျော်ရည်ဘား'},
+ 'ล้างจาน':{en:'Dishwashing',lo:'ລ້າງຈານ',my:'ပန်းကန်ဆေး'},
+ 'ครัวกลาง':{en:'Central Kitchen',lo:'ຄົວກາງ',my:'ဗဟိုမီးဖိုချောင်'},
+ 'ครัวร้อน (ยำ ของทอด)':{en:'Hot Kitchen (Yum/Fried)',lo:'ຄົວຮ້ອນ (ຍຳ ຂອງທອດ)',my:'ဟော့ကစ်ချင် (ကြော်/သုပ်)'},
+ 'โต๊ะเตรียม (น้ำซุป ข้าว)':{en:'Prep Table (Soup/Rice)',lo:'ໂຕະກຽມ (ນ້ຳຊຸບ ເຂົ້າ)',my:'ပြင်ဆင်စားပွဲ (ဟင်းရည်/ထမင်း)'},
+ 'Service':{en:'Service',lo:'Service',my:'Service'},
+ 'Mixfresh':{en:'Mixfresh',lo:'Mixfresh',my:'Mixfresh'},
+ 'Best Deal':{en:'Best Deal',lo:'Best Deal',my:'Best Deal'}};
+function trCat(label){const m=CAT_I18N[(label||'').trim()];return (m&&LANG!=='th'&&m[LANG])||label;}
+const UI_HDR={th:{rep:'ดูข้อมูล',use:'การใช้ของ',rcv:'รับของ',dsp:'สั่งของ',cen:'Safety/Max',set:'ตั้งค่า'},
+ en:{rep:'Reports',use:'Usage',rcv:'Receive',dsp:'Orders',cen:'Safety/Max',set:'Settings'},
+ lo:{rep:'ເບິ່ງຂໍ້ມູນ',use:'ການໃຊ້ຂອງ',rcv:'ຮັບເຄື່ອງ',dsp:'ສັ່ງເຄື່ອງ',cen:'Safety/Max',set:'ຕັ້ງຄ່າ'},
+ my:{rep:'ဒေတာကြည့်',use:'အသုံးပြုမှု',rcv:'ပစ္စည်းလက်ခံ',dsp:'အော်ဒါ',cen:'Safety/Max',set:'ဆက်တင်'}};
+function applyHdrLang(){const u=UI_HDR[LANG]||UI_HDR.th;const put=(id,v)=>{const e=document.querySelector('#'+id+' .gl');if(e)e.textContent=v;};
+  put('reportBtn',u.rep);put('usageBtn',u.use);put('receiveBtn',u.rcv);put('dispatchBtn',u.dsp);put('centralBtn',u.cen);put('gearBtn',u.set);}
+function setLang(l){if(!I18N[l])return;LANG=l;try{localStorage.setItem('jjmk_lang',l);}catch(e){}applyI18n();applyHdrLang();try{renderTabs()}catch(e){}}
 function buildLangSwitch(id,cls){const box=document.getElementById(id);if(!box)return;box.className=cls;box.innerHTML='';
   ['th','en','lo','my'].forEach(l=>{const b=document.createElement('button');b.textContent=I18N[l].lang_name;
     if(l===LANG)b.classList.add('on');b.onclick=()=>setLang(l);box.appendChild(b);});}
@@ -1337,6 +1367,7 @@ function layoutHeaderBtns(){
   $('#dispatchBtn').style.display=dispatch?'flex':'none';
   $('#receiveBtn').style.display=recv?'flex':'none';
   $('#usageBtn').style.display=report?'flex':'none';
+  applyHdrLang();
   let r=14;
   [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#usageBtn',report],['#reportBtn',report]].forEach(([sel,on])=>{
     if(on){const el=$(sel);el.style.right=r+'px';r+=(el.offsetWidth||44)+8;}
@@ -1373,12 +1404,24 @@ function renderTabs(){
     const b=document.createElement('button');
     b.className='tab'+(idx===active?' active':'')+(cc?' has':'')+(co?' warn':'')+(left>0?' blink':'');
     b.title=left>0?('ยังไม่นับ '+left+' รายการ'):'นับครบแล้ว';
-    b.innerHTML=`<span class="ic">${c.ic}</span>${escapeHtml(c.label)}<span class="cnt">${left>0?left:(co?co:cc)}</span>${left>0?'':' ✓'}`;
+    b.innerHTML=`<span class="ic">${c.ic}</span>${escapeHtml(trCat(c.label))}<span class="cnt">${left>0?left:(co?co:cc)}</span>${left>0?'':' ✓'}`;
     b.onclick=()=>{active=idx;renderTabs();renderMain();tabsEl.children[idx]&&tabsEl.children[idx].scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'})};
     tabsEl.appendChild(b)});
 }
 function renderMain(){
   const list=vcats();mainEl.innerHTML='';
+  const q=(document.getElementById('itemSearch')||{value:''}).value.trim().toLowerCase();
+  if(q){
+    let found=0;
+    list.forEach(c=>{c.items.forEach(it=>{
+      if(!(it.name||'').toLowerCase().includes(q))return;
+      const card=itemCard(it,c);
+      const tag=document.createElement('div');tag.style.cssText='font-size:.72rem;color:var(--ink-soft);margin:2px 4px -4px';
+      tag.textContent=(c.ic||'')+' '+c.label;
+      mainEl.appendChild(tag);mainEl.appendChild(card);found++;});});
+    if(!found)mainEl.innerHTML='<div style="text-align:center;color:var(--ink-soft);padding:40px;font-family:Kanit">ไม่พบ "'+escapeHtml(q)+'"</div>';
+    return;
+  }
   if(!list.length){mainEl.innerHTML='<div style="text-align:center;color:var(--ink-soft);padding:50px 20px;font-family:Kanit">ยังไม่ได้รับมอบหมายแผนกให้นับ<br><span style="font-size:.85rem">ติดต่อผู้ดูแลเพื่อกำหนดแผนก</span></div>';return}
   if(active>=list.length)active=0;
   const c=list[active];
@@ -1571,7 +1614,9 @@ $('#removeImg').onclick=async()=>{
 $('#editSave').onclick=async()=>{const name=$('#editName').value.trim(),unit=$('#editUnit').value;
   if(!name){toast('ใส่ชื่อสินค้าก่อน');return}
   const en=$('#editEn').value.trim(),lo=$('#editLo').value.trim(),my=$('#editMy').value.trim();
-  const i18obj=(en||lo||my)?{en:en||null,lo:lo||null,my:my||null}:null;
+  let i18obj=(en||lo||my)?{en:en||null,lo:lo||null,my:my||null}:null;
+  if(!en||!lo||!my){toast('🌐 กำลังแปลอัตโนมัติ...');i18obj=await autoI18n(name,i18obj)||i18obj;
+    if(i18obj){$('#editEn').value=i18obj.en||'';$('#editLo').value=i18obj.lo||'';$('#editMy').value=i18obj.my||'';}}
   const toIntN=v=>{v=(v||'').toString().trim();if(v==='')return null;const n=parseInt(v.replace(/[^\d]/g,''),10);return isNaN(n)?null:n;};
   const pack=toIntN($('#editPack').value),packUnit=($('#editPackUnit').value.trim()||null);
   const step=toIntN($('#editStep').value),stepUnit=($('#editStepUnit').value.trim()||null);
@@ -2243,6 +2288,25 @@ function openUsage(){
   };
 }
 $('#usageBtn').onclick=openUsage;
+$('#rFillI18n').onclick=async()=>{
+  if(!can('manageProducts')){toast('ต้องมีสิทธิ์แก้สินค้า');return;}
+  const btn=$('#rFillI18n');btn.disabled=true;
+  const {data,error}=await sb.from('products').select('id,name,i18n').is('deleted_at',null);
+  if(error){toast('โหลดไม่สำเร็จ: '+error.message);btn.disabled=false;return;}
+  // รวมชื่อซ้ำ (หลายสาขา) แปลชื่อละครั้ง
+  const byName={};(data||[]).forEach(p=>{const i=p.i18n||{};if(i.en&&i.lo&&i.my)return;(byName[p.name]=byName[p.name]||{cur:i,ids:[]}).ids.push(p.id);});
+  const names=Object.keys(byName);
+  if(!names.length){toast('คำแปลครบทุกตัวแล้ว ✓');btn.disabled=false;return;}
+  let done=0,fail=0;
+  for(const nm of names){btn.textContent='🌐 แปล '+(++done)+'/'+names.length+'...';
+    const o=await autoI18n(nm,byName[nm].cur);
+    if(o){const {error:e2}=await sb.from('products').update({i18n:o}).eq('name',nm);
+      if(!e2){const x=Object.values(ITEM_INDEX).filter(z=>z.item.name===nm);x.forEach(z=>z.item.i18n=o);}else fail++;}
+    else fail++;}
+  btn.disabled=false;btn.textContent='🌐 เติมคำแปลที่ขาด (อัตโนมัติ)';
+  renderTabs();renderMain();
+  toast('เติมคำแปล '+(names.length-fail)+'/'+names.length+' ชื่อ ✓'+(fail?(' · พลาด '+fail):''));};
+document.getElementById('itemSearch').oninput=()=>renderMain();
 // 📗 ส่งออกประวัตินับสต็อกทั้งหมดเป็น .xlsx — ซ้ำวันเดียวกันเอาแถวล่าสุด
 $('#rXlsx').onclick=async()=>{
   const btn=$('#rXlsx');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังดึงข้อมูล...';
