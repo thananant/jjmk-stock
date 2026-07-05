@@ -482,7 +482,7 @@
       <p data-i18n="shop_sub2">เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
     </div>
   </div>
-  <span class="verb">v19 ✓</span><button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
+  <span class="verb">v20 ✓</span><button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
   <button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
   <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
@@ -656,6 +656,7 @@
   <div class="sheet">
     <div class="sheet-head"><h3>ตั้งค่า</h3><button class="x" data-close>✕</button></div>
     <div class="sheet-body">
+      <div class="setblk"><button class="act wide" id="rFillI18n" style="background:#4b3fa7;color:#fff;border:none">🌐 เติมคำแปลที่ขาด (อัตโนมัติ · ทุกสาขา)</button><p class="hint" style="margin:4px 0 0">สำรอง — ปกติระบบแปลออโต้ตอนเพิ่ม/แก้สินค้าอยู่แล้ว</p></div>
       <div id="blkShop" class="setblk"><div class="field"><label>ชื่อร้าน</label><input id="setShop" placeholder="จริงใจหมูกระทะ"></div>
         <div id="resetTimeBox">
           <div class="toggle-row"><span class="tl">🔄 รีเซ็ตการนับอัตโนมัติทุกวัน</span><label class="switch"><input type="checkbox" id="autoResetSwitch"><span class="sl"></span></label></div>
@@ -840,7 +841,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act wide" id="rFillI18n" style="background:#4b3fa7;color:#fff;border:none">🌐 เติมคำแปลที่ขาด (อัตโนมัติ)</button><button class="act wide" id="rXlsx" style="background:#1a7f4b;color:#fff;border:none">📗 ส่งออก Excel ทั้งหมด (ล่าสุดต่อวัน)</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act wide" id="rXlsx" style="background:#1a7f4b;color:#fff;border:none">📗 ส่งออก Excel ทั้งหมด (ล่าสุดต่อวัน)</button></div>
     </div>
   </div>
 </div>
@@ -2441,7 +2442,7 @@ function openReceive(){
 }
 $('#receiveBtn').onclick=openReceive;
 $('#rSearch').oninput=applyReport;
-$('#rExport').onclick=exportReportCSV;
+
 document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.rchip').forEach(x=>x.classList.remove('active'));ch.classList.add('active');reportQuick=ch.dataset.q;applyReport();});
 
 /* ================= dispatch / warehouse (คลัง) ================= */
