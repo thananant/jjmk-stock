@@ -75,7 +75,10 @@
   .tab .ic{font-size:1.05rem;line-height:1}
   .item.missblink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)!important}
   .item.missblink .item-name::after{content:' ⚠️ ยังไม่นับ';color:var(--red);font-size:.72em;font-weight:700}
-  .verb{position:absolute;top:3px;right:16px;font-size:.55rem;color:var(--gold-bright);font-family:Kanit;font-weight:500;opacity:.95;z-index:5}
+  .verb{position:absolute;top:5px;right:14px;z-index:5;font-family:Kanit;font-weight:600;font-size:.55rem;letter-spacing:.5px;
+    color:#4a3300;background:linear-gradient(135deg,#F5DE8A,#D4AF37 60%,#b8912a);
+    padding:2px 9px 2.5px;border-radius:999px;border:1px solid rgba(255,255,255,.45);
+    box-shadow:0 1px 5px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.5);}
   @keyframes tabblink{0%,100%{box-shadow:0 0 0 0 rgba(164,27,34,.55)}50%{box-shadow:0 0 0 6px rgba(164,27,34,0)}}
   .tab.blink{animation:tabblink 1.1s ease-in-out infinite;border-color:var(--red)}
   .tab.blink .cnt{background:var(--red);color:#fff;animation:tabblink 1.1s ease-in-out infinite}
@@ -482,7 +485,7 @@
       <p data-i18n="shop_sub2">เช็คสต็อกสินค้าคงเหลือ · STOCK CHECK</p>
     </div>
   </div>
-  <span class="verb">v20 ✓</span><button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
+  <span class="verb">v21 ✓</span><button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
   <button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
   <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
