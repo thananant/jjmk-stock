@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --red:#A41B22;--red-deep:#6E0E14;--red-soft:#C7424A;
@@ -790,7 +791,7 @@
 <!-- Dispatch / warehouse (คลัง) -->
 <div class="overlay" id="dispatchOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v16 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
+    <div class="sheet-head"><h3>📥 รายการสั่งของซัพพลายเออร์ <span style="font-size:.6em;color:var(--gold-bright);font-weight:400">v17 ✓</span></h3><button class="x" id="dispLogout" style="display:none">ออก ↩</button><button class="x" id="dispClose">✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <div style="display:flex;gap:6px">
@@ -837,7 +838,7 @@
       </div>
       <div class="rsum" id="rSum"></div>
       <div id="rTable"></div>
-      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
+      <div class="actions"><button class="act wide" id="rLine" style="background:#06C755;color:#fff;border:none">📲 ส่งข้อมูลสต็อกเข้าไลน์</button><button class="act wide" id="rXlsx" style="background:#1a7f4b;color:#fff;border:none">📗 ส่งออก Excel ทั้งหมด (ล่าสุดต่อวัน)</button><button class="act ghost wide" id="rExport">⬇️ ส่งออก CSV (เปิดใน Excel ได้)</button></div>
     </div>
   </div>
 </div>
@@ -2242,6 +2243,33 @@ function openUsage(){
   };
 }
 $('#usageBtn').onclick=openUsage;
+// 📗 ส่งออกประวัตินับสต็อกทั้งหมดเป็น .xlsx — ซ้ำวันเดียวกันเอาแถวล่าสุด
+$('#rXlsx').onclick=async()=>{
+  const btn=$('#rXlsx');btn.disabled=true;const old=btn.textContent;btn.textContent='⏳ กำลังดึงข้อมูล...';
+  try{
+    const {data,error}=await sbAll(()=>sb.from('stock_counts')
+      .select('branch_name,sup,cat_label,name,unit,qty,safety,max,recommended,ordered,out_of_stock,count_date,created_at')
+      .order('created_at',{ascending:false}),50);
+    if(error)throw error;
+    const seen={},rows=[];
+    (data||[]).forEach(r=>{const d=isoFromAny(r.count_date);
+      const k=(r.branch_name||'')+'|'+(r.name||'')+'|'+(r.cat_label||'')+'|'+d;
+      if(seen[k])return;seen[k]=1;
+      rows.push({'วันที่':d,'สาขา':r.branch_name||'','ซัพ':r.sup||'','หมวด':r.cat_label||'','สินค้า':r.name||'',
+        'หน่วย':r.unit||'','คงเหลือ':(r.qty==null?'':+r.qty),'Safety':(r.safety==null?'':+r.safety),
+        'Max':(r.max==null?'':+r.max),'แนะนำ':(r.recommended==null?'':+r.recommended),
+        'สั่งจริง':(r.ordered==null?'':+r.ordered),'หมด':(r.out_of_stock?'หมด':''),
+        'เวลาบันทึก':(r.created_at||'').replace('T',' ').slice(0,19)});});
+    rows.sort((a,b)=>(b['วันที่']+b['สาขา']+a['หมวด']+a['สินค้า']).localeCompare(a['วันที่']+a['สาขา']+b['หมวด']+b['สินค้า'],'th'));
+    btn.textContent='⏳ สร้างไฟล์...';
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:11},{wch:14},{wch:14},{wch:16},{wch:28},{wch:8},{wch:8},{wch:7},{wch:7},{wch:8},{wch:8},{wch:6},{wch:19}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'ประวัตินับสต็อก');
+    XLSX.writeFile(wb,'jjmk-stock-history-'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('ส่งออก '+rows.length+' แถว ✓ (ล่าสุดต่อวันต่อสินค้า)');
+  }catch(e){toast('ส่งออกไม่สำเร็จ: '+((e&&e.message)||e));}
+  btn.disabled=false;btn.textContent=old;
+};
 /* ===== 🚚 รับของ: เทียบยอดสั่ง (อ่านอย่างเดียว) กับรับจริง + แจ้งไลน์ส่วนต่างแยกซัพ ===== */
 function openReceive(){
   if(!can('receiveGoods')){toast('ไม่มีสิทธิ์รับของ');return;}
