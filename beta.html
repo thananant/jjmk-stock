@@ -527,7 +527,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b2 — บังคับสั่ง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b3 — บังคับสั่ง + หน่วยนับ</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1932,19 +1932,28 @@ function renderUnits(){
   units().forEach((u,idx)=>{const row=document.createElement('div');row.className='lrow';
     row.innerHTML=`<input class="nm" value="${escapeHtml(u)}"><span class="used">ใช้ ${unitUsage(u)}</span><button class="del" title="ลบ">🗑</button>`;
     const inp=row.querySelector('.nm');
-    inp.onchange=()=>{const nv=inp.value.trim(),old=units()[idx];if(!nv){inp.value=old;return}if(nv===old)return;
+    inp.onchange=async()=>{const nv=inp.value.trim(),old=units()[idx];if(!nv){inp.value=old;return}if(nv===old)return;
       if(units().includes(nv)&&units().indexOf(nv)!==idx){toast('มีหน่วยนี้แล้ว');inp.value=old;return}
+      const {error}=await sb.from('units').update({name:nv}).eq('name',old);
+      if(error){toast('บันทึกไม่สำเร็จ: '+error.message);inp.value=old;return}
+      const {error:perr}=await sb.from('products').update({unit:nv}).eq('unit',old); // ฐานเดียวกัน = เปลี่ยนทุกสาขา
       let changed=0;ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.unit===old){i.unit=nv;changed++}})));
-      units()[idx]=nv;save();renderUnits();renderMain();toast(changed?`แก้เป็น "${nv}" · อัปเดต ${changed} สินค้า`:`แก้เป็น "${nv}"`)};
-    row.querySelector('.del').onclick=()=>{const used=unitUsage(u);
+      units()[idx]=nv;save();renderUnits();renderMain();
+      toast(perr?('แก้หน่วยแล้ว แต่อัปเดตสินค้าไม่สำเร็จ: '+perr.message):(changed?`แก้เป็น "${nv}" · อัปเดต ${changed} สินค้า (ทุกสาขา)`:`แก้เป็น "${nv}" ✓`))};
+    row.querySelector('.del').onclick=async()=>{const used=unitUsage(u);
       if(used&&!confirm(`มี ${used} สินค้าใช้ "${u}" อยู่ ลบแล้วสินค้าเดิมจะคงหน่วยไว้ ดำเนินการต่อ?`))return;
       if(!used&&!confirm(`ลบหน่วย "${u}"?`))return;
+      const {error}=await sb.from('units').delete().eq('name',u);
+      if(error){toast('ลบไม่สำเร็จ: '+error.message);return}
       units().splice(idx,1);save();renderUnits();renderMain();updateCounts();toast('ลบหน่วยแล้ว')};
     wrap.appendChild(row)});
   updateCounts();
 }
-$('#addUnitBtn').onclick=()=>{const v=$('#newUnit').value.trim();if(!v){toast('พิมพ์ชื่อหน่วยก่อน');return}
-  if(units().includes(v)){toast('มีหน่วยนี้แล้ว');return}units().push(v);$('#newUnit').value='';save();renderUnits();renderMain();toast('เพิ่มหน่วยแล้ว ✓')};
+$('#addUnitBtn').onclick=async()=>{const v=$('#newUnit').value.trim();if(!v){toast('พิมพ์ชื่อหน่วยก่อน');return}
+  if(units().includes(v)){toast('มีหน่วยนี้แล้ว');return}
+  const {error}=await sb.from('units').insert({name:v,sort:units().length});
+  if(error){toast('เพิ่มไม่สำเร็จ: '+error.message);return}
+  units().push(v);$('#newUnit').value='';save();renderUnits();renderMain();toast('เพิ่มหน่วยแล้ว ✓ (ใช้ได้ทุกสาขา)')};
 $('#newUnit').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addUnitBtn').click()});
 $('#openUnits').onclick=()=>{renderUnits();show('#unitOverlay')};
 
