@@ -531,7 +531,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b4 — ข้ามนับซัพนอกรอบ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b5 — ใช้ของนับจากรับจริง</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2306,7 +2306,7 @@ function openUsage(){
         <select class="u_m"><option value="sum">รวมทั้งช่วง (ต่อสินค้า)</option><option value="day">รายวัน</option></select>
       </div>
       <button class="act wide u_go" style="background:var(--red);color:#fff;border:none;margin:8px 0">คำนวณการใช้ของ</button>
-      <p class="hint" style="margin:0 0 6px">สูตร: นับ(วัน) + สั่ง(วัน) − นับ(ครั้งถัดไป) · ติดลบ = นับเกิน/มีรับของนอกระบบ</p>
+      <p class="hint" style="margin:0 0 6px">สูตร: นับ(วัน) + รับเข้า − นับ(ครั้งถัดไป) · รับเข้า = <b style="color:#1559c7">รับจริง</b>ถ้ามีบันทึกในหน้ารับของ ไม่มีก็ใช้<b>ยอดสั่ง</b> · ติดลบ = นับเกิน/รับของนอกระบบ</p>
       <div class="u_out"><div class="rempty">เลือกช่วงวันแล้วกดคำนวณ</div></div>
     </div></div>`;
   document.body.appendChild(ov);
@@ -2323,6 +2323,13 @@ function openUsage(){
       if(bf)q=q.eq('branch_id',bf);return q;};
     const {data,error}=await sbAll(build,30);
     if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
+    // รับจริงจากหน้ารับของ (ผูกกับวันที่สั่ง) — มีเมื่อไหร่ใช้แทนยอดสั่งทันที
+    const RCV={};
+    try{const buildRc=()=>{let q=sb.from('stock_receipts').select('branch_id,product_id,order_date,received')
+        .gte('order_date',f).lte('order_date',tPlus);if(bf)q=q.eq('branch_id',bf);return q;};
+      const {data:rc}=await sbAll(buildRc,30);
+      (rc||[]).forEach(x=>{if(x.received!=null)RCV[x.branch_id+'|'+x.product_id+'|'+isoFromAny(x.order_date)]=+x.received;});
+    }catch(e){}
     // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน
     const seen={},rows=[];
     (data||[]).forEach(r=>{const d=isoFromAny(r.count_date);const k=r.branch_id+'|'+r.product_id+'|'+d;
@@ -2334,14 +2341,16 @@ function openUsage(){
       for(let i=0;i<list.length-1;i++){const a=list[i],b2=list[i+1];
         if(a.d<f||a.d>t)continue;
         if(a.qty==null||b2.qty==null)continue;
-        const used=Math.round(((+a.qty)+(+a.ordered||0)-(+b2.qty))*100)/100;
-        pairs.push({br:a.branch_name||'',cat:a.cat_label||'',name:a.name,unit:a.unit||'',d1:a.d,d2:b2.d,used});}});
+        const rc=RCV[a.branch_id+'|'+a.product_id+'|'+a.d];
+        const inn=(rc!=null)?rc:(+a.ordered||0);
+        const used=Math.round(((+a.qty)+inn-(+b2.qty))*100)/100;
+        pairs.push({br:a.branch_name||'',cat:a.cat_label||'',name:a.name,unit:a.unit||'',d1:a.d,d2:b2.d,used,rc:(rc!=null)});}});
     if(!pairs.length){out.innerHTML='<div class="rempty">ไม่มีคู่วันให้คำนวณ (ต้องมีการนับอย่างน้อย 2 วัน)</div>';return;}
-    const line=p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${escapeHtml(p.name)} <small style="color:var(--ink-soft)">${escapeHtml(p.cat)}</small></span><b style="color:${p.used<0?'#b3261e':'var(--red)'}">${fmt(p.used)} ${escapeHtml(p.unit)}</b></div>`;
+    const line=p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${escapeHtml(p.name)} <small style="color:var(--ink-soft)">${escapeHtml(p.cat)}</small>${p.rc?' <small style="color:#1559c7">✓รับจริง'+(p.rcN>1?' '+p.rcN+' วัน':'')+'</small>':''}</span><b style="color:${p.used<0?'#b3261e':'var(--red)'}">${fmt(p.used)} ${escapeHtml(p.unit)}</b></div>`;
     let html='';
     if(mode==='sum'){
       const agg={};pairs.forEach(p=>{const k=p.br+'|'+p.name+'|'+p.cat+'|'+p.unit;
-        (agg[k]=agg[k]||{...p,used:0,n:0}).used+=p.used;agg[k].n++;});
+        const a=(agg[k]=agg[k]||{...p,used:0,n:0,rcN:0,rc:false});a.used+=p.used;a.n++;if(p.rc){a.rc=true;a.rcN++;}});
       const byBr={};Object.values(agg).forEach(a=>{a.used=Math.round(a.used*100)/100;(byBr[a.br]=byBr[a.br]||[]).push(a);});
       Object.keys(byBr).forEach(br=>{const L=byBr[br].sort((a,b)=>(a.cat+a.name).localeCompare(b.cat+b.name,'th'));
         html+=`<h4 style="margin:12px 0 4px">🏪 ${escapeHtml(br)} <small style="color:var(--ink-soft)">(${escapeHtml(f)} → ${escapeHtml(t)})</small></h4>`+L.map(line).join('');});
