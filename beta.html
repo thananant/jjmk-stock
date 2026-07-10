@@ -469,15 +469,15 @@ header{background:linear-gradient(180deg,#63121a,#4a0b10)!important;box-shadow:0
 .chip{border-radius:999px!important}
 .verb{background:linear-gradient(135deg,#F1DA8C,#D4AF37)!important;color:#4a3300!important;border:none!important;box-shadow:0 1px 4px rgba(0,0,0,.25)!important}
 .tabs{padding:10px 12px 6px!important;gap:8px!important;background:transparent}
-.tab{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:none!important;padding:9px 15px!important;font-size:.86rem!important;color:#3d332b!important}
+.tab{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:none;padding:9px 15px!important;font-size:.86rem!important;color:#3d332b!important}
+.tab.blink{border-color:var(--red)!important}
 .tab.active{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important}
 .tab .cnt{background:#f3e6e7!important;color:#8c1f27!important;border-radius:999px!important;font-size:.68rem!important;padding:1px 8px!important}
 .tab.active .cnt{background:var(--gold)!important;color:#4a3300!important}
-.tab.blink{animation:none!important;border-color:#e9b8bc!important}
-.tab.blink .cnt{background:#c8323c!important;color:#fff!important;animation:softpulse 1.6s ease-in-out infinite!important}
+/* .tab.blink ใช้กระพริบเดิมของแอปหลัก */
 @keyframes softpulse{0%,100%{opacity:1}50%{opacity:.55}}
 #itemSearch{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.item{border-radius:14px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(36,29,23,.05)!important}
+.item{border-radius:14px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(36,29,23,.05)}
 /* missblink: ใช้ตัวกระพริบเดิมของแอปหลัก (หน้างานชอบแบบเดิม) */
 .item input,.item select{border-radius:11px!important}
 .item button{border-radius:11px!important}
@@ -530,7 +530,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b7 — กระพริบยังไม่นับกลับมา</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b8 — กระพริบกลับมาแล้ว</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
