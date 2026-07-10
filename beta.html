@@ -478,8 +478,7 @@ header{background:linear-gradient(180deg,#63121a,#4a0b10)!important;box-shadow:0
 @keyframes softpulse{0%,100%{opacity:1}50%{opacity:.55}}
 #itemSearch{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .item{border-radius:14px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(36,29,23,.05)!important}
-.item.missblink{animation:none!important;border:1px solid #e5a9ad!important;background:#fffafa!important}
-.item.missblink .item-name::after{content:' • ยังไม่นับ'!important;font-weight:600}
+/* missblink: ใช้ตัวกระพริบเดิมของแอปหลัก (หน้างานชอบแบบเดิม) */
 .item input,.item select{border-radius:11px!important}
 .item button{border-radius:11px!important}
 main{padding-top:6px}
@@ -531,7 +530,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b6 — สูตรสั่งคิดวันรอส่ง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b7 — กระพริบยังไม่นับกลับมา</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
