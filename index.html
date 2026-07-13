@@ -530,7 +530,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.1 ✓</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.2 ✓</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3160,6 +3160,11 @@ $('#openProdCfg').onclick=()=>{if(!can('manageSuppliers'))return;renderProdCfg()
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
+function orderRound(n,unit){ // หน่วยชั่ง (โล/กิโล/กรัม) สั่งเศษได้ นอกนั้นปัดขึ้นเต็มหน่วย
+  if(n<=0)return 0;
+  if(/โล|กิโล|กก|กรัม/.test(unit||''))return Math.round(n*100)/100;
+  return Math.ceil(n-1e-9);
+}
 function needQty(it,dateStr){ // safety = ใช้/วัน · max = ใช้สูงสุด/วัน
   const safety=(it.safety===null||it.safety===undefined||it.safety==='')?null:(+it.safety);
   if(safety===null)return null;
@@ -3171,13 +3176,11 @@ function needQty(it,dateStr){ // safety = ใช้/วัน · max = ใช้
   if(h.mode==='fixed'||h.mode==='interval'){
     // สูตรวันบังคับ: ล็อตใหม่ต้องพอ cycle วัน − ของที่คาดว่าเหลือตอนของมา (กินไป safety×lead)
     const leftAtDelivery=Math.max(0,stock-safety*h.lead);
-    const n=rate*h.cycle-leftAtDelivery;
-    return n>0?Math.round(n*100)/100:0;
+    return orderRound(rate*h.cycle-leftAtDelivery,it.unit);
   }
   // โหมดสั่งได้ทุกวัน/ไม่มีตาราง: พฤติกรรมเดิม (สั่งเมื่อต่ำกว่า safety เติมเต็ม rate×วันรอส่ง)
   if(stock>=safety)return 0;
-  const n=rate*Math.max(1,h.lead)-stock;
-  return n>0?Math.round(n*100)/100:0;
+  return orderRound(rate*Math.max(1,h.lead)-stock,it.unit);
 }
 /* ตัวคูณเผื่อวันหยุดซัพ: นับจากตารางรอบสั่ง (schedule) ว่า "ของรอบนี้ต้องใช้กี่วัน" ก่อนรอบส่งถัดไปจะมาถึง
    เช่น FarmFresh สั่ง ศ→ส และรอบถัดไป จ→จ : ของที่ส่งเสาร์ต้องพอ เสาร์+อาทิตย์ = ×2 */
@@ -3382,7 +3385,7 @@ document.addEventListener('visibilitychange',()=>{
      '<div class="kpi"><small>นับแล้ววันนี้</small><b>'+cnt+'<span style="font-size:.72em;color:#8a7f74"> / '+tot+'</span></b></div>'+
      '<div class="kpi warn"><small>ต้องสั่ง</small><b>'+need+'</b></div>'+
      '<div class="kpi warn"><small>ของหมด</small><b>'+out+'</b></div>'+
-     '<div class="kpi gold"><small>เวอร์ชัน</small><b>v24.1</b></div>';
+     '<div class="kpi gold"><small>เวอร์ชัน</small><b>v24.2</b></div>';
   }catch(e){}};
   const _rc=window.refreshCounters;
   if(typeof _rc==='function')window.refreshCounters=function(){_rc.apply(this,arguments);renderKPI();};
