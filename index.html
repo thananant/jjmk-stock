@@ -258,6 +258,11 @@
   .supremind{font-family:'Sarabun';font-size:.76rem;font-weight:500;margin:3px 0 6px;padding:6px 10px;border-radius:9px;line-height:1.45}
   .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
+  .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  .skipbar{font-family:'Sarabun';font-size:.78rem;margin:2px 0 8px;padding:7px 11px;border-radius:10px;line-height:1.5;background:#f1f3f4;color:#5f6368;border:1px dashed #c8ccd0}
+  .skipbar .skipbtn{font-family:'Sarabun';font-size:.74rem;border:1px solid #b9bec3;background:#fff;border-radius:8px;padding:2px 10px;margin-left:6px;cursor:pointer;color:#444}
+  .item.noorder{opacity:.55}
+  .item.noorder .item-name::after{content:' 🗓️';font-size:.8em}
   .supremind b{font-weight:700}
   .pctable td{text-align:left;padding:5px 7px}
   .pctable td.nm{min-width:120px;max-width:150px}
@@ -455,6 +460,39 @@
   .hlang button{padding:4px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:#fff;font-size:.74rem;cursor:pointer;font-family:'Kanit','Noto Sans Lao','Noto Sans Myanmar',sans-serif}
   .hlang button.on{background:var(--gold);color:var(--red-deep);font-weight:700}
 </style>
+<style id="proSkin">
+:root{--red:#5c1015;--red-deep:#40080c;--gold:#D4AF37;--gold-bright:#e6c65a;--paper:#faf7f1;--ink:#241d17;--ink-soft:#8a7f74;--line:#e6ddd0}
+body{background:#f4efe6}
+header{background:linear-gradient(180deg,#63121a,#4a0b10)!important;box-shadow:0 2px 14px rgba(64,8,12,.28)}
+.gear{background:rgba(255,255,255,.10)!important;border:1px solid rgba(255,255,255,.16)!important;border-radius:12px!important;backdrop-filter:blur(3px)}
+.gear .gl{font-size:.56rem!important;opacity:.85}
+.chip{border-radius:999px!important}
+.verb{background:linear-gradient(135deg,#F1DA8C,#D4AF37)!important;color:#4a3300!important;border:none!important;box-shadow:0 1px 4px rgba(0,0,0,.25)!important}
+.tabs{padding:10px 12px 6px!important;gap:8px!important;background:transparent}
+.tab{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:none;padding:9px 15px!important;font-size:.86rem!important;color:#3d332b!important}
+.tab.blink{border-color:var(--red)!important}
+.tab.active{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important}
+.tab .cnt{background:#f3e6e7!important;color:#8c1f27!important;border-radius:999px!important;font-size:.68rem!important;padding:1px 8px!important}
+.tab.active .cnt{background:var(--gold)!important;color:#4a3300!important}
+/* .tab.blink ใช้กระพริบเดิมของแอปหลัก */
+@keyframes softpulse{0%,100%{opacity:1}50%{opacity:.55}}
+#itemSearch{border-radius:999px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.item{border-radius:14px!important;border:1px solid var(--line)!important;background:#fff!important;box-shadow:0 1px 3px rgba(36,29,23,.05)}
+/* missblink: ใช้ตัวกระพริบเดิมของแอปหลัก (หน้างานชอบแบบเดิม) */
+.item input,.item select{border-radius:11px!important}
+.item button{border-radius:11px!important}
+main{padding-top:6px}
+.kpiwrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:10px 14px 2px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 12px}
+.kpi small{display:block;font-family:Kanit;font-size:.62rem;color:#8a7f74;letter-spacing:.3px}
+.kpi b{font-family:Kanit;font-size:1.15rem;font-weight:600;color:#241d17}
+.kpi.warn b{color:#b3261e}.kpi.gold b{color:#8a6a10}
+.osup{border-radius:10px!important}
+.act{border-radius:12px!important}
+.sheet{border-radius:18px 18px 0 0}
+.bar{box-shadow:0 -3px 14px rgba(36,29,23,.08)!important}
+</style>
+
 <body>
 
 <!-- ===== Login ===== -->
@@ -492,7 +530,7 @@
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v23.1 ✓</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.1 ✓</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -816,6 +854,7 @@
         <button class="act ghost" id="dExport" style="padding:6px 14px;font-size:.82rem">⬇️ CSV</button>
       </div>
       <div class="rsum" id="dSum"></div>
+      <div id="dMust" class="dmust" style="display:none"></div>
       <div id="dPrintHead"></div>
       <div id="dBoard"></div>
     </div>
@@ -1244,8 +1283,8 @@ const counted=i=>i.qty!==null&&i.qty!==undefined;
 const isOut=i=>i.qty===0;
 function savedKey(){const cd=(document.getElementById('countDate')&&document.getElementById('countDate').value)||new Date().toISOString().slice(0,10);return 'jjmk_saved_'+currentBranchId+'_'+cd;}
 function savedToday(){try{return !!localStorage.getItem(savedKey())}catch(e){return false}}
-function catCounted(c){return c.items.filter(counted).length}
-function catOut(c){return c.items.filter(isOut).length}
+function catCounted(c){return c.items.filter(i=>countable(i)&&counted(i)).length}
+function catOut(c){return c.items.filter(i=>countable(i)&&isOut(i)).length}
 function fmtSize(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(2)+' MB'}
 function storeInfo(){let bytes=0;try{bytes=new Blob([JSON.stringify(ROOT)]).size}catch(e){bytes=(JSON.stringify(ROOT)||'').length}
   let n=0;ROOT.branches.forEach(b=>b.data.categories.forEach(c=>c.items.forEach(i=>{if(i.img)n++})));return{bytes,n}}
@@ -1269,7 +1308,7 @@ function allowedKeySet(){ if(isAdmin())return null;
 function vcats(){ const set=allowedKeySet(); const all=cats(); return set?all.filter(c=>set.has(c.key)):all; }
 function deptList(){ const seen={},out=[]; ROOT.branches.forEach(b=>b.data.categories.forEach(c=>{
   if(!seen[c.key]){seen[c.key]=1;out.push({key:c.key,label:c.label,ic:c.ic})}})); return out; }
-function totals(){let cn=0,out=0,all=0;vcats().forEach(c=>c.items.forEach(i=>{all++;if(counted(i))cn++;if(isOut(i))out++}));return{cn,out,all}}
+function totals(){let cn=0,out=0,all=0;vcats().forEach(c=>c.items.forEach(i=>{if(!countable(i))return;all++;if(counted(i))cn++;if(isOut(i))out++}));return{cn,out,all}}
 
 function processImage(file,cb){const reader=new FileReader();
   reader.onload=()=>{const im=new Image();
@@ -1432,14 +1471,25 @@ function renderMain(){
   const c=list[active];
   const sec=document.createElement('section');sec.className='section';
   sec.innerHTML=`<div class="sec-head"><span class="big">${c.ic}</span><h2>${escapeHtml(c.label)}</h2><div class="ln"></div></div>`;
+  const skippable=c.items.filter(i=>!supOrderableToday(i.sup));
+  if(skippable.length){
+    const supsList=[...new Set(skippable.map(i=>(i.sup||'').trim()))].join(', ');
+    const bar=document.createElement('div');bar.className='skipbar';
+    bar.innerHTML=`⏭️ <b>${skippable.length}</b> รายการยังไม่ถึงรอบสั่งวันนี้ ไม่ต้องนับ <span style="opacity:.75">(${escapeHtml(supsList)})</span> <button class="skipbtn">${SHOW_SKIP?'ซ่อน':'ดูรายการ'}</button>`;
+    bar.querySelector('.skipbtn').onclick=()=>{SHOW_SKIP=!SHOW_SKIP;
+      try{localStorage.setItem('jj_show_skip',SHOW_SKIP?'1':'0')}catch(e){}
+      renderMain();refreshCounters();};
+    sec.appendChild(bar);
+  }
   const grid=document.createElement('div');grid.className='grid';
-  c.items.forEach(it=>grid.appendChild(itemCard(it,c)));
+  c.items.filter(countable).forEach(it=>grid.appendChild(itemCard(it,c)));
   if(can('manageProducts')){const add=document.createElement('button');add.className='add-item';add.textContent='＋ เพิ่มสินค้าในหมวดนี้';add.onclick=()=>openEdit(c,null);grid.appendChild(add)}
   sec.appendChild(grid);mainEl.appendChild(sec);
 }
 function cardState(it){return isOut(it)?'out':(counted(it)?'on':'')}
 function itemCard(it,cat){
   const el=document.createElement('div');el.className='item '+cardState(it)+((it.qty===null)?' missblink':'');
+  if(!supOrderableToday(it.sup))el.classList.add('noorder');
   const showImg=cfg().showImages!==false;
   const thumb=showImg?`<div class="thumb">${it.img?`<img src="${it.img}">`:'🖼'}</div>`:'';
   const editDot=can('manageProducts')?'<button class="edit-dot" title="แก้ไข">✎</button>':'';
@@ -1512,7 +1562,8 @@ function buildText(){
 let ORDER={};
 function orderOf(it){ if(ORDER[it.id]!=null)return ORDER[it.id]; const n=needQty(it); return (n!=null&&n>0)?n:0; }
 // ดึง safety/max/pack/step ล่าสุดจาก DB มาทับในหน่วยความจำ (ไม่แตะ qty ที่กำลังนับ)
-function refreshMeta(){return sb.from('products').select('id,safety,max,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
+function refreshMeta(){loadLastSent();
+  return sb.from('products').select('id,safety,max,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
   .then(({data})=>{if(!data)return;data.forEach(p=>{const x=ITEM_INDEX[p.id];if(!x)return;const it=x.item;
     it.safety=(p.safety==null?null:+p.safety);it.max=(p.max==null?null:+p.max);
     it.pack=(p.pack==null?null:+p.pack);it.pack_unit=p.pack_unit||null;
@@ -1523,15 +1574,27 @@ function buildOrder(){
   // counted items that have a recommended order (safety set, counted, safety>stock)
   const list=[];
   vcats().forEach(c=>c.items.forEach(i=>{ if(counted(i)){ const n=needQty(i); if(n!=null&&n>0) list.push(i); } }));
-  const head=document.createElement('div');head.className='ordhead';head.textContent='📦 ใบสั่งซื้อ — แนะนำจาก (safety − คงเหลือ) · แก้ “สั่งจริง” ได้';
+  const head=document.createElement('div');head.className='ordhead';head.textContent='📦 ใบสั่งซื้อ — แนะนำ = ใช้/วัน × วันที่ของต้องพอ − ที่เหลือถึงวันส่ง · แก้ “สั่งจริง” ได้';
   box.appendChild(head);
   if(!list.length){ const n=document.createElement('div');n.className='ordnote';
     n.textContent='ยังไม่มีรายการที่ต้องสั่ง — ตั้ง safety stock (📦 ครัวกลาง) และนับให้ครบก่อน แล้วระบบจะคำนวณให้';
     box.appendChild(n);return; }
   // group by supplier
   const sup={};list.forEach(i=>{const s=(i.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
-  Object.keys(sup).forEach(s=>{
-    const sh=document.createElement('div');sh.className='osup';sh.innerHTML='🏷️ '+escapeHtml(s);
+  const MUSTO=new Set(mustOrderToday().map(x=>x.name));
+  Object.keys(sup).sort((a,b)=>{const ma=MUSTO.has(a)?0:1,mb=MUSTO.has(b)?0:1;return ma!==mb?ma-mb:a.localeCompare(b,'th');}).forEach(s=>{
+    const sh=document.createElement('div');sh.className='osup';
+    let minTag='';
+    const sinfo=SUPPLIERS.find(x=>x.name===s);
+    if(sinfo&&+sinfo.min_cases>0){
+      let cases=0;
+      sup[s].forEach(i=>{const q=orderOf(i);if(q>0&&i.pack>1)cases+=q/(+i.pack);});
+      cases=Math.round(cases*10)/10;const mc=+sinfo.min_cases;
+      minTag=cases>=mc
+        ?` <span style="font-weight:600;color:#1a7f37">✓ รวม ${fmt(cases)}/${fmt(mc)} ลัง</span>`
+        :` <span style="font-weight:700;color:#b3261e">⚠️ ${fmt(cases)}/${fmt(mc)} ลัง — ขาดอีก ${fmt(Math.ceil((mc-cases)*10)/10)} ถึงขั้นต่ำ</span>`;
+    }
+    sh.innerHTML=(MUSTO.has(s)?'🔴 ':'')+'🏷️ '+escapeHtml(s)+minTag;
     const si=supInfo(s);
     if(si){ const rem=supReminder(si);
       if(rem){const note=document.createElement('div');note.className='supremind '+rem.cls;
@@ -1563,6 +1626,7 @@ $('#printBtn').onclick=()=>{buildSlip();window.print()};
 $('#clearBtn').onclick=()=>{if(!confirm('ล้างการนับ (กลับเป็นยังไม่นับ)?'))return;
   vcats().forEach(c=>c.items.forEach(i=>i.qty=null));save();renderTabs();renderMain();refreshCounters();buildSlip();toast('ล้างการนับแล้ว')};
 function gasAvailable(){return typeof google!=='undefined'&&google.script&&google.script.run}
+let PUSHED={}; // กันบันทึกซ้ำ: product → ค่าที่เซฟไปแล้ว (ต่อ session)
 $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
   const picked=[].concat(...vcats().map(c=>c.items.filter(counted).map(i=>({c,i}))));
   if(!picked.length){toast('ยังไม่มีรายการที่นับ');return}
@@ -1571,17 +1635,22 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
   await refreshMeta();
   btn.textContent='⏳ กำลังบันทึก...';
   const cd=$('#countDate').value||new Date().toISOString().slice(0,10);
-  const histRows=picked.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
+  const pkey=i=>cd+'|'+B().id+'|'+i.id;
+  const phash=({i})=>[i.qty,isOut(i)?1:0,orderOf(i)].join('|');
+  const toPush=picked.filter(p=>PUSHED[pkey(p.i)]!==phash(p));
+  if(!toPush.length){done('ทุกแถวเหมือนที่บันทึกล่าสุดแล้ว ✓ ไม่ต้องเซฟซ้ำ');return}
+  const histRows=toPush.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
     counter:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id,
     cat_key:c.key,cat_label:c.label,product_id:i.id,name:i.name,unit:i.unit||'',sup:i.sup||'',
     qty:i.qty,out_of_stock:isOut(i),safety:i.safety,max:i.max,recommended:needQty(i),ordered:orderOf(i)}));
-  const curRows=picked.map(({i})=>({branch_id:B().id,product_id:i.id,qty:i.qty,counter:currentUser&&currentUser.name,updated_at:new Date().toISOString()}));
+  const curRows=toPush.map(({i})=>({branch_id:B().id,product_id:i.id,qty:i.qty,counter:currentUser&&currentUser.name,updated_at:new Date().toISOString()}));
   try{
     const r1=await sb.from('stock_counts').insert(histRows);
     if(r1.error)throw r1.error;
     const r2=await sb.from('stock_current').upsert(curRows,{onConflict:'branch_id,product_id'});
     if(r2.error)throw r2.error;
-    done('บันทึกลง Supabase แล้ว ✓ '+picked.length+' รายการ');
+    toPush.forEach(p=>PUSHED[pkey(p.i)]=phash(p));
+    done('บันทึกลง Supabase แล้ว ✓ '+toPush.length+' รายการ (เฉพาะที่เปลี่ยน)');
     try{localStorage.setItem(savedKey(),'1')}catch(e){}
     buildSlip();buildOrder();renderTabs();renderMain();refreshCounters();
   }catch(e){done('บันทึกไม่สำเร็จ: '+((e&&e.message)||e));}
@@ -2254,7 +2323,7 @@ function openUsage(){
         <select class="u_m"><option value="sum">รวมทั้งช่วง (ต่อสินค้า)</option><option value="day">รายวัน</option></select>
       </div>
       <button class="act wide u_go" style="background:var(--red);color:#fff;border:none;margin:8px 0">คำนวณการใช้ของ</button>
-      <p class="hint" style="margin:0 0 6px">สูตร: นับ(วัน) + สั่ง(วัน) − นับ(ครั้งถัดไป) · ติดลบ = นับเกิน/มีรับของนอกระบบ</p>
+      <p class="hint" style="margin:0 0 6px">สูตร: นับ + ของเข้า − นับครั้งถัดไป · ของเข้า = ยอดที่<b>ส่งใบสั่งไลน์จริง</b> (หรือ<b style="color:#1559c7">รับจริง</b>ถ้ากรอก) เทียบตามวันของถึง · ติดลบ = รับของนอกระบบ/นับเพี้ยน</p>
       <div class="u_out"><div class="rempty">เลือกช่วงวันแล้วกดคำนวณ</div></div>
     </div></div>`;
   document.body.appendChild(ov);
@@ -2271,6 +2340,22 @@ function openUsage(){
       if(bf)q=q.eq('branch_id',bf);return q;};
     const {data,error}=await sbAll(build,30);
     if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
+    // ของเข้าจริง = stock_receipts (บันทึกตอนส่งไลน์ / รับจริงถ้ากรอก) + คำนวณวันของถึงจากตารางซัพ
+    const RIN={};
+    try{const buildRc=()=>{let q=sb.from('stock_receipts').select('branch_id,product_id,order_date,ordered,received,sup')
+        .gte('order_date',f).lte('order_date',tPlus);if(bf)q=q.eq('branch_id',bf);return q;};
+      const {data:rc}=await sbAll(buildRc,30);
+      (rc||[]).forEach(x=>{
+        const inn=(x.received!=null)?+x.received:(+x.ordered||0);
+        if(!inn)return;
+        const od=isoFromAny(x.order_date);if(!od)return;
+        const h=supHorizon(x.sup,od);
+        const dv=new Date(od+'T00:00:00');dv.setDate(dv.getDate()+Math.max(1,h.lead));
+        const p2=n=>String(n).padStart(2,'0');
+        const deliv=dv.getFullYear()+'-'+p2(dv.getMonth()+1)+'-'+p2(dv.getDate());
+        (RIN[x.branch_id+'|'+x.product_id]=RIN[x.branch_id+'|'+x.product_id]||[]).push({deliv,inn,real:x.received!=null});
+      });
+    }catch(e){}
     // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน
     const seen={},rows=[];
     (data||[]).forEach(r=>{const d=isoFromAny(r.count_date);const k=r.branch_id+'|'+r.product_id+'|'+d;
@@ -2282,14 +2367,16 @@ function openUsage(){
       for(let i=0;i<list.length-1;i++){const a=list[i],b2=list[i+1];
         if(a.d<f||a.d>t)continue;
         if(a.qty==null||b2.qty==null)continue;
-        const used=Math.round(((+a.qty)+(+a.ordered||0)-(+b2.qty))*100)/100;
-        pairs.push({br:a.branch_name||'',cat:a.cat_label||'',name:a.name,unit:a.unit||'',d1:a.d,d2:b2.d,used});}});
+        const lots=(RIN[a.branch_id+'|'+a.product_id]||[]).filter(x=>x.deliv>a.d&&x.deliv<=b2.d);
+        const inn=lots.reduce((s,x)=>s+x.inn,0);
+        const used=Math.round(((+a.qty)+inn-(+b2.qty))*100)/100;
+        pairs.push({br:a.branch_name||'',cat:a.cat_label||'',name:a.name,unit:a.unit||'',d1:a.d,d2:b2.d,used,rc:lots.some(x=>x.real)});}});
     if(!pairs.length){out.innerHTML='<div class="rempty">ไม่มีคู่วันให้คำนวณ (ต้องมีการนับอย่างน้อย 2 วัน)</div>';return;}
-    const line=p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${escapeHtml(p.name)} <small style="color:var(--ink-soft)">${escapeHtml(p.cat)}</small></span><b style="color:${p.used<0?'#b3261e':'var(--red)'}">${fmt(p.used)} ${escapeHtml(p.unit)}</b></div>`;
+    const line=p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${escapeHtml(p.name)} <small style="color:var(--ink-soft)">${escapeHtml(p.cat)}</small>${p.rc?' <small style="color:#1559c7">✓รับจริง'+(p.rcN>1?' '+p.rcN+' วัน':'')+'</small>':''}</span><b style="color:${p.used<0?'#b3261e':'var(--red)'}">${fmt(p.used)} ${escapeHtml(p.unit)}</b></div>`;
     let html='';
     if(mode==='sum'){
       const agg={};pairs.forEach(p=>{const k=p.br+'|'+p.name+'|'+p.cat+'|'+p.unit;
-        (agg[k]=agg[k]||{...p,used:0,n:0}).used+=p.used;agg[k].n++;});
+        const a=(agg[k]=agg[k]||{...p,used:0,n:0,rcN:0,rc:false});a.used+=p.used;a.n++;if(p.rc){a.rc=true;a.rcN++;}});
       const byBr={};Object.values(agg).forEach(a=>{a.used=Math.round(a.used*100)/100;(byBr[a.br]=byBr[a.br]||[]).push(a);});
       Object.keys(byBr).forEach(br=>{const L=byBr[br].sort((a,b)=>(a.cat+a.name).localeCompare(b.cat+b.name,'th'));
         html+=`<h4 style="margin:12px 0 4px">🏪 ${escapeHtml(br)} <small style="color:var(--ink-soft)">(${escapeHtml(f)} → ${escapeHtml(t)})</small></h4>`+L.map(line).join('');});
@@ -2512,6 +2599,12 @@ function renderDispatch(){
   const bids=Object.keys(branches);
   const totItems=rows.length, totQty=rows.reduce((a,r)=>a+(+r.ordered||0),0);
   $('#dSum').innerHTML=`<span>🏪 <b>${bids.length}</b> สาขา</span><span>📦 <b>${totItems}</b> รายการ</span><span>Σ รวม <b>${Math.round(totQty*100)/100}</b> หน่วย</span>`;
+  const mo=mustOrderToday();const mustBar=$('#dMust');
+  if(mustBar){mustBar.style.display=mo.length?'block':'none';
+    mustBar.innerHTML=mo.length?('🔴 <b>วันนี้ต้องสั่ง '+mo.length+' ซัพ:</b> '+mo.map(x=>escapeHtml(x.name)
+      +(x.missed?' <span style="color:#b3261e">(เลยตัดรอบ '+escapeHtml(x.cut)+'!)</span>':(x.cut?' <span style="opacity:.75">(ก่อน '+escapeHtml(x.cut)+')</span>':''))).join(' · ')):'';}
+  const MUST=new Set(mo.map(x=>x.name));
+  const supSortKeys=o=>Object.keys(o).sort((a,b)=>{const ma=MUST.has(a)?0:1,mb=MUST.has(b)?0:1;return ma!==mb?ma-mb:a.localeCompare(b,'th');});
   if(!rows.length){board.innerHTML='<div class="rempty">ยังไม่มีออเดอร์ที่ต้องจัด<br><small>รอสาขานับสต็อก + ระบุยอดสั่ง แล้วบันทึก</small></div>';return;}
   board.innerHTML='';
   bids.forEach(bid=>{
@@ -2522,8 +2615,8 @@ function renderDispatch(){
     html+='<div class="ditem dhead"><span class="dn">รายการ</span><span class="dq">จำนวน</span><span class="dchk">จัด<br>เสร็จ</span><span class="dchk">ทวน<br>ออเดอร์</span></div>';
     // จัดกลุ่มตามซัพพลายเออร์ในแต่ละสาขา
     const sup={};b.items.forEach(r=>{const s=(rowSup(r)||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(r);});
-    Object.keys(sup).forEach(s=>{
-      html+='<div class="dgroup">🏷️ '+escapeHtml(s)+'</div>';
+    supSortKeys(sup).forEach(s=>{
+      html+='<div class="dgroup">'+(MUST.has(s)?'🔴 ':'')+'🏷️ '+escapeHtml(s)+'</div>';
       sup[s].forEach(r=>{const ix=ITEM_INDEX[r.product_id];const loc=ix&&ix.item.location?' <small style="color:var(--gold-bright)">📍'+escapeHtml(ix.item.location)+'</small>':'';
         html+='<div class="ditem"><span class="dn">'+escapeHtml(r.name||'')+' <small>'+escapeHtml(r.cat_label||'')+'</small>'+loc+'</span><span class="dq">'+dispQty(r)+'</span><span class="dchk"><span class="cb"></span></span><span class="dchk"><span class="cb"></span></span></div>';});
     });
@@ -2695,7 +2788,18 @@ async function sendDispatchLine(){
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_ANON,'apikey':SB_ANON},
         body:JSON.stringify({to:it.gid,text:it.txt})});
       const j=await r.json().catch(()=>({}));
-      if(r.ok&&j.ok){ok++;}else{fail++;failNames.push(it.sname);console.log('LINE fail',it.sname,j);}
+      if(r.ok&&j.ok){ok++;
+        // 📌 บันทึก "สั่งจริง" ลง stock_receipts (แหล่งความจริงของของเข้า)
+        try{
+          const od=$('#dDate').value||new Date().toISOString().slice(0,10);
+          const recRows=bySup[it.sname].filter(x=>x.product_id).map(x=>({
+            branch_id:x.branch_id,branch_name:x.branch_name||'',product_id:x.product_id,
+            name:x.name||'',cat_label:x.cat_label||'',unit:rowUnit(x)||'',sup:it.sname,
+            order_date:od,ordered:(+x.ordered||0)}));
+          if(recRows.length)await sb.from('stock_receipts').upsert(recRows,{onConflict:'branch_id,product_id,order_date'});
+          if(!LAST_SENT[it.sname]||od>LAST_SENT[it.sname])LAST_SENT[it.sname]=od; // เริ่ม/รีเซ็ตรอบ interval ทันที
+        }catch(e){console.log('receipt log err',it.sname,e);}
+      }else{fail++;failNames.push(it.sname);console.log('LINE fail',it.sname,j);}
     }catch(e){fail++;failNames.push(it.sname);console.log('send err',it.sname,e);}
   }
   btn.disabled=false;btn.textContent=old;
@@ -2754,6 +2858,64 @@ function orderText(r){const o=toOrder(r);if(!o)return (+r.ordered)+' '+(rowUnit(
 function orderHtml(r){const o=toOrder(r);if(!o)return (+r.ordered)+' '+(rowUnit(r)||'');
   return o.conv?('<b>'+o.cases+' '+o.pu+'</b> <small style="color:var(--ink-soft)">(= '+o.eq+' '+o.unit+')</small>'):('<b>'+o.qty+' '+o.unit+'</b>');}
 function dispQty(r){return orderHtml(r);}
+/* ===== โหมดบังคับสั่ง: any=สั่งได้ทุกวัน(+lead) · fixed=วันบังคับตาม schedule + cutoff ===== */
+function supMode(s){if(!s)return 'any';
+  if(s.order_mode==='any')return 'any';
+  if(s.order_mode==='interval')return 'interval';
+  if(s.order_mode==='fixed')return 'fixed';
+  const sc=s.schedule; // ยังไม่ตั้งโหมด: มีตาราง=fixed ไม่มี=any (เข้ากันได้กับข้อมูลเดิม)
+  return (sc&&typeof sc==='object'&&Object.keys(sc).some(k=>DOW_IDX[k]!=null&&sc[k]))?'fixed':'any';}
+function cycleDays(s){const n=s?parseInt(s.cycle_days,10):NaN;return (n>=2&&n<=90)?n:15;}
+let LAST_SENT={}; // ซัพ → วันส่งใบสั่งไลน์ล่าสุด (ใช้นับรอบโหมด interval)
+async function loadLastSent(){try{
+  const since=new Date(Date.now()-120*86400000).toISOString().slice(0,10);
+  const {data}=await sb.from('stock_receipts').select('sup,order_date').gte('order_date',since).limit(20000);
+  LAST_SENT={};(data||[]).forEach(r=>{const d=isoFromAny(r.order_date);const s=(r.sup||'').trim();
+    if(d&&s&&(!LAST_SENT[s]||d>LAST_SENT[s]))LAST_SENT[s]=d;});
+}catch(e){}}
+function intervalNext(s){ // {due, next(iso|null), last(iso|null)}
+  const cyc=cycleDays(s);const last=LAST_SENT[(s.name||'').trim()]||null;
+  if(!last)return {due:true,next:null,last:null,cyc};
+  const nd=new Date(last+'T00:00:00');nd.setDate(nd.getDate()+cyc);
+  const t0=new Date();t0.setHours(0,0,0,0);
+  const p=n=>String(n).padStart(2,'0');
+  return {due:t0>=nd,next:nd.getFullYear()+'-'+p(nd.getMonth()+1)+'-'+p(nd.getDate()),last,cyc};
+}
+function supLead(s){const n=s?parseInt(s.lead_days,10):NaN;return (n>=1&&n<=30)?n:1;}
+function cutoffMin(s){const m=/^([01]?\d|2[0-3]):([0-5]\d)/.exec(((s&&s.cutoff)||'').trim());return m?(+m[1]*60+ +m[2]):null;}
+function fmtLeft(min){if(min<=0)return 'หมดเวลา';const h=Math.floor(min/60),mm=min%60;return (h?h+' ชม. ':'')+(mm?mm+' นาที':(h?'':'0 นาที'));}
+function nextOrderDay(sc,from){ // หา {od,dd,odk,ddk} รอบสั่งแรกตั้งแต่วันที่ from
+  let best=null;
+  DOW.forEach(d=>{if(sc[d[0]]){const od=nextDow(from,d[0]);const dd=nextDow(new Date(od.getTime()+86400000),sc[d[0]]);
+    if(!best||od<best.od)best={od,dd,odk:d[0],ddk:sc[d[0]]};}});
+  return best;}
+function supOrderableToday(supName){ // วันนี้สั่งซัพนี้ได้ไหม (โหมดบังคับ + ไม่ใช่วันสั่ง = ไม่ได้)
+  const s=SUPPLIERS.find(x=>x.name===(supName||'').trim());
+  if(!s)return true;
+  if(supMode(s)==='interval')return intervalNext(s).due;
+  if(supMode(s)!=='fixed')return true;
+  const sc=s.schedule;if(!sc||typeof sc!=='object')return true;
+  return !!sc[['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]];
+}
+let SHOW_SKIP=localStorage.getItem('jj_show_skip')==='1';
+function countable(it){return SHOW_SKIP||supOrderableToday(it.sup);}
+function mustOrderToday(){ // ซัพโหมดบังคับที่วันนี้เป็นวันสั่ง
+  const today=new Date();today.setHours(0,0,0,0);
+  const dk=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
+  const nm=new Date().getHours()*60+new Date().getMinutes();
+  const out=[];
+  SUPPLIERS.forEach(s=>{
+    const m=supMode(s);
+    let due=false;
+    if(m==='fixed'){const sc=s.schedule;due=!!(sc&&typeof sc==='object'&&sc[dk]);}
+    else if(m==='interval'){due=intervalNext(s).due;}
+    if(!due)return;
+    const cm=cutoffMin(s);
+    out.push({name:s.name,cut:cm!=null?((s.cutoff||'').trim().slice(0,5)):null,cutMin:cm,missed:cm!=null&&nm>=cm});});
+  return out;}
+setInterval(()=>{document.querySelectorAll('.cutleft').forEach(el=>{const cm=+el.dataset.cut;
+  const nm=new Date().getHours()*60+new Date().getMinutes();
+  el.textContent=(cm-nm<=0)?'หมดเวลา!':('เหลือ '+fmtLeft(cm-nm));});},30000);
 function supReminder(si){ // เตือนรอบสั่งตอนเช็คสต็อก: 🔴 หยุด / 🔵 ปกติ + วันจัดส่ง
   if(!si)return null;
   const today=new Date();today.setHours(0,0,0,0);
@@ -2767,16 +2929,41 @@ function supReminder(si){ // เตือนรอบสั่งตอนเช
   if(lo&&today<=lo){const left=Math.round((lo-today)/86400000);
     if(left<=3)return {cls:'red',html:'⏰ ใกล้ปิดรับ! สั่งวันสุดท้าย '+fmtDate(si.last_order_date)+' (อีก '+left+' วัน)'+(si.last_delivery_date?' · ส่งสุดท้าย '+fmtDate(si.last_delivery_date):'')};
   }
+  if(supMode(si)==='interval'){
+    const iv=intervalNext(si);const L=supLead(si);
+    if(!iv.last)return {cls:'red',html:'🟠 <b>ยังไม่เริ่มนับรอบ</b> (รอบทุก '+iv.cyc+' วัน) — ส่งใบสั่งทางไลน์ครั้งแรกเพื่อเริ่มนับ · เผื่อ <b>×'+iv.cyc+'</b>'};
+    if(iv.due){
+      const cm=cutoffMin(si);const nm=new Date().getHours()*60+new Date().getMinutes();
+      if(cm!=null&&nm>=cm)return {cls:'red',html:'🟠 <b>พลาดรอบ!</b> เลยเวลาตัด '+escapeHtml((si.cutoff||'').trim().slice(0,5))+' — สั่งพรุ่งนี้แทน (รอบทุก '+iv.cyc+' วัน)'};
+      const cutTxt=cm!=null?(' ก่อน <b>'+escapeHtml((si.cutoff||'').trim().slice(0,5))+'</b> · <span class="cutleft" data-cut="'+cm+'">เหลือ '+fmtLeft(cm-nm)+'</span>'):'';
+      return {cls:'red',html:'🔴 <b>ครบรอบ '+iv.cyc+' วัน — ต้องสั่งวันนี้!</b>'+cutTxt+' · ส่งล่าสุด '+fmtDate(iv.last)+' · เผื่อ <b>×'+iv.cyc+'</b>'};
+    }
+    const t0=new Date();t0.setHours(0,0,0,0);
+    const dleft=Math.round((new Date(iv.next+'T00:00:00')-t0)/86400000);
+    return {cls:'blue',html:'🗓️ รอบหน้า: '+fmtDate(iv.next)+' (อีก '+dleft+' วัน) · รอบทุก '+iv.cyc+' วัน · ส่งล่าสุด '+fmtDate(iv.last)};
+  }
+  if(supMode(si)==='any'){const L=supLead(si);
+    return {cls:'blue',html:'🟢 สั่งได้ทุกวัน · สั่งวันนี้ได้ของใน <b>+'+L+' วัน</b>'+(L>1?' · <b style="color:var(--red)">×'+L+' (เผื่อ '+L+' วัน)</b>':'')};}
   const sc=si.schedule;
   if(sc&&typeof sc==='object'){
-    let best=null;
-    DOW.forEach(d=>{if(sc[d[0]]){const od=nextDow(today,d[0]);const dd=nextDow(new Date(od.getTime()+86400000),sc[d[0]]);
-      if(!best||od<best.od)best={od,dd,odk:d[0],ddk:sc[d[0]]};}});
+    const best=nextOrderDay(sc,today);
     if(best){const isToday=(+best.od===+today);const sum=scheduleSummary(sc);
-      const mult=isToday?supMultiplier(si.name,ymd(today)):1;
-      return {cls:'blue',html:(isToday?'📦 <b>วันนี้สั่งได้!</b> ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd))
-        +(mult>1?' · <b style="color:var(--red)">×'+mult+' (เผื่อ '+mult+' วัน)</b>':'')
-        :'🗓️ รอบหน้า: สั่ง'+dowLong(best.odk)+' '+fmtDate(ymd(best.od))+' → ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd)))
+      if(isToday){
+        const mult=supMultiplier(si.name,ymd(today));
+        const cm=cutoffMin(si);
+        const nm=new Date().getHours()*60+new Date().getMinutes();
+        if(cm!=null&&nm>=cm){ // เลยเวลาตัดรอบของวันบังคับ = พลาดรอบ
+          const tm=new Date(today.getTime()+86400000);
+          const nx=nextOrderDay(sc,tm);
+          return {cls:'red',html:'🟠 <b>พลาดรอบ!</b> เลยเวลาตัด '+escapeHtml((si.cutoff||'').trim().slice(0,5))
+            +(nx?' — รอบถัดไป: สั่ง'+dowLong(nx.odk)+' '+fmtDate(ymd(nx.od))+' → ได้ของ'+dowLong(nx.ddk)+' '+fmtDate(ymd(nx.dd)):'')
+            +' <span style="opacity:.8">(ถ้าจำเป็นลองโทรถามซัพ ยังส่งจากแอปได้)</span>'};
+        }
+        const cutTxt=cm!=null?(' ก่อน <b>'+escapeHtml((si.cutoff||'').trim().slice(0,5))+'</b> · <span class="cutleft" data-cut="'+cm+'">เหลือ '+fmtLeft(cm-nm)+'</span>'):' <b>(ภายในวันนี้)</b>';
+        return {cls:'red',html:'🔴 <b>วันนี้ต้องสั่ง!</b>'+cutTxt+' · ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd))
+          +(mult>1?' · <b>×'+mult+' (เผื่อ '+mult+' วัน)</b>':'')};
+      }
+      return {cls:'blue',html:'🗓️ รอบหน้า: สั่ง'+dowLong(best.odk)+' '+fmtDate(ymd(best.od))+' → ได้ของ'+dowLong(best.ddk)+' '+fmtDate(ymd(best.dd))
         +(sum?' · <span style="opacity:.75">'+sum+'</span>':'')};
     }
   }
@@ -2804,15 +2991,34 @@ function renderSuppliers(){
         return `<div class="schrow"><label class="schk"><input type="checkbox" class="sc_on" data-d="${d[0]}" ${on?'checked':''}> ${d[1]}</label>
           <span class="scarr">→ ส่ง</span>
           <select class="sc_to" data-d="${d[0]}" ${on?'':'disabled'}>${DOW.map(x=>`<option value="${x[0]}" ${sched[d[0]]===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>`;}).join('');
-      body.innerHTML=`<div class="sfield"><label>📅 รอบสั่ง → วันได้ของ (ติ๊กวันที่สั่งได้ แล้วเลือกวันส่ง)</label>
+      const mode=supMode(s);
+      body.innerHTML=`<div class="sfield"><label>🗓️ โหมดการสั่ง</label>
+          <select class="f_mode">
+            <option value="any" ${mode==='any'?'selected':''}>สั่งได้ทุกวัน</option>
+            <option value="fixed" ${mode==='fixed'?'selected':''}>วันบังคับสั่ง (ตามตารางด้านล่าง)</option>
+            <option value="interval" ${mode==='interval'?'selected':''}>รอบทุก N วัน (เช่น 15 วันสั่งครั้ง)</option>
+          </select></div>
+        <div class="sfield f_cycwrap" style="display:${mode==='interval'?'block':'none'}">
+          <label>สั่งทุกกี่วัน (นับจากวันส่งใบสั่งไลน์ล่าสุด)</label>
+          <input class="f_cyc" type="number" inputmode="numeric" min="2" max="90" value="${cycleDays(s)}">
+          <p class="hint" style="margin:4px 0 0">ระบบเริ่มนับรอบจากวันที่กดส่งใบสั่งทางไลน์ · ครบรอบ = ขึ้น 🔴 ต้องสั่ง + เผื่อยอดเต็มรอบ</p></div>
+        <div class="sfield f_leadwrap" style="display:${mode!=='fixed'?'block':'none'}">
+          <label>สั่งวันนี้ ได้ของในอีกกี่วัน (+N)</label>
+          <input class="f_lead" type="number" inputmode="numeric" min="1" max="30" value="${supLead(s)}">
+          <p class="hint" style="margin:4px 0 0">เช่น สั่งวันนี้พรุ่งนี้ได้ของ = 1 · สั่งวันนี้อีก 2 วันได้ของ = 2 (ระบบเผื่อยอดสั่งให้เท่านี้)</p></div>
+        <div class="sfield f_schedwrap" style="display:${mode==='fixed'?'block':'none'}"><label>📅 วันบังคับสั่ง → วันได้ของ (ติ๊กวันที่ต้องสั่ง แล้วเลือกวันส่ง)</label>
           <div class="schgrid">${dayRows}</div></div>
+        <div class="sfield"><label>📦 ขั้นต่ำต่อออเดอร์ (ลัง) — เว้นว่างถ้าไม่มี</label>
+          <input class="f_min" type="number" inputmode="decimal" min="0" step="0.5" value="${(s.min_cases!=null&&s.min_cases!=='')?s.min_cases:''}" placeholder="เช่น 10">
+          <p class="hint" style="margin:4px 0 0">ใบสั่งซื้อจะรวมจำนวนลังของซัพนี้ให้ และเตือนถ้ายังไม่ถึงขั้นต่ำ</p></div>
         <div class="sfield" style="background:#eafaf0;border:1px solid #b9e6cc;border-radius:10px;padding:9px 10px">
           <label>📲 กลุ่มไลน์สำหรับส่งออเดอร์อัตโนมัติ</label>
           <select class="f_lg">${lgOpts}</select>
           <input class="f_lgname" placeholder="ตั้งชื่อกลุ่มนี้ (จำง่าย เช่น 'กลุ่ม Ajinomoto')" value="${escapeHtml(curLgName)}" style="margin-top:6px">
           <p class="hint" style="margin:4px 0 0">เชิญบอท LINE OA เข้ากลุ่มซัพ + พิมพ์ 1 ข้อความในกลุ่ม → กลุ่มจะโผล่ในรายการ (กด 🔄 รีโหลดถ้ายังไม่เห็น)</p>
         </div>
-        <div class="sfield"><label>เวลาตัดรอบสั่ง (ถ้ามี)</label><input class="f_cut" placeholder="เช่น 21:00" value="${escapeHtml(s.cutoff||'')}"></div>
+        <div class="sfield"><label>⏰ เวลาตัดรอบสั่ง (ถ้ามี)</label><input class="f_cut" type="time" value="${cutoffMin(s)!=null?escapeHtml((s.cutoff||'').trim().slice(0,5)):''}">
+          ${(s.cutoff&&cutoffMin(s)==null)?`<p class="hint" style="margin:4px 0 0;color:var(--red)">ค่าเดิม "${escapeHtml(s.cutoff)}" ไม่ใช่รูปแบบเวลา — ระบบถือว่าบังคับทั้งวัน เลือกเวลาใหม่เพื่อให้นับถอยหลัง/เตือนทำงาน</p>`:''}</div>
         <div class="sfield"><label>ช่วงหยุด/เทศกาล</label>
           <div class="s3">
             <div><label style="font-weight:400">วันสั่งสุดท้าย</label><input class="f_lo" type="date" value="${s.last_order_date||''}"></div>
@@ -2827,6 +3033,14 @@ function renderSuppliers(){
       body.querySelectorAll('.sc_on').forEach(cb=>cb.onchange=e=>{const d=e.target.dataset.d;const selEl=body.querySelector('.sc_to[data-d="'+d+'"]');
         if(e.target.checked){sched[d]=selEl.value;selEl.disabled=false;}else{delete sched[d];selEl.disabled=true;}saveSched();});
       body.querySelectorAll('.sc_to').forEach(se=>se.onchange=e=>{const d=e.target.dataset.d;if(sched[d]!==undefined){sched[d]=e.target.value;saveSched();}});
+      body.querySelector('.f_mode').onchange=e=>{const v=e.target.value;
+        save({order_mode:v}).then(ok=>{if(!ok)return;
+          body.querySelector('.f_leadwrap').style.display=(v!=='fixed')?'block':'none';
+          body.querySelector('.f_cycwrap').style.display=(v==='interval')?'block':'none';
+          body.querySelector('.f_schedwrap').style.display=(v==='fixed')?'block':'none';});};
+      body.querySelector('.f_lead').onchange=e=>{let v=parseInt(e.target.value,10);if(!(v>=1))v=1;if(v>30)v=30;e.target.value=v;save({lead_days:v});};
+      body.querySelector('.f_cyc').onchange=e=>{let v=parseInt(e.target.value,10);if(!(v>=2))v=2;if(v>90)v=90;e.target.value=v;save({cycle_days:v});};
+      body.querySelector('.f_min').onchange=e=>{const t=e.target.value.trim();const v=t===''?null:Math.max(0,parseFloat(t)||0);save({min_cases:v});};
       body.querySelector('.f_cut').onchange=e=>save({cutoff:e.target.value.trim()||null});
       body.querySelector('.f_lg').onchange=e=>{const gid=e.target.value||null;save({line_group_id:gid});
         const g=LINE_GROUPS.find(x=>x.group_id===gid);body.querySelector('.f_lgname').value=g?(g.name||''):'';};
@@ -2946,59 +3160,77 @@ $('#openProdCfg').onclick=()=>{if(!can('manageSuppliers'))return;renderProdCfg()
 
 /* ================= central kitchen (dispatch / safety stock) ================= */
 let cBranchId=null;
-function needQty(it,dateStr){ // คงเหลือ < safety เท่านั้นถึงสั่ง, สั่งให้เต็ม max (คูณเผื่อวันหยุดซัพ)
+function needQty(it,dateStr){ // safety = ใช้/วัน · max = ใช้สูงสุด/วัน
   const safety=(it.safety===null||it.safety===undefined||it.safety==='')?null:(+it.safety);
   if(safety===null)return null;
   if(it.qty===null||it.qty===undefined)return null;
   const stock=+it.qty;
-  if(stock>=safety)return 0;                // เท่ากับหรือมากกว่า safety = ไม่สั่ง
   const mx=(it.max===null||it.max===undefined||it.max==='')?null:(+it.max);
-  let target=(mx!==null&&mx>safety)?mx:safety;
-  target*=supMultiplier(it.sup,dateStr);    // เผื่อวันที่ซัพไม่ส่ง (เสาร์สั่ง-จันทร์ส่ง ฯลฯ)
-  const n=target-stock; return n>0?Math.round(n*100)/100:0;
+  const rate=(mx!==null&&mx>safety)?mx:safety;         // อัตราเผื่อวันขายดี
+  const h=supHorizon(it.sup,dateStr);
+  if(h.mode==='fixed'||h.mode==='interval'){
+    // สูตรวันบังคับ: ล็อตใหม่ต้องพอ cycle วัน − ของที่คาดว่าเหลือตอนของมา (กินไป safety×lead)
+    const leftAtDelivery=Math.max(0,stock-safety*h.lead);
+    const n=rate*h.cycle-leftAtDelivery;
+    return n>0?Math.round(n*100)/100:0;
+  }
+  // โหมดสั่งได้ทุกวัน/ไม่มีตาราง: พฤติกรรมเดิม (สั่งเมื่อต่ำกว่า safety เติมเต็ม rate×วันรอส่ง)
+  if(stock>=safety)return 0;
+  const n=rate*Math.max(1,h.lead)-stock;
+  return n>0?Math.round(n*100)/100:0;
 }
 /* ตัวคูณเผื่อวันหยุดซัพ: นับจากตารางรอบสั่ง (schedule) ว่า "ของรอบนี้ต้องใช้กี่วัน" ก่อนรอบส่งถัดไปจะมาถึง
    เช่น FarmFresh สั่ง ศ→ส และรอบถัดไป จ→จ : ของที่ส่งเสาร์ต้องพอ เสาร์+อาทิตย์ = ×2 */
 const DOW_IDX={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
-function supMultiplier(supName,dateStr){
+function supHorizon(supName,dateStr){ // {lead:วันกินสต็อกเดิมจนของมา, cycle:วันที่ของล็อตใหม่ต้องพอ}
   const s=SUPPLIERS.find(x=>x.name===(supName||'').trim());
-  const sc=s&&s.schedule; if(!sc||typeof sc!=='object')return 1;
+  if(s&&supMode(s)==='any')return {lead:supLead(s),cycle:1,mode:'any'};
+  if(s&&supMode(s)==='interval')return {lead:supLead(s),cycle:cycleDays(s),mode:'interval'};
+  const sc=s&&s.schedule; if(!sc||typeof sc!=='object')return {lead:1,cycle:1,mode:'none'};
   const keys=Object.keys(sc).filter(k=>DOW_IDX[k]!=null&&sc[k]&&DOW_IDX[sc[k]]!=null);
-  if(!keys.length)return 1;
+  if(!keys.length)return {lead:1,cycle:1,mode:'none'};
   let d;
   if(dateStr)d=new Date(isoFromAny(dateStr)+'T00:00:00');
   else{const cd=(document.getElementById('countDate')||{}).value;d=cd?new Date(cd+'T00:00:00'):new Date();}
   if(isNaN(+d))d=new Date();
-  const ok=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
-  if(!sc[ok])return 1;                      // วันนี้ไม่ใช่วันสั่งของซัพนี้
+  const DKo=['sun','mon','tue','wed','thu','fri','sat'];
+  // วันสั่งถัดไปตั้งแต่วันที่นับ (นับอาทิตย์เพื่อสั่งจันทร์ = คิดจากจันทร์)
+  let od=new Date(d),hop=0;
+  while(!sc[DKo[od.getDay()]]&&hop<7){od.setDate(od.getDate()+1);hop++;}
+  if(hop>=7)return {lead:1,cycle:1,mode:'none'};
+  const ok=DKo[od.getDay()];
   const d1=DOW_IDX[sc[ok]];
+  let del1=new Date(od.getTime()+86400000);while(del1.getDay()!==d1)del1.setDate(del1.getDate()+1); // วันส่งรอบนี้
+  const lead=Math.max(1,Math.round((del1-d)/86400000)); // วันที่ต้องกินสต็อกเดิม (วันนับ→วันส่ง)
+  // cycle: วันส่งรอบนี้ → วันส่งรอบถัดไป
   let bk=null,bg=99;
   keys.forEach(k=>{let g=(DOW_IDX[k]-DOW_IDX[ok]+7)%7;if(g===0)g=7;
     if(DOW_IDX[sc[k]]===d1)return;           // ส่งวันเดียวกับรอบนี้ = ล็อตเดียวกัน ข้ามไปหารอบส่งถัดไปจริง
     if(g<bg){bg=g;bk=k;}});
-  if(bk==null)return 7;                       // ทุกวันสั่งส่งวันเดียวกัน/สัปดาห์ละล็อต = ของต้องพอ 7 วัน
-  const d2=DOW_IDX[sc[bk]];
-  let m=(d2-d1+7)%7;if(m===0)m=7;
-  m=Math.max(1,Math.min(7,m));
-  // ── ช่วงหยุด/เทศกาล (last_delivery_date + reopen_date): ออเดอร์สุดท้ายก่อนหยุด ต้องพอถึงรอบส่งแรกหลังเปิด ──
+  let m;
+  if(bk==null)m=7;                            // สัปดาห์ละล็อต = ของต้องพอ 7 วัน
+  else{const d2=DOW_IDX[sc[bk]];m=(d2-d1+7)%7;if(m===0)m=7;m=Math.max(1,Math.min(7,m));}
+  // ── ช่วงหยุด/เทศกาล (last_delivery_date + reopen_date): ล็อตสุดท้ายก่อนหยุด ต้องพอถึงรอบส่งแรกหลังเปิด ──
   const ld=s.last_delivery_date, ro=s.reopen_date;
   if(ld&&ro){
     const p=n=>String(n).padStart(2,'0');
     const ymdD=x=>x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate());
-    if(ro>=ymdD(d)){                              // ช่วงหยุดยังไม่ผ่านไป (ผ่านแล้ว = รีเซ็ต ไม่คิด)
-      let del1=new Date(d);while(del1.getDay()!==d1)del1.setDate(del1.getDate()+1);   // วันส่งของรอบนี้
-      const nd=new Date(del1);nd.setDate(nd.getDate()+m);                              // วันส่งรอบถัดไปตามปกติ
-      if(ymdD(del1)<=ld&&ymdD(nd)>ld){            // รอบนี้คือ "ส่งสุดท้ายก่อนหยุด"
-        const DK=['sun','mon','tue','wed','thu','fri','sat'];
+    if(ro>=ymdD(d)){
+      const nd=new Date(del1);nd.setDate(nd.getDate()+m);
+      if(ymdD(del1)<=ld&&ymdD(nd)>ld){
         let x=new Date(ro+'T00:00:00'),fd=null,g=0;
-        while(g<21&&!fd){const k=DK[x.getDay()];
+        while(g<21&&!fd){const k=DKo[x.getDay()];
           if(sc[k]){const dw=DOW_IDX[sc[k]];const y=new Date(x);let g2=0;while(y.getDay()!==dw&&g2<8){y.setDate(y.getDate()+1);g2++;}fd=y;}
           else{x.setDate(x.getDate()+1);g++;}}
-        if(fd){const days=Math.round((fd-del1)/86400000);return Math.max(m,Math.min(30,days));}
+        if(fd){const days=Math.round((fd-del1)/86400000);m=Math.max(m,Math.min(30,days));}
       }
     }
   }
-  return m;
+  return {lead,cycle:m,mode:'fixed'};
+}
+function supMultiplier(supName,dateStr){ // คงไว้ให้ชิป/โค้ดเดิมเรียก = จำนวนวันที่ของล็อตนี้ต้องพอ
+  const h=supHorizon(supName,dateStr);
+  return h.mode==='any'?Math.max(1,h.lead):h.cycle;
 }
 // วันรอของนานสุดของซัพ (สั่ง→ได้ของ กี่วัน) ใช้แนะนำ safety
 function supLeadWorst(supName){
@@ -3136,5 +3368,27 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible')checkDailyReset();
 });
 </script>
+
+<script>
+(function(){
+  function kpiHost(){let k=document.getElementById('kpiwrap');
+    if(!k){k=document.createElement('div');k.className='kpiwrap';k.id='kpiwrap';
+      const t=document.getElementById('tabs');t.parentNode.insertBefore(k,t);}return k;}
+  window.renderKPI=function(){try{
+    if(!window.currentUser)return;const cats=vcats();let tot=0,cnt=0,need=0,out=0;
+    cats.forEach(c=>c.items.forEach(it=>{tot++;if(counted(it))cnt++;if(isOut(it))out++;
+      const n=needQty(it);if(n!=null&&n>0)need++;}));
+    kpiHost().innerHTML=
+     '<div class="kpi"><small>นับแล้ววันนี้</small><b>'+cnt+'<span style="font-size:.72em;color:#8a7f74"> / '+tot+'</span></b></div>'+
+     '<div class="kpi warn"><small>ต้องสั่ง</small><b>'+need+'</b></div>'+
+     '<div class="kpi warn"><small>ของหมด</small><b>'+out+'</b></div>'+
+     '<div class="kpi gold"><small>เวอร์ชัน</small><b>v24.1</b></div>';
+  }catch(e){}};
+  const _rc=window.refreshCounters;
+  if(typeof _rc==='function')window.refreshCounters=function(){_rc.apply(this,arguments);renderKPI();};
+  setTimeout(renderKPI,1200);
+})();
+</script>
+
 </body>
 </html>
