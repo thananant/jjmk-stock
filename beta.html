@@ -530,7 +530,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b10 — รอบ N วัน + ขั้นต่ำลัง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.1 ✓</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3382,7 +3382,7 @@ document.addEventListener('visibilitychange',()=>{
      '<div class="kpi"><small>นับแล้ววันนี้</small><b>'+cnt+'<span style="font-size:.72em;color:#8a7f74"> / '+tot+'</span></b></div>'+
      '<div class="kpi warn"><small>ต้องสั่ง</small><b>'+need+'</b></div>'+
      '<div class="kpi warn"><small>ของหมด</small><b>'+out+'</b></div>'+
-     '<div class="kpi gold"><small>เวอร์ชัน</small><b>BETA</b></div>';
+     '<div class="kpi gold"><small>เวอร์ชัน</small><b>v24.1</b></div>';
   }catch(e){}};
   const _rc=window.refreshCounters;
   if(typeof _rc==='function')window.refreshCounters=function(){_rc.apply(this,arguments);renderKPI();};
