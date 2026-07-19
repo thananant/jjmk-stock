@@ -259,6 +259,15 @@
   .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
   .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  /* ===== หน้าโมดูลเต็มจอ (b15) ===== */
+  .modpage{position:fixed;inset:0;z-index:350;background:var(--paper,#faf4ea);overflow-y:auto}
+  .mp_head{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 14px;
+    background:linear-gradient(135deg,#8e1c1c,#6d1414);color:#fbeee0;font-family:Kanit;font-weight:600}
+  .mp_head .mp_menu{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:6px 12px;font-size:1rem;cursor:pointer}
+  .mp_head .mp_shop{margin-left:auto;font-size:.75rem;font-family:'Sarabun';opacity:.85}
+  .mp_body{padding:14px;max-width:760px;margin:0 auto}
+  .mp_card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+  .hm_big{font-family:Kanit;font-weight:600;font-size:1.35rem;margin-top:2px}
   /* ===== แถบเมนูข้าง (b14) ===== */
   #sbWrap{position:fixed;inset:0;z-index:400;display:none}
   #sbWrap.on{display:block}
@@ -557,7 +566,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b14 — เมนูข้างหลังบ้าน</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b15 — โมดูลเต็มหน้า</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2420,67 +2429,153 @@ function openUsage(){
 }
 $('#usageBtn').onclick=openUsage;
 
-/* ================= หลังบ้านจริงใจ (b13) ================= */
-function showHome(){
-  let ov=document.getElementById('jjHome');
-  if(ov){ov.style.display='flex';refreshHomeStats();return;}
-  ov=document.createElement('div');ov.id='jjHome';ov.className='overlay';ov.style.cssText='display:flex;z-index:300;align-items:flex-start;overflow:auto';
-  ov.innerHTML=`<div class="sheet" style="max-width:640px;margin:26px auto">
-    <div class="sheet-head"><h3>🏠 หลังบ้านจริงใจ</h3><button class="x" data-x>เข้าระบบสต็อก →</button></div>
-    <div class="sheet-body">
-      <p class="hint" style="margin:0 0 10px">${escapeHtml((cfg().shop||'จริงใจหมูกระทะ'))} · เลือกโมดูลที่จะทำงาน</p>
-      <div class="hm_grid">
-        <div class="hm_card" data-go="stock">
-          <div class="hm_ic">📦</div><div class="hm_t">ข้อมูลสต็อก</div>
-          <div class="hm_d">นับสต็อก · ใบสั่งซื้อ · ส่งไลน์ · รับของ · ซัพพลายเออร์</div>
-          <div class="hm_s" id="hmStockStat">…</div>
-        </div>
-        <div class="hm_card" data-go="sales">
-          <div class="hm_ic">💵</div><div class="hm_t">ข้อมูลยอดขาย</div>
-          <div class="hm_d">กรอกยอดขายท้ายวัน · ดูย้อนหลัง · เทียบสาขา</div>
-          <div class="hm_s" id="hmSalesStat">…</div>
-        </div>
-        <div class="hm_card" data-go="cost">
-          <div class="hm_ic">📊</div><div class="hm_t">ข้อมูล Food Cost</div>
-          <div class="hm_d">ต้นทุน % รายวัน · จับตัวสั่งเกิน · ราคาย้อนหลัง</div>
-          <div class="hm_s">พร้อมใช้เฟสถัดไป — เริ่มเก็บราคา/ยอดขายก่อน</div>
-        </div>
-      </div>
-    </div></div>`;
-  document.body.appendChild(ov);
-  const close=()=>{ov.style.display='none';};
-  ov.querySelector('[data-x]').onclick=close;
-  ov.querySelectorAll('.hm_card').forEach(c=>c.onclick=()=>{
-    const g=c.dataset.go;
-    if(g==='stock')close();
-    else if(g==='sales'){close();openSales();}
-    else toast('📊 Food Cost มาเฟสถัดไป — ตอนนี้กรอกราคาในหน้ารับของ + ยอดขายรายวันสะสมข้อมูลไว้ก่อน');
-  });
-  refreshHomeStats();
+/* ================= หลังบ้านจริงใจ: โมดูลเต็มหน้า (b15) ================= */
+let CUR_MOD='stock';
+function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remove());}
+function openModule(name){
+  closeModPages();hideAll();CUR_MOD=name;
+  if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
+  const meta={home:['🏠','ภาพรวม'],sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
+  const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
+  pg.innerHTML=`<div class="mp_head"><button class="mp_menu">☰</button><span class="mp_t">${meta[0]} ${meta[1]}</span><span class="mp_shop">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')}</span></div><div class="mp_body"></div>`;
+  document.body.appendChild(pg);
+  pg.querySelector('.mp_menu').onclick=()=>{const w=buildSidebar();requestAnimationFrame(()=>w.classList.add('on'));};
+  const body=pg.querySelector('.mp_body');
+  if(name==='home')renderHomePage(body);
+  else if(name==='sales')renderSalesPage(body);
+  else renderCostPage(body);
 }
-async function refreshHomeStats(){
-  try{const m=mustOrderToday();const t=totals();
-    document.getElementById('hmStockStat').innerHTML=(m.length?('<b style="color:#b3261e">วันนี้ต้องสั่ง '+m.length+' ซัพ</b> · '):'')+'นับแล้ว '+t.cn+'/'+t.all;
-  }catch(e){}
-  try{const y=new Date(bizDate().getTime()-86400000);const p=n=>String(n).padStart(2,'0');
-    const yi=y.getFullYear()+'-'+p(y.getMonth()+1)+'-'+p(y.getDate());
-    const {data}=await sb.from('daily_revenue').select('branch_id,revenue').eq('rev_date',yi);
-    const s=(data||[]).reduce((a,x)=>a+(+x.revenue||0),0);
-    document.getElementById('hmSalesStat').textContent=s?('เมื่อวานรวม '+s.toLocaleString('th-TH')+'.-'):'เมื่อวานยังไม่ได้กรอกยอด';
-  }catch(e){document.getElementById('hmSalesStat').textContent='ยังไม่ได้ติดตั้งตาราง (รัน SQL b13)';}
-}
-document.getElementById('homeBtn').onclick=showHome;
+function showHome(){openModule('home');}
+function openSales(){openModule('sales');}
 
-/* ===== แถบเมนูข้าง (b14) ===== */
+/* ----- หน้า ภาพรวม ----- */
+async function renderHomePage(body){
+  body.innerHTML=`<div class="hm_grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="hm_card" id="hcMust"><div class="hm_d">วันนี้ต้องสั่ง</div><div class="hm_big">…</div></div>
+      <div class="hm_card" id="hcCount"><div class="hm_d">นับสต็อกวันนี้</div><div class="hm_big">…</div></div>
+      <div class="hm_card" id="hcRev"><div class="hm_d">ยอดขายเมื่อวาน (รวม)</div><div class="hm_big">…</div></div>
+      <div class="hm_card" id="hcRev7"><div class="hm_d">ยอดขาย 7 วันล่าสุด</div><div class="hm_big">…</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="act" data-j="stock">📋 ไปนับสต็อก</button>
+      <button class="act" data-j="order">🧾 ใบสั่งซื้อวันนี้</button>
+      <button class="act" data-j="sales">💵 กรอกยอดขาย</button>
+    </div>
+    <div id="hcRevTbl" style="margin-top:16px"></div>`;
+  body.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const j=b.dataset.j;
+    if(j==='stock')openModule('stock');
+    else if(j==='order'){openModule('stock');openSum();}
+    else openModule('sales');});
+  try{const m=mustOrderToday();const el=body.querySelector('#hcMust .hm_big');
+    el.textContent=m.length+' ซัพ';if(m.length)el.style.color='#b3261e';
+    const t=totals();body.querySelector('#hcCount .hm_big').textContent=t.cn+' / '+t.all;
+  }catch(e){}
+  try{
+    const since=new Date(bizDate().getTime()-7*86400000).toISOString().slice(0,10);
+    const {data}=await sb.from('daily_revenue').select('*').gte('rev_date',since).order('rev_date',{ascending:false});
+    const p=n=>String(n).padStart(2,'0');const y=new Date(bizDate().getTime()-86400000);
+    const yi=y.getFullYear()+'-'+p(y.getMonth()+1)+'-'+p(y.getDate());
+    const rows=data||[];
+    const BRN={};(ROOT.branches||[]).forEach(b=>BRN[b.id]=(b.name||'').replace('สาขา',''));
+    const ySum=rows.filter(r=>String(r.rev_date).slice(0,10)===yi).reduce((a,x)=>a+(+x.revenue||0),0);
+    const wSum=rows.reduce((a,x)=>a+(+x.revenue||0),0);
+    body.querySelector('#hcRev .hm_big').textContent=ySum?ySum.toLocaleString('th-TH')+'.-':'—';
+    body.querySelector('#hcRev7 .hm_big').textContent=wSum?wSum.toLocaleString('th-TH')+'.-':'—';
+    const byD={};rows.forEach(r=>{const d=String(r.rev_date).slice(0,10);(byD[d]=byD[d]||[]).push(r);});
+    let html='<div class="hm_d" style="margin-bottom:4px">ยอดขายรายวัน (7 วัน)</div>';
+    Object.keys(byD).sort().reverse().forEach(d=>{
+      const tot=byD[d].reduce((a,x)=>a+(+x.revenue||0),0);
+      html+='<div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed var(--line);font-size:.88rem">'+
+        '<span>'+fmtDate(d)+' <small style="color:var(--ink-soft)">'+byD[d].map(x=>escapeHtml(BRN[x.branch_id]||'')+' '+(+x.revenue).toLocaleString('th-TH')).join(' · ')+'</small></span>'+
+        '<b style="color:var(--red)">'+tot.toLocaleString('th-TH')+'.-</b></div>';});
+    body.querySelector('#hcRevTbl').innerHTML=Object.keys(byD).length?html:'<p class="hint">ยังไม่มีข้อมูลยอดขาย — กรอกได้ที่โมดูลข้อมูลยอดขาย</p>';
+  }catch(e){body.querySelector('#hcRevTbl').innerHTML='<p class="hint">ยังไม่ได้ติดตั้งตารางยอดขาย (รัน SQL b13)</p>';}
+}
+
+/* ----- หน้า ยอดขาย ----- */
+function renderSalesPage(body){
+  const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  body.innerHTML=`<div class="mp_card">
+      <div class="hm_t" style="margin-bottom:8px">กรอกยอดขายท้ายวัน</div>
+      <div class="rfilters">
+        <select class="sv_b">${bOpts}</select>
+        <input type="date" class="sv_d" value="${bizTodayISO()}">
+        <input class="sv_r" inputmode="numeric" placeholder="ยอดขาย (บาท)" style="padding:10px;border:1.5px solid var(--line);border-radius:10px;font-weight:700;text-align:center">
+      </div>
+      <input class="sv_n" placeholder="หมายเหตุ (ไม่บังคับ เช่น ฝนตก / มีอีเวนต์)" style="width:100%;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
+      <button class="act wide sv_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกยอดขาย</button>
+    </div>
+    <div class="mp_card" style="margin-top:12px">
+      <div class="hm_t" style="margin-bottom:8px">ย้อนหลัง 31 วัน</div>
+      <div class="sv_out"><div class="rempty">กำลังโหลด...</div></div>
+    </div>`;
+  const BR={};accessibleBranches().forEach(b=>BR[b.id]=b.name);
+  async function loadRev(){
+    const out=body.querySelector('.sv_out');
+    const since=new Date(bizDate().getTime()-30*86400000).toISOString().slice(0,10);
+    const {data,error}=await sb.from('daily_revenue').select('*').gte('rev_date',since).order('rev_date',{ascending:false});
+    if(error){out.innerHTML='<div class="rempty">โหลดไม่ได้: '+escapeHtml(error.message)+' (ยังไม่ได้รัน SQL b13?)</div>';return;}
+    const byD={};(data||[]).forEach(r=>{const d=String(r.rev_date).slice(0,10);(byD[d]=byD[d]||{})[r.branch_id]=r;});
+    if(!Object.keys(byD).length){out.innerHTML='<div class="rempty">ยังไม่มีข้อมูล</div>';return;}
+    const bids=accessibleBranches().map(b=>b.id);
+    let mSum={},html='<div style="display:grid;grid-template-columns:86px repeat('+bids.length+',1fr) 1fr;gap:4px;font-size:.85rem">';
+    html+='<b>วันที่</b>'+bids.map(b=>'<b style="text-align:right">'+escapeHtml((BR[b]||'').replace('สาขา',''))+'</b>').join('')+'<b style="text-align:right">รวม</b>';
+    Object.keys(byD).sort().reverse().forEach(d=>{
+      let tot=0;html+='<span>'+fmtDate(d)+'</span>';
+      bids.forEach(b2=>{const r=byD[d][b2];const v=r?+r.revenue:null;if(v)tot+=v;
+        html+='<span style="text-align:right'+(r&&r.note?';text-decoration:underline dotted" title="'+escapeHtml(r.note)+'"':'"')+'>'+(v!=null?v.toLocaleString('th-TH'):'–')+'</span>';});
+      html+='<b style="text-align:right;color:var(--red)">'+(tot?tot.toLocaleString('th-TH'):'–')+'</b>';
+      const mk=d.slice(0,7);mSum[mk]=(mSum[mk]||0)+tot;});
+    html+='</div>';
+    const mks=Object.keys(mSum).sort().reverse();
+    if(mks.length){html+='<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:.85rem">'+
+      mks.map(m=>'เดือน '+m.split('-')[1]+'/'+(+m.split('-')[0]+543)+' รวม <b style="color:var(--red)">'+mSum[m].toLocaleString('th-TH')+'.-</b>').join(' · ')+'</div>';}
+    out.innerHTML=html;
+  }
+  body.querySelector('.sv_save').onclick=async()=>{
+    const bf=body.querySelector('.sv_b').value,d=body.querySelector('.sv_d').value;
+    const rv=parseFloat(String(body.querySelector('.sv_r').value).replace(/[, ]/g,''));
+    if(!d||!(rv>=0)){toast('กรอกวันที่และยอดขายก่อน');return;}
+    const btn=body.querySelector('.sv_save');btn.disabled=true;
+    const {error}=await sb.from('daily_revenue').upsert({branch_id:bf,rev_date:d,revenue:rv,
+      note:body.querySelector('.sv_n').value.trim()||null,user_name:currentUser&&currentUser.name},{onConflict:'branch_id,rev_date'});
+    btn.disabled=false;
+    if(error){toast('บันทึกไม่ได้: '+error.message);return;}
+    toast('บันทึกยอดขาย '+(+rv).toLocaleString('th-TH')+'.- ✓');body.querySelector('.sv_r').value='';loadRev();
+  };
+  loadRev();
+}
+
+/* ----- หน้า Food Cost (โครงรอเฟสถัดไป) ----- */
+async function renderCostPage(body){
+  body.innerHTML=`<div class="mp_card">
+      <div class="hm_t">กำลังสะสมข้อมูล</div>
+      <p class="hint" style="margin:6px 0 10px">หน้านี้จะมี 3 มุมมอง: <b>Food Cost %</b> (มูลค่าใช้ ÷ รายได้) · <b>จับตัวสั่งเกิน</b> (มูลค่าเข้า vs ใช้จริง) · <b>ราคาย้อนหลังต่อสินค้า</b> — ต้องมีข้อมูลราคากับยอดขายสะสมก่อนถึงคำนวณได้</p>
+      <div class="hm_grid" style="grid-template-columns:1fr 1fr">
+        <div class="hm_card"><div class="hm_d">วันที่มีการกรอกราคา</div><div class="hm_big" id="ccPr">…</div></div>
+        <div class="hm_card"><div class="hm_d">วันที่มีการกรอกยอดขาย</div><div class="hm_big" id="ccRv">…</div></div>
+      </div>
+      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ข้อมูลยอดขาย</p>
+    </div>`;
+  try{const {data}=await sb.from('stock_receipts').select('order_date').not('unit_price','is',null).limit(5000);
+    body.querySelector('#ccPr').textContent=new Set((data||[]).map(x=>String(x.order_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccPr').textContent='—';}
+  try{const {data}=await sb.from('daily_revenue').select('rev_date').limit(5000);
+    body.querySelector('#ccRv').textContent=new Set((data||[]).map(x=>String(x.rev_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccRv').textContent='—';}
+}
+
+/* ----- แถบเมนูข้าง ----- */
 function buildSidebar(){
   let w=document.getElementById('sbWrap');
   if(w)w.remove();
   w=document.createElement('div');w.id='sbWrap';
   const money=canMoney();
   const it=(ic,label,go,extra)=>`<button class="sb_it" data-go="${go}"><span class="ic">${ic}</span>${label}${extra||''}</button>`;
-  let m='';
+  let m='<div class="sb_sec">โมดูล</div>';
   if(money)m+=it('🏠','ภาพรวม','home');
-  m+='<div class="sb_sec">ข้อมูลสต็อก</div>';
+  m+=it('📦','ข้อมูลสต็อก','stock');
+  if(money)m+=it('💵','ข้อมูลยอดขาย','sales');
+  if(money)m+=it('🧮','ข้อมูล Food Cost','cost');
+  m+='<div class="sb_sec">งานสต็อก</div>';
   m+=it('📋','นับสต็อก','count');
   m+=it('🧾','ใบสั่งซื้อ / ส่งไลน์','order');
   if(can('viewDispatch'))m+=it('📦','รายการสั่งของ','dispatch');
@@ -2488,11 +2583,6 @@ function buildSidebar(){
   m+='<div class="sb_sec">รายงาน</div>';
   m+=it('📈','การใช้ของ','usage');
   m+=it('📊','ดูข้อมูลย้อนหลัง','report');
-  if(money){
-    m+='<div class="sb_sec">การเงิน</div>';
-    m+=it('💵','ข้อมูลยอดขาย','sales');
-    m+=it('🧮','ข้อมูล Food Cost','cost','<small>เร็ว ๆ นี้</small>');
-  }
   if(canAnyManage()||can('manageCentral')){
     m+='<div class="sb_sec">จัดการระบบ</div>';
     if(can('manageCentral'))m+=it('🏭','ครัวกลาง','central');
@@ -2510,20 +2600,18 @@ function buildSidebar(){
   document.body.appendChild(w);
   const close=()=>w.classList.remove('on');
   w.querySelector('#sbBack').onclick=close;
-  w.querySelector('.sb_out').onclick=()=>{close();doLogout();};
+  w.querySelector('.sb_out').onclick=()=>{close();closeModPages();doLogout();};
   w.querySelectorAll('.sb_it').forEach(b=>b.onclick=()=>{close();
     const g=b.dataset.go;
-    if(g==='home')showHome();
-    else if(g==='count'){hideAll();const h=document.getElementById('jjHome');if(h)h.style.display='none';}
-    else if(g==='order')openSum();
-    else if(g==='dispatch')openDispatch();
-    else if(g==='receive')openReceive();
-    else if(g==='usage')openUsage();
-    else if(g==='report')openReport();
-    else if(g==='sales')openSales();
-    else if(g==='cost')toast('🧮 Food Cost มาเฟสถัดไป — กรอกราคา+ยอดขายสะสมข้อมูลไว้ก่อน');
-    else if(g==='central')$('#centralBtn').click();
-    else if(g==='settings')$('#gearBtn').click();
+    if(g==='home'||g==='sales'||g==='cost'||g==='stock')openModule(g);
+    else if(g==='count')openModule('stock');
+    else if(g==='order'){openModule('stock');openSum();}
+    else if(g==='dispatch'){openModule('stock');openDispatch();}
+    else if(g==='receive'){openModule('stock');openReceive();}
+    else if(g==='usage'){openModule('stock');openUsage();}
+    else if(g==='report'){openModule('stock');openReport();}
+    else if(g==='central'){openModule('stock');$('#centralBtn').click();}
+    else if(g==='settings'){openModule('stock');$('#gearBtn').click();}
   });
   return w;
 }
