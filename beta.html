@@ -259,6 +259,17 @@
   .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
   .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  /* ===== โหมด shell แบบ SuperPOS (b16) ===== */
+  #sideBar .sb_it.act{background:#fff;color:#7a1616;font-weight:700}
+  #sideBar .sb_it.act .ic{filter:none}
+  @media(min-width:1024px){
+    body.jjshell{padding-left:264px}
+    body.jjshell #sbWrap{display:block;pointer-events:none;background:transparent}
+    body.jjshell #sbBack{display:none}
+    body.jjshell #sideBar{transform:none;pointer-events:auto;box-shadow:2px 0 10px rgba(0,0,0,.18)}
+    body.jjshell .modpage{left:264px}
+    body.jjshell #menuBtn{display:none!important}
+  }
   /* ===== หน้าโมดูลเต็มจอ (b15) ===== */
   .modpage{position:fixed;inset:0;z-index:350;background:var(--paper,#faf4ea);overflow-y:auto}
   .mp_head{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 14px;
@@ -566,7 +577,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b15 — โมดูลเต็มหน้า</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b16 — shell แบบ SuperPOS</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1449,6 +1460,7 @@ function layoutHeaderBtns(){
   $('#receiveBtn').style.display=recv?'flex':'none';
   $('#usageBtn').style.display=report?'flex':'none';
   $('#homeBtn').style.display=money?'flex':'none';
+  if(currentUser)setTimeout(()=>{try{ensureSidebar()}catch(e){}},60);
   if(money&&!window.__homeShown){window.__homeShown=1;setTimeout(()=>{try{showHome()}catch(e){}},400);}
   applyHdrLang();
   let r=14;
@@ -1460,7 +1472,10 @@ function layoutHeaderBtns(){
 function isReceiveOnly(){return !can('count')&&can('receiveGoods')&&!can('viewDispatch');}
 // บัญชี "คลัง": ดูออเดอร์อย่างเดียว ไม่ต้องเห็นหน้านับสต๊อก
 function isDispatchOnly(){return !can('count')&&can('viewDispatch');}
-async function doLogout(){try{await sb.auth.signOut()}catch(e){}currentUser=null;document.body.classList.remove('dispatch-only');hideAll();showLogin();}
+async function doLogout(){try{await sb.auth.signOut()}catch(e){}currentUser=null;
+  document.body.classList.remove('dispatch-only','jjshell');
+  try{closeModPages();const sw=document.getElementById('sbWrap');if(sw)sw.remove();window.__homeShown=0;}catch(e){}
+  hideAll();showLogin();}
 $('#logoutBtn').onclick=doLogout;
 $('#dispLogout').onclick=doLogout;
 
@@ -2433,7 +2448,7 @@ $('#usageBtn').onclick=openUsage;
 let CUR_MOD='stock';
 function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remove());}
 function openModule(name){
-  closeModPages();hideAll();CUR_MOD=name;
+  closeModPages();hideAll();CUR_MOD=name;setSbActive(name);
   if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
   const meta={home:['🏠','ภาพรวม'],sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
   const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
@@ -2603,6 +2618,8 @@ function buildSidebar(){
   w.querySelector('.sb_out').onclick=()=>{close();closeModPages();doLogout();};
   w.querySelectorAll('.sb_it').forEach(b=>b.onclick=()=>{close();
     const g=b.dataset.go;
+    if(['home','sales','cost','stock','count','order','dispatch','receive','usage','report'].includes(g))
+      setSbActive(['count','order','dispatch','receive','usage','report'].includes(g)?'stock':g);
     if(g==='home'||g==='sales'||g==='cost'||g==='stock')openModule(g);
     else if(g==='count')openModule('stock');
     else if(g==='order'){openModule('stock');openSum();}
@@ -2615,7 +2632,18 @@ function buildSidebar(){
   });
   return w;
 }
-document.getElementById('menuBtn').onclick=()=>{const w=buildSidebar();requestAnimationFrame(()=>w.classList.add('on'));};
+function setSbActive(name){
+  document.querySelectorAll('#sideBar .sb_it').forEach(b=>{
+    b.classList.toggle('act',b.dataset.go===name);});
+}
+function ensureSidebar(){          // จอกว้าง: เมนูค้างถาวรแบบ SuperPOS
+  if(!currentUser)return;
+  if(!document.getElementById('sbWrap'))buildSidebar();
+  document.body.classList.add('jjshell');
+  setSbActive(CUR_MOD||'stock');
+}
+window.addEventListener('resize',()=>{if(currentUser)ensureSidebar();});
+document.getElementById('menuBtn').onclick=()=>{const w=buildSidebar();setSbActive(CUR_MOD||'stock');requestAnimationFrame(()=>w.classList.add('on'));};
 
 /* ===== โมดูลยอดขาย ===== */
 function openSales(){
