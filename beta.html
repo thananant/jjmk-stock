@@ -259,6 +259,25 @@
   .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
   .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  /* ===== แถบเมนูข้าง (b14) ===== */
+  #sbWrap{position:fixed;inset:0;z-index:400;display:none}
+  #sbWrap.on{display:block}
+  #sbBack{position:absolute;inset:0;background:rgba(30,10,8,.45)}
+  #sideBar{position:absolute;top:0;left:0;bottom:0;width:264px;max-width:82vw;background:linear-gradient(180deg,#8e1c1c,#6d1414);color:#fbeee0;
+    display:flex;flex-direction:column;box-shadow:4px 0 18px rgba(0,0,0,.35);transform:translateX(-100%);transition:transform .22s ease}
+  #sbWrap.on #sideBar{transform:none}
+  #sideBar .sb_head{padding:16px 16px 10px;font-family:Kanit;font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+  #sideBar .sb_scroll{flex:1;overflow-y:auto;padding:0 10px 10px}
+  #sideBar .sb_sec{font-size:.7rem;letter-spacing:.06em;opacity:.75;margin:14px 8px 4px;font-family:'Sarabun';font-weight:600}
+  #sideBar .sb_it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:transparent;color:#fbeee0;
+    font-family:'Sarabun';font-size:.92rem;padding:10px 12px;border-radius:10px;cursor:pointer}
+  #sideBar .sb_it:active,#sideBar .sb_it:hover{background:rgba(255,255,255,.12)}
+  #sideBar .sb_it .ic{width:22px;text-align:center;font-size:1.02rem}
+  #sideBar .sb_it small{margin-left:auto;font-size:.68rem;opacity:.7}
+  #sideBar .sb_foot{padding:10px;border-top:1px solid rgba(255,255,255,.18)}
+  #sideBar .sb_user{font-size:.8rem;opacity:.85;padding:2px 8px 8px;font-family:'Sarabun'}
+  #sideBar .sb_out{width:100%;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;border-radius:10px;
+    padding:10px;font-family:'Sarabun';font-weight:600;cursor:pointer}
   .hm_grid{display:grid;grid-template-columns:1fr;gap:10px}
   @media(min-width:560px){.hm_grid{grid-template-columns:1fr 1fr 1fr}}
   .hm_card{border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;background:#fff;transition:box-shadow .15s}
@@ -533,12 +552,12 @@ main{padding-top:6px}
   </div>
   <button class="gear" id="gearBtn" aria-label="ตั้งค่า" style="display:none"><span class="gi">⚙️</span><span class="gl">ตั้งค่า</span></button>
   <button class="gear" id="centralBtn" aria-label="Safety/Max" style="display:none;right:58px"><span class="gi">📦</span><span class="gl">Safety/Max</span></button>
-  <button class="gear" id="homeBtn" aria-label="หลังบ้าน" style="display:none"><span class="gi">🏠</span><span class="gl">หลังบ้าน</span></button><button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
+  <button class="gear" id="menuBtn" aria-label="เมนู"><span class="gi">☰</span><span class="gl">เมนู</span></button><button class="gear" id="homeBtn" aria-label="หลังบ้าน" style="display:none"><span class="gi">🏠</span><span class="gl">ภาพรวม</span></button><button class="gear" id="usageBtn" aria-label="การใช้ของ" style="display:none"><span class="gi">📈</span><span class="gl">การใช้ของ</span></button><button class="gear" id="reportBtn" aria-label="ดูข้อมูล" style="display:none"><span class="gi">📊</span><span class="gl">ดูข้อมูล</span></button>
   <button class="gear" id="dispatchBtn" aria-label="รายการสั่งของ" style="display:none"><span class="gi">📥</span><span class="gl">สั่งของ</span></button><button class="gear" id="receiveBtn" aria-label="รับของ" style="display:none"><span class="gi">🚚</span><span class="gl">รับของ</span></button>
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b13 — หลังบ้านจริงใจ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b14 — เมนูข้างหลังบ้าน</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1424,7 +1443,7 @@ function layoutHeaderBtns(){
   if(money&&!window.__homeShown){window.__homeShown=1;setTimeout(()=>{try{showHome()}catch(e){}},400);}
   applyHdrLang();
   let r=14;
-  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#usageBtn',report],['#reportBtn',report],['#homeBtn',money]].forEach(([sel,on])=>{
+  [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#usageBtn',report],['#reportBtn',report],['#homeBtn',money],['#menuBtn',true]].forEach(([sel,on])=>{
     if(on){const el=$(sel);el.style.right=r+'px';r+=(el.offsetWidth||44)+8;}
   });
 }
@@ -2451,6 +2470,64 @@ async function refreshHomeStats(){
   }catch(e){document.getElementById('hmSalesStat').textContent='ยังไม่ได้ติดตั้งตาราง (รัน SQL b13)';}
 }
 document.getElementById('homeBtn').onclick=showHome;
+
+/* ===== แถบเมนูข้าง (b14) ===== */
+function buildSidebar(){
+  let w=document.getElementById('sbWrap');
+  if(w)w.remove();
+  w=document.createElement('div');w.id='sbWrap';
+  const money=canMoney();
+  const it=(ic,label,go,extra)=>`<button class="sb_it" data-go="${go}"><span class="ic">${ic}</span>${label}${extra||''}</button>`;
+  let m='';
+  if(money)m+=it('🏠','ภาพรวม','home');
+  m+='<div class="sb_sec">ข้อมูลสต็อก</div>';
+  m+=it('📋','นับสต็อก','count');
+  m+=it('🧾','ใบสั่งซื้อ / ส่งไลน์','order');
+  if(can('viewDispatch'))m+=it('📦','รายการสั่งของ','dispatch');
+  if(can('receiveGoods'))m+=it('🚚','รับของ + ราคา','receive');
+  m+='<div class="sb_sec">รายงาน</div>';
+  m+=it('📈','การใช้ของ','usage');
+  m+=it('📊','ดูข้อมูลย้อนหลัง','report');
+  if(money){
+    m+='<div class="sb_sec">การเงิน</div>';
+    m+=it('💵','ข้อมูลยอดขาย','sales');
+    m+=it('🧮','ข้อมูล Food Cost','cost','<small>เร็ว ๆ นี้</small>');
+  }
+  if(canAnyManage()||can('manageCentral')){
+    m+='<div class="sb_sec">จัดการระบบ</div>';
+    if(can('manageCentral'))m+=it('🏭','ครัวกลาง','central');
+    if(canAnyManage())m+=it('⚙️','ตั้งค่า','settings');
+  }
+  w.innerHTML=`<div id="sbBack"></div>
+    <nav id="sideBar">
+      <div class="sb_head">🏠 หลังบ้านจริงใจ</div>
+      <div class="sb_scroll">${m}</div>
+      <div class="sb_foot">
+        <div class="sb_user">👤 ${escapeHtml((currentUser&&currentUser.name)||'')} · ${escapeHtml((currentUser&&currentUser.role)||'')} · ${escapeHtml((B()||{}).name||'')}</div>
+        <button class="sb_out">🚪 ออกจากระบบ</button>
+      </div>
+    </nav>`;
+  document.body.appendChild(w);
+  const close=()=>w.classList.remove('on');
+  w.querySelector('#sbBack').onclick=close;
+  w.querySelector('.sb_out').onclick=()=>{close();doLogout();};
+  w.querySelectorAll('.sb_it').forEach(b=>b.onclick=()=>{close();
+    const g=b.dataset.go;
+    if(g==='home')showHome();
+    else if(g==='count'){hideAll();const h=document.getElementById('jjHome');if(h)h.style.display='none';}
+    else if(g==='order')openSum();
+    else if(g==='dispatch')openDispatch();
+    else if(g==='receive')openReceive();
+    else if(g==='usage')openUsage();
+    else if(g==='report')openReport();
+    else if(g==='sales')openSales();
+    else if(g==='cost')toast('🧮 Food Cost มาเฟสถัดไป — กรอกราคา+ยอดขายสะสมข้อมูลไว้ก่อน');
+    else if(g==='central')$('#centralBtn').click();
+    else if(g==='settings')$('#gearBtn').click();
+  });
+  return w;
+}
+document.getElementById('menuBtn').onclick=()=>{const w=buildSidebar();requestAnimationFrame(()=>w.classList.add('on'));};
 
 /* ===== โมดูลยอดขาย ===== */
 function openSales(){
