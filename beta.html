@@ -261,6 +261,12 @@
   .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   /* ===== โหมด shell แบบ SuperPOS (b16) ===== */
   #sideBar .sb_it.act{background:#fff;color:#7a1616;font-weight:700}
+  #sideBar .sb_parent{font-weight:600}
+  #sideBar .sb_parent .cv{margin-left:auto;font-size:.8rem;opacity:.8;transition:transform .18s}
+  #sideBar .sb_grp:not(.open) .cv{transform:rotate(-90deg)}
+  #sideBar .sb_grp .sb_sub{display:none;margin:2px 0 4px}
+  #sideBar .sb_grp.open .sb_sub{display:block}
+  #sideBar .sb_subit{padding-left:34px;font-size:.88rem}
   #sideBar .sb_it.act .ic{filter:none}
   @media(min-width:1024px){
     body.jjshell{padding-left:264px}
@@ -577,7 +583,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b16 — shell แบบ SuperPOS</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b17 — เมนูย่อยในสต็อก</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1459,9 +1465,8 @@ function layoutHeaderBtns(){
   $('#dispatchBtn').style.display=dispatch?'flex':'none';
   $('#receiveBtn').style.display=recv?'flex':'none';
   $('#usageBtn').style.display=report?'flex':'none';
-  $('#homeBtn').style.display=money?'flex':'none';
+  $('#homeBtn').style.display='none';
   if(currentUser)setTimeout(()=>{try{ensureSidebar()}catch(e){}},60);
-  if(money&&!window.__homeShown){window.__homeShown=1;setTimeout(()=>{try{showHome()}catch(e){}},400);}
   applyHdrLang();
   let r=14;
   [['#gearBtn',gear],['#centralBtn',central],['#dispatchBtn',dispatch],['#receiveBtn',recv],['#usageBtn',report],['#reportBtn',report],['#homeBtn',money],['#menuBtn',true]].forEach(([sel,on])=>{
@@ -2448,64 +2453,19 @@ $('#usageBtn').onclick=openUsage;
 let CUR_MOD='stock';
 function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remove());}
 function openModule(name){
-  closeModPages();hideAll();CUR_MOD=name;setSbActive(name);
+  closeModPages();hideAll();CUR_MOD=name;setSbActive(name==='stock'?'count':name);
   if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
-  const meta={home:['🏠','ภาพรวม'],sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
+  const meta={sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
   const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
   pg.innerHTML=`<div class="mp_head"><button class="mp_menu">☰</button><span class="mp_t">${meta[0]} ${meta[1]}</span><span class="mp_shop">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')}</span></div><div class="mp_body"></div>`;
   document.body.appendChild(pg);
   pg.querySelector('.mp_menu').onclick=()=>{const w=buildSidebar();requestAnimationFrame(()=>w.classList.add('on'));};
   const body=pg.querySelector('.mp_body');
-  if(name==='home')renderHomePage(body);
-  else if(name==='sales')renderSalesPage(body);
+  if(name==='sales')renderSalesPage(body);
   else renderCostPage(body);
 }
-function showHome(){openModule('home');}
+function showHome(){openModule('stock');}
 function openSales(){openModule('sales');}
-
-/* ----- หน้า ภาพรวม ----- */
-async function renderHomePage(body){
-  body.innerHTML=`<div class="hm_grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-      <div class="hm_card" id="hcMust"><div class="hm_d">วันนี้ต้องสั่ง</div><div class="hm_big">…</div></div>
-      <div class="hm_card" id="hcCount"><div class="hm_d">นับสต็อกวันนี้</div><div class="hm_big">…</div></div>
-      <div class="hm_card" id="hcRev"><div class="hm_d">ยอดขายเมื่อวาน (รวม)</div><div class="hm_big">…</div></div>
-      <div class="hm_card" id="hcRev7"><div class="hm_d">ยอดขาย 7 วันล่าสุด</div><div class="hm_big">…</div></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-      <button class="act" data-j="stock">📋 ไปนับสต็อก</button>
-      <button class="act" data-j="order">🧾 ใบสั่งซื้อวันนี้</button>
-      <button class="act" data-j="sales">💵 กรอกยอดขาย</button>
-    </div>
-    <div id="hcRevTbl" style="margin-top:16px"></div>`;
-  body.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{const j=b.dataset.j;
-    if(j==='stock')openModule('stock');
-    else if(j==='order'){openModule('stock');openSum();}
-    else openModule('sales');});
-  try{const m=mustOrderToday();const el=body.querySelector('#hcMust .hm_big');
-    el.textContent=m.length+' ซัพ';if(m.length)el.style.color='#b3261e';
-    const t=totals();body.querySelector('#hcCount .hm_big').textContent=t.cn+' / '+t.all;
-  }catch(e){}
-  try{
-    const since=new Date(bizDate().getTime()-7*86400000).toISOString().slice(0,10);
-    const {data}=await sb.from('daily_revenue').select('*').gte('rev_date',since).order('rev_date',{ascending:false});
-    const p=n=>String(n).padStart(2,'0');const y=new Date(bizDate().getTime()-86400000);
-    const yi=y.getFullYear()+'-'+p(y.getMonth()+1)+'-'+p(y.getDate());
-    const rows=data||[];
-    const BRN={};(ROOT.branches||[]).forEach(b=>BRN[b.id]=(b.name||'').replace('สาขา',''));
-    const ySum=rows.filter(r=>String(r.rev_date).slice(0,10)===yi).reduce((a,x)=>a+(+x.revenue||0),0);
-    const wSum=rows.reduce((a,x)=>a+(+x.revenue||0),0);
-    body.querySelector('#hcRev .hm_big').textContent=ySum?ySum.toLocaleString('th-TH')+'.-':'—';
-    body.querySelector('#hcRev7 .hm_big').textContent=wSum?wSum.toLocaleString('th-TH')+'.-':'—';
-    const byD={};rows.forEach(r=>{const d=String(r.rev_date).slice(0,10);(byD[d]=byD[d]||[]).push(r);});
-    let html='<div class="hm_d" style="margin-bottom:4px">ยอดขายรายวัน (7 วัน)</div>';
-    Object.keys(byD).sort().reverse().forEach(d=>{
-      const tot=byD[d].reduce((a,x)=>a+(+x.revenue||0),0);
-      html+='<div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed var(--line);font-size:.88rem">'+
-        '<span>'+fmtDate(d)+' <small style="color:var(--ink-soft)">'+byD[d].map(x=>escapeHtml(BRN[x.branch_id]||'')+' '+(+x.revenue).toLocaleString('th-TH')).join(' · ')+'</small></span>'+
-        '<b style="color:var(--red)">'+tot.toLocaleString('th-TH')+'.-</b></div>';});
-    body.querySelector('#hcRevTbl').innerHTML=Object.keys(byD).length?html:'<p class="hint">ยังไม่มีข้อมูลยอดขาย — กรอกได้ที่โมดูลข้อมูลยอดขาย</p>';
-  }catch(e){body.querySelector('#hcRevTbl').innerHTML='<p class="hint">ยังไม่ได้ติดตั้งตารางยอดขาย (รัน SQL b13)</p>';}
-}
 
 /* ----- หน้า ยอดขาย ----- */
 function renderSalesPage(body){
@@ -2578,30 +2538,31 @@ async function renderCostPage(body){
     body.querySelector('#ccRv').textContent=new Set((data||[]).map(x=>String(x.rev_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccRv').textContent='—';}
 }
 
-/* ----- แถบเมนูข้าง ----- */
+/* ----- แถบเมนูข้าง: กลุ่มหลัก + เมนูย่อย (b17) ----- */
 function buildSidebar(){
   let w=document.getElementById('sbWrap');
   if(w)w.remove();
   w=document.createElement('div');w.id='sbWrap';
   const money=canMoney();
-  const it=(ic,label,go,extra)=>`<button class="sb_it" data-go="${go}"><span class="ic">${ic}</span>${label}${extra||''}</button>`;
-  let m='<div class="sb_sec">โมดูล</div>';
-  if(money)m+=it('🏠','ภาพรวม','home');
-  m+=it('📦','ข้อมูลสต็อก','stock');
-  if(money)m+=it('💵','ข้อมูลยอดขาย','sales');
-  if(money)m+=it('🧮','ข้อมูล Food Cost','cost');
-  m+='<div class="sb_sec">งานสต็อก</div>';
-  m+=it('📋','นับสต็อก','count');
-  m+=it('🧾','ใบสั่งซื้อ / ส่งไลน์','order');
-  if(can('viewDispatch'))m+=it('📦','รายการสั่งของ','dispatch');
-  if(can('receiveGoods'))m+=it('🚚','รับของ + ราคา','receive');
-  m+='<div class="sb_sec">รายงาน</div>';
-  m+=it('📈','การใช้ของ','usage');
-  m+=it('📊','ดูข้อมูลย้อนหลัง','report');
-  if(canAnyManage()||can('manageCentral')){
-    m+='<div class="sb_sec">จัดการระบบ</div>';
-    if(can('manageCentral'))m+=it('🏭','ครัวกลาง','central');
-    if(canAnyManage())m+=it('⚙️','ตั้งค่า','settings');
+  const it=(ic,label,go)=>`<button class="sb_it sb_subit" data-go="${go}"><span class="ic">${ic}</span>${label}</button>`;
+  // กลุ่ม ข้อมูลสต็อก + เมนูย่อยทั้งหมดของงานสต็อก
+  let sub='';
+  sub+=it('📋','นับสต็อก','count');
+  sub+=it('🧾','ใบสั่งซื้อ / ส่งไลน์','order');
+  if(can('viewDispatch'))sub+=it('📦','รายการสั่งของ','dispatch');
+  if(can('receiveGoods'))sub+=it('🚚','รับของ + ราคา','receive');
+  sub+=it('📈','การใช้ของ','usage');
+  sub+=it('📊','ดูข้อมูลย้อนหลัง','report');
+  if(can('manageCentral'))sub+=it('🏭','ครัวกลาง','central');
+  if(canAnyManage())sub+=it('⚙️','ตั้งค่า','settings');
+  let m='';
+  m+=`<div class="sb_grp open" data-grp="stock">
+        <button class="sb_it sb_parent" data-toggle="stock"><span class="ic">📦</span>ข้อมูลสต็อก<span class="cv">▾</span></button>
+        <div class="sb_sub">${sub}</div>
+      </div>`;
+  if(money){
+    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ข้อมูลยอดขาย</button>`;
+    m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
   }
   w.innerHTML=`<div id="sbBack"></div>
     <nav id="sideBar">
@@ -2616,11 +2577,12 @@ function buildSidebar(){
   const close=()=>w.classList.remove('on');
   w.querySelector('#sbBack').onclick=close;
   w.querySelector('.sb_out').onclick=()=>{close();closeModPages();doLogout();};
-  w.querySelectorAll('.sb_it').forEach(b=>b.onclick=()=>{close();
+  w.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{
+    b.closest('.sb_grp').classList.toggle('open');});
+  w.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{close();
     const g=b.dataset.go;
-    if(['home','sales','cost','stock','count','order','dispatch','receive','usage','report'].includes(g))
-      setSbActive(['count','order','dispatch','receive','usage','report'].includes(g)?'stock':g);
-    if(g==='home'||g==='sales'||g==='cost'||g==='stock')openModule(g);
+    setSbActive(g);
+    if(g==='sales'||g==='cost')openModule(g);
     else if(g==='count')openModule('stock');
     else if(g==='order'){openModule('stock');openSum();}
     else if(g==='dispatch'){openModule('stock');openDispatch();}
