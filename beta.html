@@ -272,12 +272,6 @@
   @media(min-width:1024px){body.jjshell .overlay.pagemode{left:264px}}
   /* ===== โหมด shell แบบ SuperPOS (b16) ===== */
   #sideBar .sb_it.act{background:#fff;color:#7a1616;font-weight:700}
-  #sideBar .sb_parent{font-weight:600}
-  #sideBar .sb_parent .cv{margin-left:auto;font-size:.8rem;opacity:.8;transition:transform .18s}
-  #sideBar .sb_grp:not(.open) .cv{transform:rotate(-90deg)}
-  #sideBar .sb_grp .sb_sub{display:none;margin:2px 0 4px}
-  #sideBar .sb_grp.open .sb_sub{display:block}
-  #sideBar .sb_subit{padding-left:34px;font-size:.88rem}
   #sideBar .sb_it.act .ic{filter:none}
   @media(min-width:1024px){
     body.jjshell{padding-left:264px}
@@ -300,21 +294,32 @@
   #sbWrap{position:fixed;inset:0;z-index:400;display:none}
   #sbWrap.on{display:block}
   #sbBack{position:absolute;inset:0;background:rgba(30,10,8,.45)}
-  #sideBar{position:absolute;top:0;left:0;bottom:0;width:264px;max-width:82vw;background:linear-gradient(180deg,#8e1c1c,#6d1414);color:#fbeee0;
+  #sideBar{position:absolute;top:0;left:0;bottom:0;width:264px;max-width:82vw;background:linear-gradient(180deg,#7e1717,#5d1010);color:#fbeee0;
     display:flex;flex-direction:column;box-shadow:4px 0 18px rgba(0,0,0,.35);transform:translateX(-100%);transition:transform .22s ease}
   #sbWrap.on #sideBar{transform:none}
-  #sideBar .sb_head{padding:16px 16px 10px;font-family:Kanit;font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px}
-  #sideBar .sb_scroll{flex:1;overflow-y:auto;padding:0 10px 10px}
-  #sideBar .sb_sec{font-size:.7rem;letter-spacing:.06em;opacity:.75;margin:14px 8px 4px;font-family:'Sarabun';font-weight:600}
-  #sideBar .sb_it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:transparent;color:#fbeee0;
-    font-family:'Sarabun';font-size:.92rem;padding:10px 12px;border-radius:10px;cursor:pointer}
-  #sideBar .sb_it:active,#sideBar .sb_it:hover{background:rgba(255,255,255,.12)}
-  #sideBar .sb_it .ic{width:22px;text-align:center;font-size:1.02rem}
-  #sideBar .sb_it small{margin-left:auto;font-size:.68rem;opacity:.7}
-  #sideBar .sb_foot{padding:10px;border-top:1px solid rgba(255,255,255,.18)}
-  #sideBar .sb_user{font-size:.8rem;opacity:.85;padding:2px 8px 8px;font-family:'Sarabun'}
-  #sideBar .sb_out{width:100%;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;border-radius:10px;
+  #sideBar .sb_head{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
+  #sideBar .sb_head .bh_t{font-family:Kanit;font-weight:600;font-size:1.08rem;letter-spacing:.01em}
+  #sideBar .sb_head .bh_s{font-family:'Sarabun';font-size:.74rem;opacity:.7;margin-top:2px}
+  #sideBar .sb_scroll{flex:1;overflow-y:auto;padding:10px 12px 12px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent}
+  #sideBar .sb_div{height:1px;background:rgba(255,255,255,.12);margin:12px 6px}
+  #sideBar .sb_it{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:none;background:transparent;color:#fbeee0;
+    font-family:'Sarabun';font-size:.95rem;padding:11px 12px;border-radius:11px;cursor:pointer;line-height:1.2}
+  #sideBar .sb_it:hover{background:rgba(255,255,255,.10)}
+  #sideBar .sb_it:active{background:rgba(255,255,255,.16)}
+  #sideBar .sb_it .ic{width:22px;text-align:center;font-size:1.05rem;flex:none}
+  #sideBar .sb_parent{font-family:Kanit;font-weight:500;font-size:.98rem;padding:12px}
+  #sideBar .sb_parent .cv{margin-left:auto;font-size:.78rem;opacity:.75;transition:transform .18s}
+  #sideBar .sb_grp:not(.open) .cv{transform:rotate(-90deg)}
+  #sideBar .sb_grp .sb_sub{display:none;margin:2px 0 6px 21px;padding-left:9px;border-left:1.5px solid rgba(255,255,255,.16)}
+  #sideBar .sb_grp.open .sb_sub{display:block}
+  #sideBar .sb_subit{font-size:.88rem;padding:9px 10px;border-radius:9px;opacity:.94}
+  #sideBar .sb_subit .ic{width:20px;font-size:.95rem;opacity:.9}
+  #sideBar .sb_it.act{background:#fff;color:#7a1616;font-weight:700;opacity:1;box-shadow:0 2px 6px rgba(0,0,0,.22)}
+  #sideBar .sb_foot{padding:12px;border-top:1px solid rgba(255,255,255,.14)}
+  #sideBar .sb_user{font-size:.78rem;opacity:.8;padding:2px 6px 10px;font-family:'Sarabun';line-height:1.5}
+  #sideBar .sb_out{width:100%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.07);color:#fff;border-radius:10px;
     padding:10px;font-family:'Sarabun';font-weight:600;cursor:pointer}
+  #sideBar .sb_out:hover{background:rgba(255,255,255,.14)}
   .hm_grid{display:grid;grid-template-columns:1fr;gap:10px}
   @media(min-width:560px){.hm_grid{grid-template-columns:1fr 1fr 1fr}}
   .hm_card{border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;background:#fff;transition:box-shadow .15s}
@@ -594,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b19 — header โล่ง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b20 — เมนูข้างอ่านง่าย</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2572,12 +2577,13 @@ function buildSidebar(){
         <div class="sb_sub">${sub}</div>
       </div>`;
   if(money){
+    m+=`<div class="sb_div"></div>`;
     m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ข้อมูลยอดขาย</button>`;
     m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
   }
   w.innerHTML=`<div id="sbBack"></div>
     <nav id="sideBar">
-      <div class="sb_head">🏠 หลังบ้านจริงใจ</div>
+      <div class="sb_head"><div class="bh_t">🏠 หลังบ้านจริงใจ</div><div class="bh_s">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')} · ${escapeHtml((B()||{}).name||'')}</div></div>
       <div class="sb_scroll">${m}</div>
       <div class="sb_foot">
         <div class="sb_user">👤 ${escapeHtml((currentUser&&currentUser.name)||'')} · ${escapeHtml((currentUser&&currentUser.role)||'')} · ${escapeHtml((B()||{}).name||'')}</div>
