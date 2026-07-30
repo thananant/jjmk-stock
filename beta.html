@@ -259,6 +259,17 @@
   .supremind.red{background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
   .supremind.blue{background:#e8f0fe;color:#1559c7;border:1px solid #c2d6f7}
   .dmust{font-family:'Sarabun';font-size:.82rem;font-weight:500;margin:6px 0;padding:8px 12px;border-radius:10px;line-height:1.5;background:#fbe9e7;color:#b3261e;border:1px solid #f3c0ba}
+  /* ===== ซ่อนปุ่มบนที่ซ้ำกับเมนูข้าง (b19) — เหลือ ☰ บนมือถือ ===== */
+  body.jjshell #gearBtn,body.jjshell #centralBtn,body.jjshell #dispatchBtn,
+  body.jjshell #receiveBtn,body.jjshell #usageBtn,body.jjshell #reportBtn,
+  body.jjshell #homeBtn{display:none!important}
+  /* ===== overlay → หน้าเต็มในกรอบ shell (b18) ===== */
+  .overlay.pagemode{background:var(--paper,#faf4ea);padding:0;align-items:stretch;justify-content:stretch;overflow:auto}
+  .overlay.pagemode .sheet{max-width:none!important;width:100%;min-height:100%;max-height:none!important;margin:0;border-radius:0;box-shadow:none}
+  .overlay.pagemode .sheet-head{position:sticky;top:0;z-index:6;background:linear-gradient(135deg,#8e1c1c,#6d1414)}
+  .overlay.pagemode .sheet-head h3{color:#fbeee0}
+  .overlay.pagemode .sheet-head .x{color:#fbeee0;border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.08)}
+  @media(min-width:1024px){body.jjshell .overlay.pagemode{left:264px}}
   /* ===== โหมด shell แบบ SuperPOS (b16) ===== */
   #sideBar .sb_it.act{background:#fff;color:#7a1616;font-weight:700}
   #sideBar .sb_parent{font-weight:600}
@@ -583,7 +594,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b17 — เมนูย่อยในสต็อก</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b19 — header โล่ง</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2088,7 +2099,7 @@ function applySettingsPerms(){
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
   $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';
-  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();refreshSupCount();show('#setOverlay')};
+  updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();refreshSupCount();show('#setOverlay');pageize('#setOverlay')};
 $('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
 $('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
 $('#setSave').onclick=()=>{cfg().shop=$('#setShop').value.trim()||'จริงใจหมูกระทะ';cfg().endpoint=$('#setEndpoint').value.trim();save();applyShop();hideAll();toast('บันทึกการตั้งค่าแล้ว ✓')};
@@ -2215,7 +2226,7 @@ $('#openApprove').onclick=()=>{if(!can('approveStaff'))return;renderApprove();sh
 let REPORT_ROWS=[], REPORT_DATES=[];
 function opt(v,t){const o=document.createElement('option');o.value=v;o.textContent=t;return o;}
 async function openReport(){
-  show('#reportOverlay');
+  show('#reportOverlay');pageize('#reportOverlay');
   $('#rTable').innerHTML='<div class="rempty">กำลังโหลดข้อมูล...</div>';
   const staffScoped=(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length);
   const accb=accessibleBranches().map(b=>b.id);
@@ -2369,7 +2380,7 @@ async function sendReportLine(){
 $('#rLine').onclick=sendReportLine;
 /* ===== 📈 การใช้ของ: ใช้ไป = นับ(วัน A) + สั่ง(วัน A) − นับ(วันถัดไป) ต่อสินค้า ===== */
 function openUsage(){
-  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:200';
+  const ov=document.createElement('div');ov.className='overlay pagemode';ov.style.cssText='display:flex;z-index:200';
   const today=new Date();const iso=d=>d.toISOString().slice(0,10);
   const from7=new Date(+today-7*86400000);
   const bOpts='<option value="">🏪 ทุกสาขา</option>'+accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
@@ -2553,7 +2564,7 @@ function buildSidebar(){
   if(can('receiveGoods'))sub+=it('🚚','รับของ + ราคา','receive');
   sub+=it('📈','การใช้ของ','usage');
   sub+=it('📊','ดูข้อมูลย้อนหลัง','report');
-  if(can('manageCentral'))sub+=it('🏭','ครัวกลาง','central');
+  if(can('manageCentral'))sub+=it('🎯','Safety/Max & จัดส่ง','central');
   if(canAnyManage())sub+=it('⚙️','ตั้งค่า','settings');
   let m='';
   m+=`<div class="sb_grp open" data-grp="stock">
@@ -2711,7 +2722,7 @@ $('#rXlsx').onclick=async()=>{
 /* ===== 🚚 รับของ: เทียบยอดสั่ง (อ่านอย่างเดียว) กับรับจริง + แจ้งไลน์ส่วนต่างแยกซัพ ===== */
 function openReceive(){
   if(!can('receiveGoods')){toast('ไม่มีสิทธิ์รับของ');return;}
-  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:200';
+  const ov=document.createElement('div');ov.className='overlay pagemode';ov.style.cssText='display:flex;z-index:200';
   const yest=new Date(Date.now()-86400000).toISOString().slice(0,10);
   const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
   ov.innerHTML=`<div class="sheet" style="max-width:680px">
@@ -2841,7 +2852,7 @@ document.querySelectorAll('.rchip').forEach(ch=>ch.onclick=()=>{document.querySe
 /* ================= dispatch / warehouse (คลัง) ================= */
 let DISPATCH_ROWS=[], DISPATCH_DATES=[];
 async function openDispatch(){
-  show('#dispatchOverlay');
+  show('#dispatchOverlay');pageize('#dispatchOverlay');
   $('#dBoard').innerHTML='<div class="rempty">กำลังโหลดออเดอร์...</div>';
   // 1) รายการวันที่ทั้งหมดที่มีออเดอร์ (คอลัมน์เดียว ไม่โดน limit ตัดวันเก่า)
   const {data:dd,error:derr}=await sbAll(()=>sb.from('stock_counts').select('count_date').gt('ordered',0).order('count_date',{ascending:false}),40);
@@ -3602,7 +3613,7 @@ $('#cFilter').onchange=renderCentral;$('#cSearch').oninput=renderCentral;
 $('#cCopy').onclick=async()=>{const t=centralText();try{await navigator.clipboard.writeText(t);toast('คัดลอกแล้ว ✓')}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('คัดลอกแล้ว ✓')}};
 $('#cLine').onclick=()=>window.open('https://line.me/R/msg/text/?'+encodeURIComponent(centralText()),'_blank');
 $('#cPrint').onclick=()=>window.print();
-$('#centralBtn').onclick=()=>{if(!can('manageCentral'))return;cBranchId=currentBranchId||ROOT.branches[0].id;$('#cFilter').value='all';renderCentral();show('#centralOverlay')};
+$('#centralBtn').onclick=()=>{if(!can('manageCentral'))return;cBranchId=currentBranchId||ROOT.branches[0].id;$('#cFilter').value='all';renderCentral();show('#centralOverlay');pageize('#centralOverlay')};
 function setLogos(){const s=$('#sealImg'),l=$('#lsealImg');if(s)s.src=LOGO;if(l)l.src=LOGO;
   try{let lk=document.querySelector('link[rel="icon"]');if(!lk){lk=document.createElement('link');lk.rel='icon';document.head.appendChild(lk)}lk.href=LOGO}catch(e){}}
 
@@ -3627,6 +3638,7 @@ window.JJStock={
 
 /* ================= misc ================= */
 function show(s){$(s).classList.add('show')}
+function pageize(sel){try{const el=typeof sel==='string'?document.querySelector(sel):sel;if(el)el.classList.add('pagemode');}catch(e){}}
 function hideAll(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show'));
   if(currentUser&&isDispatchOnly())show('#dispatchOverlay');}   // คลัง: กลับมากระดานจัดของเสมอ
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=hideAll);
