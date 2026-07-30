@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b20 — เมนูข้างอ่านง่าย</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b21 — แก้หน้าค้าง</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3645,7 +3645,8 @@ window.JJStock={
 /* ================= misc ================= */
 function show(s){$(s).classList.add('show')}
 function pageize(sel){try{const el=typeof sel==='string'?document.querySelector(sel):sel;if(el)el.classList.add('pagemode');}catch(e){}}
-function hideAll(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show'));
+function closeDynOverlays(){document.querySelectorAll('.overlay:not([id])').forEach(o=>o.remove());} // หน้าแบบสร้างสด (การใช้ของ/รับของ)
+function hideAll(){closeDynOverlays();document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show'));
   if(currentUser&&isDispatchOnly())show('#dispatchOverlay');}   // คลัง: กลับมากระดานจัดของเสมอ
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=hideAll);
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)hideAll()}));
