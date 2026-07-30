@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b21 — แก้หน้าค้าง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b22 — สรุปนับเป็นเพจ</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1691,7 +1691,7 @@ function buildOrder(){
   });
 }
 function openSum(){if(!$('#countDate').value)$('#countDate').value=bizTodayISO();
-  $('#counterInput').value=currentUser?currentUser.name:'';ORDER={};buildSlip();buildOrder();show('#sumOverlay')}
+  $('#counterInput').value=currentUser?currentUser.name:'';ORDER={};buildSlip();buildOrder();show('#sumOverlay');pageize('#sumOverlay')}
 $('#summaryBtn').onclick=openSum;
 $('#countDate').onchange=buildSlip;
 $('#copyBtn').onclick=async()=>{const t=buildText();
