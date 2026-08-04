@@ -11,7 +11,7 @@ set -u
 
 # --- ตั้งค่าก่อนใช้งาน ----------------------------------------------
 # DB_URL: อันเดียวกับใน backup_jjmk.sh (Session pooler + รหัสผ่าน DB)
-DB_URL="${SUPABASE_DB_URL:-postgresql://postgres.aikyxvluaiubdidqxwnd:ใส่รหัสผ่านDB@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres}"
+DB_URL="${SUPABASE_DB_URL:-postgresql://postgres.aikyxvluaiubdidqxwnd:ใส่รหัสผ่านDBตรงนี้@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres}"
 # SERVICE_ROLE: Supabase dashboard -> Project Settings -> API -> service_role (secret)
 SERVICE_ROLE="${SUPABASE_SERVICE_ROLE:-ใส่service_role_key}"
 SB_URL="https://aikyxvluaiubdidqxwnd.supabase.co"
