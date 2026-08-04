@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b24 — ดูย้อนหลังจากคลังข้อมูลเก่า</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b25 — ใบปะหน้าปิดกะ</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2524,8 +2524,157 @@ function openModule(name){
 function showHome(){openModule('stock');}
 function openSales(){openModule('sales');}
 
-/* ----- หน้า ยอดขาย ----- */
-function renderSalesPage(body){
+/* ----- หน้า ใบปะหน้า: ปิดกะเช้า/เย็น + กระทบยอดเงินสด (b25) -----
+   ง่ายกว่าใบกระดาษ: กรอกยอดรวมช่องเดียวพอ (ไม่ต้องนับแยกแบงก์) เลขทุกช่องคิดให้อัตโนมัติ
+   สูตรเทียบเท่าใบเดิม: ควรมีในเก๊ะปิด = เก๊ะเปิด + ขายเงินสด − รายจ่ายสด − เงินฝาก · Diff = นับจริง − ควรมี */
+async function renderSalesPage(body){
+  const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  let channels=['QR พร้อมเพย์','เครดิต'];
+  try{const {data}=await sb.from('config').select('value').eq('key','pay_channels');
+    if(data&&data[0]&&data[0].value)channels=String(data[0].value).split(',').map(s=>s.trim()).filter(Boolean);}catch(e){}
+  const NUM='inputmode="decimal" placeholder="0" style="width:120px;padding:9px;border:1.5px solid var(--line);border-radius:9px;font-weight:700;text-align:right;font-family:\'Sarabun\'"';
+  const row=(label,inner)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)"><span>${label}</span>${inner}</div>`;
+  body.innerHTML=`<div class="mp_card">
+      <div class="rfilters">
+        <select class="cv_b">${bOpts}</select>
+        <input type="date" class="cv_d" value="${bizTodayISO()}">
+        <select class="cv_s"><option value="am">☀️ กะเช้า</option><option value="pm">🌙 กะเย็น</option></select>
+      </div>
+      <div class="hm_t" style="margin:12px 0 4px">① ยอดขายกะนี้</div>
+      ${row('เงินสด',`<input class="cv_cash" ${NUM}>`)}
+      <div class="cv_trs">${channels.map(c=>row(escapeHtml(c),`<input class="cv_tr" data-ch="${escapeHtml(c)}" ${NUM}>`)).join('')}</div>
+      ${row('<b>รวมยอดขาย</b>','<b class="cv_sum_sales" style="color:var(--red);font-size:1.1em">0</b>')}
+      <div style="text-align:right;margin:2px 0"><button class="cv_chedit" style="border:none;background:none;color:var(--ink-soft);font-size:.78em;cursor:pointer">✏️ แก้ช่องทางเงินโอน</button></div>
+      <div class="hm_t" style="margin:14px 0 4px">② เงินสดในเก๊ะ</div>
+      ${row('เงินเก๊ะเปิด (เงินทอนตั้งต้น)',`<input class="cv_float" ${NUM}>`)}
+      ${row('เงินฝาก / ส่งออฟฟิศ',`<input class="cv_dep" ${NUM}>`)}
+      <div style="padding:6px 0;border-bottom:1px dashed var(--line)"><div style="display:flex;justify-content:space-between;align-items:center"><span>รายจ่ายเงินสด</span><span>รวม <b class="cv_sum_exp" style="color:#b3261e">0</b></span></div>
+        <div class="cv_exps"></div>
+        <button class="cv_exp_add" style="border:1px dashed var(--line);background:none;border-radius:8px;padding:5px 12px;cursor:pointer;margin-top:6px;font-family:'Sarabun'">+ จดรายจ่าย</button></div>
+      <div class="hm_t" style="margin:14px 0 4px">③ ปิดกะ</div>
+      ${row('เงินที่ควรมีในเก๊ะปิด','<b class="cv_should">0</b>')}
+      ${row('เงินเก๊ะปิด (นับจริง)',`<input class="cv_cnt" ${NUM}>`)}
+      <div class="cv_diffbox" style="margin-top:10px;padding:12px;border-radius:12px;text-align:center;font-size:1.15em;background:var(--line)"><b class="cv_diff">ยังไม่ได้นับเก๊ะปิด</b></div>
+      <input class="cv_note" placeholder="หมายเหตุ (ไม่บังคับ)" style="width:100%;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
+      <button class="act wide cv_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกปิดกะ</button>
+      <p class="hint" style="margin-top:6px">ยอดขายทั้งวัน (เช้า+เย็น) ระบบรวมเข้ารายงานยอดขาย/Food Cost ให้อัตโนมัติ</p>
+    </div>
+    <div class="mp_card" style="margin-top:12px">
+      <div class="hm_t" style="margin-bottom:8px">ประวัติ 14 วันล่าสุด <small style="color:var(--ink-soft)">(แตะเพื่อเปิดดู/แก้)</small></div>
+      <div class="cv_hist"><div class="rempty">กำลังโหลด...</div></div>
+    </div>`;
+  const $c=s=>body.querySelector(s), $$c=s=>[...body.querySelectorAll(s)];
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/[, ]/g,''));return isFinite(n)?n:0;};
+  const fmtB=n=>(Math.round(n*100)/100).toLocaleString('th-TH');
+  function addExp(d,a){const r=document.createElement('div');
+    r.style.cssText='display:flex;gap:6px;margin-top:6px';
+    r.innerHTML=`<input class="cv_exp_d" placeholder="จ่ายค่าอะไร" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:'Sarabun'"><input class="cv_exp_a" inputmode="decimal" placeholder="บาท" style="width:90px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-weight:700;text-align:right"><button class="cv_exp_x" style="border:none;background:none;color:#b3261e;cursor:pointer;font-size:1.05em">✕</button>`;
+    if(d)r.querySelector('.cv_exp_d').value=d;
+    if(a!=null&&a!=='')r.querySelector('.cv_exp_a').value=a;
+    r.querySelector('.cv_exp_x').onclick=()=>{r.remove();recalc();};
+    r.querySelectorAll('input').forEach(i=>i.oninput=recalc);
+    $c('.cv_exps').appendChild(r);}
+  function expRows(){return $$c('.cv_exps > div').map(r=>({d:r.querySelector('.cv_exp_d').value.trim(),a:num(r.querySelector('.cv_exp_a').value)})).filter(x=>x.d||x.a);}
+  function recalc(){
+    const cash=num($c('.cv_cash').value);
+    const tr=$$c('.cv_tr').reduce((s,i)=>s+num(i.value),0);
+    const exp=expRows().reduce((s,x)=>s+x.a,0);
+    $c('.cv_sum_sales').textContent=fmtB(cash+tr);
+    $c('.cv_sum_exp').textContent=fmtB(exp);
+    const should=num($c('.cv_float').value)+cash-exp-num($c('.cv_dep').value);
+    $c('.cv_should').textContent=fmtB(should);
+    const box=$c('.cv_diffbox'),df=$c('.cv_diff');
+    if(String($c('.cv_cnt').value).trim()===''){df.textContent='ยังไม่ได้นับเก๊ะปิด';df.style.color='var(--ink-soft)';box.style.background='var(--line)';return;}
+    const diff=Math.round((num($c('.cv_cnt').value)-should)*100)/100;
+    if(diff===0){df.textContent='✅ เงินตรง';df.style.color='#fff';box.style.background='#1a7f37';}
+    else if(diff<0){df.textContent='🔻 เงินขาด '+fmtB(-diff)+' บาท';df.style.color='#fff';box.style.background='#b3261e';}
+    else{df.textContent='🔺 เงินเกิน '+fmtB(diff)+' บาท';df.style.color='#5f4b00';box.style.background='#ffe08a';}
+  }
+  function bindTr(i){i.oninput=recalc;}
+  $$c('.cv_cash,.cv_float,.cv_dep,.cv_cnt').forEach(i=>i.oninput=recalc);
+  $$c('.cv_tr').forEach(bindTr);
+  async function load(){
+    const b=$c('.cv_b').value,d=$c('.cv_d').value,s=$c('.cv_s').value;
+    $c('.cv_exps').innerHTML='';
+    ['.cv_cash','.cv_float','.cv_dep','.cv_cnt','.cv_note'].forEach(x=>{$c(x).value='';});
+    $$c('.cv_tr').forEach(i=>i.value='');
+    try{const {data}=await sb.from('shift_close').select('*').eq('branch_id',b).eq('close_date',d).eq('shift',s);
+      const r=data&&data[0];
+      if(r){
+        $c('.cv_cash').value=(r.cash_sales==null?'':r.cash_sales);
+        $c('.cv_float').value=(r.float_start==null?'':r.float_start);
+        $c('.cv_dep').value=(r.deposit==null?'':r.deposit);
+        $c('.cv_cnt').value=(r.counted_cash==null?'':r.counted_cash);
+        $c('.cv_note').value=r.note||'';
+        const tr=r.transfers||{};
+        Object.keys(tr).forEach(ch=>{
+          let inp=$$c('.cv_tr').find(i=>i.dataset.ch===ch);
+          if(!inp){$c('.cv_trs').insertAdjacentHTML('beforeend',row(escapeHtml(ch),`<input class="cv_tr" data-ch="${escapeHtml(ch)}" ${NUM}>`));
+            inp=$$c('.cv_tr').find(i=>i.dataset.ch===ch);if(inp)bindTr(inp);}
+          if(inp)inp.value=tr[ch];});
+        (Array.isArray(r.expenses)?r.expenses:[]).forEach(x=>addExp(x.d,x.a));
+      }
+    }catch(e){}
+    recalc();
+  }
+  async function loadHist(){
+    const out=$c('.cv_hist');
+    try{
+      const since=new Date(bizDate().getTime()-13*86400000).toISOString().slice(0,10);
+      const {data,error}=await sb.from('shift_close').select('*').gte('close_date',since).order('close_date',{ascending:false}).order('shift',{ascending:true});
+      if(error)throw error;
+      if(!data||!data.length){out.innerHTML='<div class="rempty">ยังไม่มีข้อมูล — ปิดกะแรกได้เลย</div>';return;}
+      const BR={};accessibleBranches().forEach(b=>BR[b.id]=b.name.replace('สาขา',''));
+      out.innerHTML=data.map(r=>{
+        const t=r.transfers||{};const sales=(+r.cash_sales||0)+Object.values(t).reduce((a,v)=>a+(+v||0),0);
+        const exp=(Array.isArray(r.expenses)?r.expenses:[]).reduce((a,x)=>a+(+x.a||0),0);
+        const should=(+r.float_start||0)+(+r.cash_sales||0)-exp-(+r.deposit||0);
+        let dtxt='ยังไม่นับเก๊ะ',dcol='var(--ink-soft)';
+        if(r.counted_cash!=null){const diff=Math.round(((+r.counted_cash)-should)*100)/100;
+          if(diff===0){dtxt='✅ ตรง';dcol='#1a7f37';}else if(diff<0){dtxt='ขาด '+fmtB(-diff);dcol='#b3261e';}else{dtxt='เกิน '+fmtB(diff);dcol='#9a6700';}}
+        const d10=String(r.close_date).slice(0,10);
+        return `<div class="cv_h" data-b="${r.branch_id}" data-d="${d10}" data-s="${r.shift}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer">
+          <span>${fmtDate(d10)} · ${escapeHtml(BR[r.branch_id]||'')} · ${r.shift==='am'?'☀️เช้า':'🌙เย็น'}</span>
+          <span style="text-align:right"><b style="color:var(--red)">${fmtB(sales)}</b> <small style="color:${dcol}">${dtxt}</small></span></div>`;
+      }).join('');
+      $$c('.cv_h').forEach(el=>el.onclick=()=>{$c('.cv_b').value=el.dataset.b;$c('.cv_d').value=el.dataset.d;$c('.cv_s').value=el.dataset.s;load();window.scrollTo({top:0,behavior:'smooth'});});
+    }catch(e){out.innerHTML='<div class="rempty">โหลดไม่ได้: '+escapeHtml(e.message||'')+' (ยังไม่ได้รัน SQL b25?)</div>';}
+  }
+  $c('.cv_exp_add').onclick=()=>{addExp();};
+  $c('.cv_chedit').onclick=async()=>{
+    const v=prompt('ช่องทางเงินโอน (คั่นด้วยเครื่องหมาย , )',channels.join(', '));
+    if(v==null)return;
+    const val=v.split(',').map(x=>x.trim()).filter(Boolean).join(',');
+    if(!val){toast('ต้องมีอย่างน้อย 1 ช่องทาง');return;}
+    try{const {error}=await sb.from('config').upsert({key:'pay_channels',value:val},{onConflict:'key'});
+      if(error)throw error;toast('บันทึกช่องทางแล้ว ✓');renderSalesPage(body);}catch(e){toast('บันทึกไม่ได้: '+e.message);}
+  };
+  $c('.cv_save').onclick=async()=>{
+    const b=$c('.cv_b').value,d=$c('.cv_d').value,s=$c('.cv_s').value;
+    if(!d){toast('เลือกวันที่ก่อน');return;}
+    const transfers={};$$c('.cv_tr').forEach(i=>{const v=num(i.value);if(v)transfers[i.dataset.ch]=v;});
+    const rec={branch_id:b,close_date:d,shift:s,
+      cash_sales:num($c('.cv_cash').value),transfers:transfers,
+      float_start:num($c('.cv_float').value),expenses:expRows(),
+      deposit:num($c('.cv_dep').value),
+      counted_cash:(String($c('.cv_cnt').value).trim()===''?null:num($c('.cv_cnt').value)),
+      note:$c('.cv_note').value.trim()||null,user_name:currentUser&&currentUser.name,
+      updated_at:new Date().toISOString()};
+    const btn=$c('.cv_save');btn.disabled=true;
+    const {error}=await sb.from('shift_close').upsert(rec,{onConflict:'branch_id,close_date,shift'});
+    if(error){btn.disabled=false;toast('บันทึกไม่ได้: '+error.message+' (ยังไม่ได้รัน SQL b25?)');return;}
+    try{const {data:all}=await sb.from('shift_close').select('cash_sales,transfers').eq('branch_id',b).eq('close_date',d);
+      const rev=(all||[]).reduce((sum,r2)=>{const t=r2.transfers||{};return sum+(+r2.cash_sales||0)+Object.values(t).reduce((a,v)=>a+(+v||0),0);},0);
+      await sb.from('daily_revenue').upsert({branch_id:b,rev_date:d,revenue:rev,user_name:currentUser&&currentUser.name},{onConflict:'branch_id,rev_date'});
+    }catch(e){}
+    btn.disabled=false;toast('บันทึกปิดกะ ✓');loadHist();
+  };
+  ['.cv_b','.cv_d','.cv_s'].forEach(x=>{$c(x).onchange=load;});
+  load();loadHist();
+}
+
+/* ----- หน้า ยอดขายเดิม (b13) — เลิกใช้แล้ว เก็บไว้อ้างอิง ----- */
+function renderSalesPage_legacy(body){
   const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
   body.innerHTML=`<div class="mp_card">
       <div class="hm_t" style="margin-bottom:8px">กรอกยอดขายท้ายวัน</div>
