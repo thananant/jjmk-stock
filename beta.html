@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b32 — เลือกซัพแล้วขึ้นรายการบิล</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b33 — รายการบิลครบทุกแถว/กันสลับซัพ</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2898,7 +2898,7 @@ async function openSupMapping(onDone){
   const out=ov.querySelector('.sm_out');
   let sheets=[];
   try{
-    const {data,error}=await sb.from('supplier_items').select('sup_sheet,sup_full');
+    const {data,error}=await sbAll(()=>sb.from('supplier_items').select('sup_sheet,sup_full').order('sort'),10);
     if(error)throw error;
     const seen={};(data||[]).forEach(r=>{if(!seen[r.sup_sheet])seen[r.sup_sheet]={sheet:r.sup_sheet,full:r.sup_full||''};});
     sheets=Object.values(seen).sort((a,b)=>a.sheet.localeCompare(b.sheet,'th'));
@@ -2967,13 +2967,13 @@ async function renderSupBillPage(body){
   const num=v=>{const n=parseFloat(String(v||'').replace(/[, ]/g,''));return isFinite(n)?n:0;};
   const fmt2=n=>(Math.round(n*100)/100).toLocaleString('th-TH');
   // ── เลือกซัพ → ขึ้นรายการสินค้าของซัพนั้นให้เลย (จับคู่ชื่อผ่าน supplier_map) ──
-  const ITEMS_CACHE={};
+  const ITEMS_CACHE={};let ITEMS_SEQ=0;   // SEQ กันผลลัพธ์เก่ามาทับตอนสลับซัพเร็ว ๆ
   async function sheetsFor(appName){        // ชื่อชีทที่จับคู่กับซัพในแอปนี้ (มีได้หลายชื่อ = เจ้าเดียวกัน)
     const m=await loadSupMap();
     const hit=Object.keys(m).filter(k=>m[k]===appName);
     if(hit.length)return hit;
     // ยังไม่จับคู่ → ลองเดาจากชื่อให้ก่อน (ผู้ใช้ยืนยันทีหลังในหน้าจับคู่)
-    try{const {data}=await sb.from('supplier_items').select('sup_sheet,sup_full');
+    try{const {data}=await sbAll(()=>sb.from('supplier_items').select('sup_sheet,sup_full').order('sort'),10);
       const seen={};(data||[]).forEach(r=>{if(!seen[r.sup_sheet])seen[r.sup_sheet]=r.sup_full||'';});
       const g=Object.keys(seen).map(k=>({k,s:Math.max(supSim(k,appName),supSim(seen[k],appName))}))
         .sort((a,b)=>b.s-a.s)[0];
@@ -2983,18 +2983,23 @@ async function renderSupBillPage(body){
   }
   async function loadItems(){
     const wrap=$x('.sx_items');const appName=$x('.sx_s').value;
+    const seq=++ITEMS_SEQ;
+    const stale=()=>seq!==ITEMS_SEQ||$x('.sx_s').value!==appName;   // ผู้ใช้เปลี่ยนซัพระหว่างโหลด = ทิ้งผลนี้
     if(!appName||appName==='__other'){wrap.innerHTML='';return;}
     wrap.innerHTML='<div class="rempty" style="padding:8px">กำลังโหลดรายการ...</div>';
     let rows=ITEMS_CACHE[appName];
     if(!rows){
       try{
         const sh=await sheetsFor(appName);
+        if(stale())return;
         if(!sh.length){wrap.innerHTML='<div class="rempty" style="padding:8px">ยังไม่ได้จับคู่ชื่อซัพนี้กับไฟล์บิล<br><small>กด 🔗 จับคู่ชื่อซัพ ด้านล่าง</small></div>';return;}
-        const {data,error}=await sb.from('supplier_items').select('*').in('sup_sheet',sh).eq('active',true).order('sort');
+        const {data,error}=await sbAll(()=>sb.from('supplier_items').select('*').in('sup_sheet',sh).eq('active',true).order('sort'),10);
         if(error)throw error;
+        if(stale())return;
         rows=data||[];ITEMS_CACHE[appName]=rows;
-      }catch(e){wrap.innerHTML='<div class="rempty" style="padding:8px">โหลดรายการไม่ได้: '+escapeHtml(e.message||'')+'</div>';return;}
+      }catch(e){if(stale())return;wrap.innerHTML='<div class="rempty" style="padding:8px">โหลดรายการไม่ได้: '+escapeHtml(e.message||'')+'</div>';return;}
     }
+    if(stale())return;
     if(!rows.length){wrap.innerHTML='<div class="rempty" style="padding:8px">ซัพนี้ยังไม่มีรายการในไฟล์บิล</div>';return;}
     const vat=rows.some(r=>r.has_vat);
     wrap.innerHTML=`<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden">
@@ -3033,7 +3038,9 @@ async function renderSupBillPage(body){
     wrap.querySelector('.sx_find').oninput=e=>{const k=e.target.value.trim().toLowerCase();
       [...list.querySelectorAll('.sx_row')].forEach(el=>{el.style.display=(!k||el.dataset.k.includes(k))?'':'none';});};
   }
-  $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';loadItems();};
+  $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';
+    $x('.sx_a').value='';                       // ยอดบิลผูกกับซัพ — เปลี่ยนซัพต้องล้าง กันบันทึกยอดข้ามเจ้า
+    loadItems();};
   $x('.sx_map').onclick=()=>openSupMapping(()=>{Object.keys(ITEMS_CACHE).forEach(k=>delete ITEMS_CACHE[k]);loadItems();});
   async function loadBills(){
     const out=$x('.sx_out');
