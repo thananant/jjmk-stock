@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b26 — ใบปะหน้าปรับตามหน้างาน</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b27 — Enter เลื่อนช่องถัดไป</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2533,7 +2533,7 @@ async function renderSalesPage(body){
   try{const {data}=await sb.from('config').select('value').eq('key','pay_channels');
     if(data&&data[0]&&data[0].value)channels=String(data[0].value).split(',').map(s=>s.trim()).filter(Boolean);}catch(e){}
   const qrLike=c=>/qr|พร้อมเพย์|โอน/i.test(c);
-  const NUM='inputmode="decimal" placeholder="0" style="width:120px;padding:9px;border:1.5px solid var(--line);border-radius:9px;font-weight:700;text-align:right;background:#fff;font-family:\'Sarabun\'"';
+  const NUM='inputmode="decimal" enterkeyhint="next" placeholder="0" style="width:120px;padding:9px;border:1.5px solid var(--line);border-radius:9px;font-weight:700;text-align:right;background:#fff;font-family:\'Sarabun\'"';
   const row=(label,inner)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed rgba(0,0,0,.09)"><span>${label}</span>${inner}</div>`;
   const trRow=c=>row(escapeHtml(c),`<input class="cv_tr" data-ch="${escapeHtml(c)}" ${NUM}>`);
   const sec=(color,bg,title,inner)=>`<div style="background:${bg};border-left:5px solid ${color};border-radius:12px;padding:10px 14px;margin-top:12px"><div class="hm_t" style="margin-bottom:4px;color:${color}">${title}</div>${inner}</div>`;
@@ -2575,7 +2575,7 @@ async function renderSalesPage(body){
   const fmtB=n=>(Math.round(n*100)/100).toLocaleString('th-TH');
   function addExp(d,by,a){const r=document.createElement('div');
     r.style.cssText='display:flex;gap:6px;margin-top:6px';
-    r.innerHTML=`<input class="cv_exp_d" placeholder="จ่ายค่าอะไร" style="flex:1.4;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_b" placeholder="ใครเบิก" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_a" inputmode="decimal" placeholder="บาท" style="width:84px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-weight:700;text-align:right;background:#fff"><button class="cv_exp_x" style="border:none;background:none;color:#b3261e;cursor:pointer;font-size:1.05em">✕</button>`;
+    r.innerHTML=`<input class="cv_exp_d" enterkeyhint="next" placeholder="จ่ายค่าอะไร" style="flex:1.4;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_b" enterkeyhint="next" placeholder="ใครเบิก" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_a" inputmode="decimal" enterkeyhint="next" placeholder="บาท" style="width:84px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-weight:700;text-align:right;background:#fff"><button class="cv_exp_x" style="border:none;background:none;color:#b3261e;cursor:pointer;font-size:1.05em">✕</button>`;
     if(d)r.querySelector('.cv_exp_d').value=d;
     if(by)r.querySelector('.cv_exp_b').value=by;
     if(a!=null&&a!=='')r.querySelector('.cv_exp_a').value=a;
@@ -2697,6 +2697,15 @@ async function renderSalesPage(body){
     btn.disabled=false;toast('บันทึกปิดกะ ✓');loadHist();
   };
   ['.cv_b','.cv_d','.cv_s'].forEach(x=>{$c(x).onchange=load;});
+  // กด Enter = เลื่อนไปช่องถัดไปอัตโนมัติ (มือถือ: ปุ่มแป้นพิมพ์เป็น "ถัดไป")
+  body.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'||!e.target||e.target.tagName!=='INPUT')return;
+    e.preventDefault();
+    const L=[...body.querySelectorAll('input')].filter(i=>!i.disabled&&i.type!=='date'&&i.offsetParent!==null);
+    const n=L.indexOf(e.target);
+    if(n>-1&&n<L.length-1)L[n+1].focus();
+    else e.target.blur();
+  });
   load();loadHist();
 }
 
