@@ -12,13 +12,16 @@
 - รหัสผ่าน Database: Supabase dashboard → ⚙️ Project Settings → Database
   (ถ้าจำไม่ได้ กด Reset database password ได้)
 
-### ติดตั้ง (Synology)
-1. เปิด SSH หรือใช้ File Station วางไฟล์ `backup_jjmk.sh` ไว้เช่น `/volume1/scripts/`
-2. แก้ 3 ค่าบนหัวไฟล์: `DB_URL` (copy จาก dashboard → **Connect → Session pooler** แล้วใส่รหัสผ่าน), `DEST`, `KEEP_DAYS`
+### ติดตั้ง (Synology) — โฟลเดอร์ปลายทาง = shared folder `JingJai-System`
+วางสคริปต์และเก็บ backup ไว้ในโฟลเดอร์ `JingJai-System` (path จริงปกติ = `/volume1/JingJai-System`
+ถ้า NAS มีหลาย volume อาจเป็น `/volume2/...` เช็คที่ Control Panel → Shared Folder → ดู Location)
+1. ใช้ File Station อัปโหลด `backup_jjmk.sh` เข้าโฟลเดอร์ `JingJai-System`
+2. แก้ค่าบนหัวไฟล์: `DB_URL` (copy จาก dashboard → **Connect → Session pooler** แล้วใส่รหัสผ่าน)
+   · `DEST` ตั้งไว้ให้แล้วเป็น `/volume1/JingJai-System` (แก้ถ้า volume ไม่ใช่ 1)
 3. Control Panel → **Task Scheduler** → Create → Scheduled Task → User-defined script
    - User: `root` · เวลา: ตี 4 ทุกวัน (ก่อนรีเซ็ต 06:00)
-   - Script: `bash /volume1/scripts/backup_jjmk.sh >> /volume1/scripts/backup_jjmk.log 2>&1`
-4. กด Run ทดสอบ 1 ครั้ง แล้วเช็คว่ามีไฟล์ใน `DEST`
+   - Script: `bash /volume1/JingJai-System/backup_jjmk.sh >> /volume1/JingJai-System/backup.log 2>&1`
+4. กด Run ทดสอบ 1 ครั้ง แล้วเช็คว่ามีโฟลเดอร์ `dump/` กับ `csv/` โผล่ใน `JingJai-System`
 
 ### ติดตั้ง (QNAP)
 เหมือนกัน แต่ตั้งเวลาใน crontab หรือใช้แอป "หลังบ้าน" ของ QNAP:
@@ -31,18 +34,19 @@
 
 ### กู้คืนข้อมูล (ถ้าวันไหน Supabase มีปัญหา)
 ```
-docker run --rm -v /volume1/backup/jjmk/dump:/b postgres:17-alpine \
+docker run --rm -v /volume1/JingJai-System/dump:/b postgres:17-alpine \
   pg_restore -d "<DB_URL ปลายทาง>" --clean --if-exists --no-owner /b/jjmk_YYYYMMDD_HHMM.dump
 ```
 
 ### ได้อะไรบ้างต่อวัน
 ```
-/volume1/backup/jjmk/
+/volume1/JingJai-System/
 ├── dump/jjmk_20260804_0400.dump     ← กู้คืนทั้งก้อน
 ├── dump/jjmk_20260804_0400.sql.gz   ← SQL อ่านเองได้
-└── csv/20260804_0400/               ← เปิด Excel ได้เลย
-    ├── stock_counts.csv, stock_receipts.csv, daily_revenue.csv
-    ├── products.csv, suppliers.csv, branches.csv ...
+├── csv/20260804_0400/               ← เปิด Excel ได้เลย
+│   ├── stock_counts.csv, stock_receipts.csv, daily_revenue.csv
+│   ├── products.csv, suppliers.csv, branches.csv ...
+└── archive/                         ← คลังข้อมูลเก่ารายเดือน (จาก archive_jjmk.sh)
 ```
 
 ## ระดับ 1.5: ย้ายข้อมูลเก่าออกจาก DB (เก็บบน NAS + คลัง) — แอปยังดูย้อนหลังได้
@@ -60,10 +64,10 @@ Supabase Storage ให้หน้า "ดูข้อมูลย้อนห�
 ### ขั้นตอนเปิดใช้ (ครั้งเดียว)
 1. รัน `setup_archive_bucket.sql` ใน Supabase SQL Editor (สร้างที่เก็บไฟล์คลัง)
 2. ใช้แอปเวอร์ชัน **b24 ขึ้นไป** (มีตัวอ่านคลังในหน้าดูย้อนหลัง/การใช้ของแล้ว)
-3. วาง `archive_jjmk.sh` ข้าง `backup_jjmk.sh` แก้หัวไฟล์: `DB_URL`, `SERVICE_ROLE`
+3. วาง `archive_jjmk.sh` ข้าง `backup_jjmk.sh` ในโฟลเดอร์ `JingJai-System` แก้หัวไฟล์: `DB_URL`, `SERVICE_ROLE`
    (dashboard → Project Settings → API → **service_role** — เป็นกุญแจลับ ห้ามเอาไปใส่ในหน้าเว็บ)
 4. ตั้ง Task Scheduler เพิ่ม: เดือนละครั้ง เช่น วันที่ 1 ตี 5 (หลัง backup ตี 4):
-   `bash /volume1/scripts/archive_jjmk.sh >> /volume1/scripts/archive_jjmk.log 2>&1`
+   `bash /volume1/JingJai-System/archive_jjmk.sh >> /volume1/JingJai-System/archive.log 2>&1`
 
 ### กลไกกันข้อมูลหาย (ในสคริปต์)
 - ไม่มี backup ใหม่กว่า 48 ชม. → **ไม่ยอมลบอะไรเลย** หยุดทันที

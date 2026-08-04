@@ -12,8 +12,8 @@ set -eu
 #    (แบบ pooler ใช้ได้กับเน็ตบ้าน IPv4 — แบบ db.xxx.supabase.co ตรง ๆ
 #     มักต่อไม่ติดเพราะเป็น IPv6)
 DB_URL="${SUPABASE_DB_URL:-postgresql://postgres.aikyxvluaiubdidqxwnd:ใส่รหัสผ่านDB@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres}"
-# 2) DEST: โฟลเดอร์ปลายทางบน NAS
-DEST="${BACKUP_DIR:-/volume1/backup/jjmk}"
+# 2) DEST: โฟลเดอร์ปลายทางบน NAS (= shared folder "JingJai-System")
+DEST="${BACKUP_DIR:-/volume1/JingJai-System}"
 # 3) KEEP_DAYS: เก็บย้อนหลังกี่วัน (เกินนี้ลบทิ้งอัตโนมัติ)
 KEEP_DAYS="${KEEP_DAYS:-90}"
 # -------------------------------------------------------------------

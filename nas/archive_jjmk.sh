@@ -15,7 +15,7 @@ DB_URL="${SUPABASE_DB_URL:-postgresql://postgres.aikyxvluaiubdidqxwnd:ใส่�
 # SERVICE_ROLE: Supabase dashboard -> Project Settings -> API -> service_role (secret)
 SERVICE_ROLE="${SUPABASE_SERVICE_ROLE:-ใส่service_role_key}"
 SB_URL="https://aikyxvluaiubdidqxwnd.supabase.co"
-DEST="${BACKUP_DIR:-/volume1/backup/jjmk}"
+DEST="${BACKUP_DIR:-/volume1/JingJai-System}"
 # เก็บข้อมูลใน DB กี่วันล่าสุด (เก่ากว่านี้ + เต็มเดือนแล้ว = ย้ายไปคลัง)
 KEEP_DAYS="${KEEP_DAYS_DB:-120}"
 # --------------------------------------------------------------------
