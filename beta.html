@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b33 — รายการบิลครบทุกแถว/กันสลับซัพ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b36 — จับคู่ชื่อสินค้า บิล↔นับสต๊อก</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2957,7 +2957,10 @@ async function renderSupBillPage(body){
       <div class="sx_items" style="margin-top:8px"></div>
       <input class="sx_n" placeholder="หมายเหตุ / เลขที่บิล (ไม่บังคับ)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
       <button class="act wide sx_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกบิล</button>
-      <div style="text-align:right;margin-top:6px"><button class="sx_map" style="border:none;background:none;color:#1559c7;font-size:.8em;cursor:pointer">🔗 จับคู่ชื่อซัพกับไฟล์บิล</button></div>
+      <div style="text-align:right;margin-top:6px;display:flex;gap:14px;justify-content:flex-end">
+        <button class="sx_imap" style="border:none;background:none;color:#1559c7;font-size:.8em;cursor:pointer">🏷️ จับคู่ชื่อสินค้า</button>
+        <button class="sx_map" style="border:none;background:none;color:#1559c7;font-size:.8em;cursor:pointer">🔗 จับคู่ชื่อซัพ</button>
+      </div>
     </div>
     <div class="mp_card" style="margin-top:12px">
       <div class="hm_t" style="margin-bottom:8px">บิลย้อนหลัง 31 วัน</div>
@@ -3015,7 +3018,7 @@ async function renderSupBillPage(body){
       <input type="checkbox" class="sx_auto" checked> ใช้ยอดรวมรายการเป็นยอดบิลอัตโนมัติ</label>`;
     const list=wrap.querySelector('.sx_list');
     list.innerHTML=rows.map((r,i)=>`<div class="sx_row" data-i="${i}" data-k="${escapeHtml((r.name+' '+(r.unit||'')).toLowerCase())}" style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line)">
-        <span style="flex:1;min-width:0;font-size:.88em">${escapeHtml(r.name)}<small style="color:var(--ink-soft)"> ${escapeHtml(r.unit||'')}</small></span>
+        <span style="flex:1;min-width:0;font-size:.88em">${escapeHtml(r.name)}<small style="color:var(--ink-soft)"> ${escapeHtml(r.unit||'')}</small>${r.stock_name?'<br><small style="color:#1559c7">🏷️ '+escapeHtml(r.stock_name)+'</small>':''}</span>
         <input class="sx_q" inputmode="decimal" placeholder="จำนวน" style="width:64px;padding:6px;border:1px solid var(--line);border-radius:7px;text-align:right;font-size:.85em">
         <input class="sx_p" inputmode="decimal" placeholder="ราคา" style="width:76px;padding:6px;border:1.5px solid var(--line);border-radius:7px;text-align:right;font-weight:700;font-size:.85em">
       </div>`).join('');
@@ -3042,6 +3045,67 @@ async function renderSupBillPage(body){
     $x('.sx_a').value='';                       // ยอดบิลผูกกับซัพ — เปลี่ยนซัพต้องล้าง กันบันทึกยอดข้ามเจ้า
     loadItems();};
   $x('.sx_map').onclick=()=>openSupMapping(()=>{Object.keys(ITEMS_CACHE).forEach(k=>delete ITEMS_CACHE[k]);loadItems();});
+  // ── 🏷️ จับคู่ชื่อสินค้า: ชื่อตามบิล (supplier_items) ↔ ชื่อนับสต๊อก (products) — b36 ──
+  async function openItemMapping(appName){
+    if(!appName||appName==='__other'){toast('เลือกซัพก่อน');return;}
+    const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:340';
+    ov.innerHTML=`<div class="sheet" style="max-width:720px">
+      <div class="sheet-head"><h3>🏷️ จับคู่ชื่อสินค้า — ${escapeHtml(appName)}</h3><button class="x" data-x>✕</button></div>
+      <div class="sheet-body">
+        <p class="hint" style="margin:0 0 8px">ซ้าย = ชื่อตามบิล · ขวา = ชื่อในระบบนับสต๊อก — จับคู่แล้วชื่อนับจะโชว์ใต้รายการบิล และใช้โยงต้นทุนได้ต่อไป</p>
+        <button class="act wide im_auto" style="background:#1559c7;color:#fff;border:none;margin-bottom:10px">✨ เดาให้อัตโนมัติ</button>
+        <div class="im_out"><div class="rempty">กำลังโหลด...</div></div>
+        <button class="act wide im_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกการจับคู่</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('[data-x]').onclick=()=>ov.remove();
+    ov.onclick=e=>{if(e.target===ov)ov.remove();};
+    const out=ov.querySelector('.im_out');
+    const stockNames=[...new Set(Object.values(ITEM_INDEX).map(x=>x.item)
+      .filter(i=>String(i.sup||'').trim()===String(appName).trim()).map(i=>i.name))].sort((a,b)=>a.localeCompare(b,'th'));
+    let rows=[];
+    try{
+      const sh=await sheetsFor(appName);
+      if(!sh.length)throw new Error('ยังไม่ได้จับคู่ชื่อซัพนี้กับไฟล์บิล (กด 🔗 ก่อน)');
+      const {data,error}=await sbAll(()=>sb.from('supplier_items').select('id,name,unit,stock_name').in('sup_sheet',sh).eq('active',true).order('sort'),10);
+      if(error)throw error;rows=data||[];
+      if(!rows.length)throw new Error('ซัพนี้ไม่มีรายการบิล');
+    }catch(e){out.innerHTML='<div class="rempty">'+escapeHtml(e.message||'')+'</div>';return;}
+    const opt=v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`;
+    out.innerHTML=(stockNames.length?'':'<p class="hint" style="color:#b3261e;margin:0 0 6px">ซัพนี้ยังไม่มีสินค้านับสต๊อกผูกอยู่ — ถ้าเพิ่งเปลี่ยนชื่อซัพ (SQL b34) ให้รีเฟรชแอปก่อน</p>')
+      +rows.map(r=>`<div style="display:flex;gap:8px;align-items:center;padding:5px 2px;border-bottom:1px dashed var(--line)">
+        <span style="flex:1.2;min-width:0;font-size:.85em">${escapeHtml(r.name)} <small style="color:var(--ink-soft)">${escapeHtml(r.unit||'')}</small></span>
+        <select class="im_sel" data-id="${r.id}" style="flex:1;min-width:0;padding:7px;border:1px solid var(--line);border-radius:8px;font-family:'Sarabun';font-size:.85em">
+          <option value="">— ไม่ผูกกับของนับ —</option>${stockNames.map(opt).join('')}</select></div>`).join('');
+    const sels=[...out.querySelectorAll('.im_sel')];
+    sels.forEach((sl,i)=>{if(rows[i].stock_name&&stockNames.includes(rows[i].stock_name))sl.value=rows[i].stock_name;});
+    ov.querySelector('.im_auto').onclick=()=>{
+      let n=0;
+      sels.forEach((sl,i)=>{
+        if(sl.value)return;
+        let best=null,bs=0;
+        stockNames.forEach(sn=>{const s=supSim(rows[i].name,sn);if(s>bs){bs=s;best=sn;}});
+        if(best&&bs>=0.62){sl.value=best;sl.style.background=bs>=0.85?'#eefaf1':'#fff8e1';n++;}
+      });
+      toast(n?('เดาให้ '+n+' รายการ — ตรวจช่องสีเหลืองแล้วกดบันทึก'):'ไม่มีคู่ใหม่ที่เดาได้');
+    };
+    ov.querySelector('.im_save').onclick=async()=>{
+      const btn=ov.querySelector('.im_save');btn.disabled=true;
+      const ups=[];
+      sels.forEach((sl,i)=>{const v=sl.value||null;if(v!==(rows[i].stock_name||null))ups.push({id:rows[i].id,stock_name:v});});
+      let fail=0;
+      for(let i=0;i<ups.length;i+=10){
+        const rs=await Promise.all(ups.slice(i,i+10).map(u=>sb.from('supplier_items').update({stock_name:u.stock_name}).eq('id',u.id)));
+        rs.forEach(r=>{if(r.error)fail++;});
+      }
+      btn.disabled=false;
+      if(fail){toast('บันทึกไม่ครบ ('+fail+' พลาด — รัน SQL b36 หรือยัง?)');return;}
+      Object.keys(ITEMS_CACHE).forEach(k=>delete ITEMS_CACHE[k]);
+      toast(ups.length?('บันทึกจับคู่ '+ups.length+' รายการ ✓'):'ไม่มีอะไรเปลี่ยน');
+      ov.remove();loadItems();
+    };
+  }
+  $x('.sx_imap').onclick=()=>openItemMapping($x('.sx_s').value);
   async function loadBills(){
     const out=$x('.sx_out');
     try{
