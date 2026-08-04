@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b37 — ปุ่มจับคู่กดง่ายขึ้น</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b38 — แก้หน้าต่างจับคู่ไม่เด้ง</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2882,7 +2882,7 @@ async function loadSupMap(force){
   return SUP_MAP;
 }
 async function openSupMapping(onDone){
-  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:340';
+  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:400';
   ov.innerHTML=`<div class="sheet" style="max-width:680px">
     <div class="sheet-head"><h3>🔗 จับคู่ชื่อซัพ</h3><button class="x" data-x>✕</button></div>
     <div class="sheet-body">
@@ -3048,7 +3048,7 @@ async function renderSupBillPage(body){
   // ── 🏷️ จับคู่ชื่อสินค้า: ชื่อตามบิล (supplier_items) ↔ ชื่อนับสต๊อก (products) — b36 ──
   async function openItemMapping(appName){
     if(!appName||appName==='__other'){toast('เลือกซัพก่อน');return;}
-    const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:340';
+    const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:400';
     ov.innerHTML=`<div class="sheet" style="max-width:720px">
       <div class="sheet-head"><h3>🏷️ จับคู่ชื่อสินค้า — ${escapeHtml(appName)}</h3><button class="x" data-x>✕</button></div>
       <div class="sheet-body">
