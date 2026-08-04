@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b29 — หัวบรรทัดเดียว + เลือกกะออโต้</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b30 — รีเฟรชกลับหน้าเดิม</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1470,7 +1470,7 @@ function enterApp(){
   // บัญชีคลัง → เปิดกระดานจัดของเลย ซ่อนหน้านับ
   if(isDispatchOnly()){ document.body.classList.add('dispatch-only'); openDispatch(); }
   else if(isReceiveOnly()){ document.body.classList.add('dispatch-only'); openReceive(); }
-  else document.body.classList.remove('dispatch-only');
+  else{ document.body.classList.remove('dispatch-only'); restoreLastPage(); }  // b30: รีเฟรชแล้วกลับหน้าเดิม
 }
 function canMoney(){return !!(currentUser&&isFullRole(currentUser.role));}
 function layoutHeaderBtns(){
@@ -2818,6 +2818,31 @@ async function renderCostPage(body){
     body.querySelector('#ccRv').textContent=new Set((data||[]).map(x=>String(x.rev_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccRv').textContent='—';}
 }
 
+/* ----- นำทางกลาง (b30): ทุกการเปิดหน้าจำไว้ → รีเฟรชแล้วกลับหน้าเดิม ----- */
+function goPage(g){
+  setSbActive(g);
+  if(g==='sales'||g==='cost')openModule(g);
+  else if(g==='count')openModule('stock');
+  else if(g==='order'){openModule('stock');openSum();}
+  else if(g==='dispatch'){openModule('stock');openDispatch();}
+  else if(g==='receive'){openModule('stock');openReceive();}
+  else if(g==='usage'){openModule('stock');openUsage();}
+  else if(g==='report'){openModule('stock');openReport();}
+  else if(g==='central'){openModule('stock');$('#centralBtn').click();}
+  else if(g==='settings'){openModule('stock');$('#gearBtn').click();}
+  else return;
+  try{localStorage.setItem('jj_last_page',g);}catch(e){}
+}
+function restoreLastPage(){
+  let last=null;try{last=localStorage.getItem('jj_last_page');}catch(e){}
+  if(!last||last==='count')return;
+  const allowed={order:true,usage:true,report:true,
+    dispatch:can('viewDispatch'),receive:can('receiveGoods'),
+    central:can('manageCentral'),settings:canAnyManage(),
+    sales:canMoney(),cost:canMoney()}[last];
+  if(allowed)setTimeout(()=>{try{goPage(last);}catch(e){}},150);
+}
+
 /* ----- แถบเมนูข้าง: กลุ่มหลัก + เมนูย่อย (b17) ----- */
 function buildSidebar(){
   let w=document.getElementById('sbWrap');
@@ -2860,19 +2885,7 @@ function buildSidebar(){
   w.querySelector('.sb_out').onclick=()=>{close();closeModPages();doLogout();};
   w.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{
     b.closest('.sb_grp').classList.toggle('open');});
-  w.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{close();
-    const g=b.dataset.go;
-    setSbActive(g);
-    if(g==='sales'||g==='cost')openModule(g);
-    else if(g==='count')openModule('stock');
-    else if(g==='order'){openModule('stock');openSum();}
-    else if(g==='dispatch'){openModule('stock');openDispatch();}
-    else if(g==='receive'){openModule('stock');openReceive();}
-    else if(g==='usage'){openModule('stock');openUsage();}
-    else if(g==='report'){openModule('stock');openReport();}
-    else if(g==='central'){openModule('stock');$('#centralBtn').click();}
-    else if(g==='settings'){openModule('stock');$('#gearBtn').click();}
-  });
+  w.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{close();goPage(b.dataset.go);});
   return w;
 }
 function setSbActive(name){
