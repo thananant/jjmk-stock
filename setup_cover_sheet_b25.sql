@@ -14,9 +14,11 @@ create table if not exists shift_close(
   counted_cash numeric,
   note         text,
   user_name    text,
+  edits        jsonb default '[]'::jsonb,
   updated_at   timestamptz default now(),
   primary key (branch_id, close_date, shift)
 );
+alter table shift_close add column if not exists edits jsonb default '[]'::jsonb;
 
 alter table shift_close enable row level security;
 do $$ begin

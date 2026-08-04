@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b27 — Enter เลื่อนช่องถัดไป</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b28 — จดใครบันทึก/ใครแก้ใบปะหน้า</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2562,6 +2562,7 @@ async function renderSalesPage(body){
         <select class="cv_s"><option value="am">☀️ กะเช้า</option><option value="pm">🌙 กะเย็น</option></select>
       </div>
       ${sec1}${sec2}${sec3}
+      <div class="cv_edits" style="display:none;margin-top:10px;padding:8px 10px;border-radius:10px;background:#f3f3f6;font-size:.8em;color:#555;line-height:1.5"></div>
       <input class="cv_note" placeholder="หมายเหตุ (ไม่บังคับ)" style="width:100%;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
       <button class="act wide cv_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกปิดกะ</button>
       <p class="hint" style="margin-top:6px">ยอดขายทั้งวัน (เช้า+เย็น) ระบบรวมเข้ารายงานยอดขาย/Food Cost ให้อัตโนมัติ</p>
@@ -2573,6 +2574,7 @@ async function renderSalesPage(body){
   const $c=s=>body.querySelector(s), $$c=s=>[...body.querySelectorAll(s)];
   const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/[, ]/g,''));return isFinite(n)?n:0;};
   const fmtB=n=>(Math.round(n*100)/100).toLocaleString('th-TH');
+  let CUR=null;  // แถวที่โหลดมาล่าสุด — ไว้เทียบว่าบันทึกรอบนี้แก้อะไรไปบ้าง
   function addExp(d,by,a){const r=document.createElement('div');
     r.style.cssText='display:flex;gap:6px;margin-top:6px';
     r.innerHTML=`<input class="cv_exp_d" enterkeyhint="next" placeholder="จ่ายค่าอะไร" style="flex:1.4;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_b" enterkeyhint="next" placeholder="ใครเบิก" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:'Sarabun'"><input class="cv_exp_a" inputmode="decimal" enterkeyhint="next" placeholder="บาท" style="width:84px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-weight:700;text-align:right;background:#fff"><button class="cv_exp_x" style="border:none;background:none;color:#b3261e;cursor:pointer;font-size:1.05em">✕</button>`;
@@ -2642,6 +2644,16 @@ async function renderSalesPage(body){
         if(pv&&pv[0]&&pv[0].counted_cash!=null){$c('.cv_float').value=pv[0].counted_cash;$c('.cv_floatnote').style.display='';}
       }catch(e){}
     }
+    // 📝 ใครบันทึก + ✏️ ประวัติการแก้ไข (ใครแก้ แก้อะไร เมื่อไหร่)
+    CUR=r||null;
+    const ed=(r&&Array.isArray(r.edits))?r.edits:[];
+    const eb=$c('.cv_edits');
+    if(r){const p2=n=>String(n).padStart(2,'0');
+      let h='📝 บันทึกโดย <b>'+escapeHtml(r.user_name||'?')+'</b>';
+      if(ed.length)h+='<div style="margin-top:4px"><b>✏️ ประวัติการแก้ไข</b>'+ed.slice(-5).reverse().map(e=>{const t=new Date(e.ts);
+        return '<div style="margin-top:3px">• '+escapeHtml(e.user||'?')+' '+p2(t.getDate())+'/'+p2(t.getMonth()+1)+' '+p2(t.getHours())+':'+p2(t.getMinutes())+' น. — '+escapeHtml((e.ch||[]).join(' · '))+'</div>';}).join('')+'</div>';
+      eb.style.display='';eb.innerHTML=h;}
+    else{eb.style.display='none';eb.innerHTML='';}
     updUI();recalc();
   }
   async function loadHist(){
@@ -2660,8 +2672,9 @@ async function renderSalesPage(body){
         if(r.counted_cash!=null){const diff=Math.round(((+r.counted_cash)-should)*100)/100;
           if(diff===0){dtxt='✅ ตรง';dcol='#1a7f37';}else if(diff<0){dtxt='ขาด '+fmtB(-diff);dcol='#b3261e';}else{dtxt='เกิน '+fmtB(diff);dcol='#9a6700';}}
         const d10=String(r.close_date).slice(0,10);
+        const edited=(Array.isArray(r.edits)&&r.edits.length)?' <span title="มีการแก้ไข '+r.edits.length+' ครั้ง">✏️</span>':'';
         return `<div class="cv_h" data-b="${r.branch_id}" data-d="${d10}" data-s="${r.shift}" style="display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px dashed var(--line);cursor:pointer">
-          <span>${fmtDate(d10)} · ${escapeHtml(BR[r.branch_id]||'')} · ${r.shift==='am'?'☀️เช้า':'🌙เย็น'}</span>
+          <span>${fmtDate(d10)} · ${escapeHtml(BR[r.branch_id]||'')} · ${r.shift==='am'?'☀️เช้า':'🌙เย็น'}<small style="color:var(--ink-soft)"> · 👤${escapeHtml((r.user_name||'').split(' ')[0])}</small>${edited}</span>
           <span style="text-align:right"><b style="color:var(--red)">${fmtB(sales)}</b> <small style="color:${dcol}">${dtxt}</small></span></div>`;
       }).join('');
       $$c('.cv_h').forEach(el=>el.onclick=()=>{$c('.cv_b').value=el.dataset.b;$c('.cv_d').value=el.dataset.d;$c('.cv_s').value=el.dataset.s;load();window.scrollTo({top:0,behavior:'smooth'});});
@@ -2685,8 +2698,29 @@ async function renderSalesPage(body){
       float_start:num($c('.cv_float').value),expenses:expRows(),
       deposit:(s==='am'?0:num($c('.cv_dep').value)),
       counted_cash:(String($c('.cv_cnt').value).trim()===''?null:num($c('.cv_cnt').value)),
-      note:$c('.cv_note').value.trim()||null,user_name:currentUser&&currentUser.name,
+      note:$c('.cv_note').value.trim()||null,
+      user_name:(CUR&&CUR.user_name)?CUR.user_name:(currentUser&&currentUser.name),  // คนบันทึกแรกคงชื่อเดิม
       updated_at:new Date().toISOString()};
+    // ✏️ เทียบกับของเดิม — บันทึกว่าใครแก้ช่องไหน จากเท่าไหร่เป็นเท่าไหร่
+    const changes=[];
+    if(CUR){
+      const cmp=(label,o,n2)=>{const a=(o==null?null:+o),v=(n2==null?null:+n2);
+        if(a==null&&(v==null||v===0))return;
+        if(a==null){changes.push(label+' เพิ่มเป็น '+fmtB(v));return;}
+        if(v==null||Math.abs(a-v)>0.001)changes.push(label+' '+fmtB(a)+'→'+fmtB(v==null?0:v));};
+      cmp('เงินสด',CUR.cash_sales,rec.cash_sales);
+      const ot=CUR.transfers||{};
+      [...new Set([...Object.keys(ot),...Object.keys(transfers)])].forEach(ch=>cmp(ch,ot[ch],transfers[ch]));
+      cmp('เก๊ะเปิด',CUR.float_start,rec.float_start);
+      cmp('เงินฝาก',CUR.deposit,rec.deposit);
+      cmp('เก๊ะปิดนับจริง',CUR.counted_cash,rec.counted_cash);
+      const oe=(Array.isArray(CUR.expenses)?CUR.expenses:[]).reduce((sm,x)=>sm+(+x.a||0),0);
+      const ne=rec.expenses.reduce((sm,x)=>sm+(+x.a||0),0);
+      if(Math.abs(oe-ne)>0.001)changes.push('รายจ่ายรวม '+fmtB(oe)+'→'+fmtB(ne));
+      if((CUR.note||'')!==(rec.note||''))changes.push('แก้หมายเหตุ');
+    }
+    rec.edits=(CUR&&Array.isArray(CUR.edits))?CUR.edits.slice():[];
+    if(changes.length)rec.edits.push({ts:new Date().toISOString(),user:(currentUser&&currentUser.name)||'',ch:changes});
     const btn=$c('.cv_save');btn.disabled=true;
     const {error}=await sb.from('shift_close').upsert(rec,{onConflict:'branch_id,close_date,shift'});
     if(error){btn.disabled=false;toast('บันทึกไม่ได้: '+error.message+' (ยังไม่ได้รัน SQL b25?)');return;}
@@ -2694,7 +2728,8 @@ async function renderSalesPage(body){
       const rev=(all||[]).reduce((sum,r2)=>{const t=r2.transfers||{};return sum+(+r2.cash_sales||0)+Object.values(t).reduce((a,v)=>a+(+v||0),0);},0);
       await sb.from('daily_revenue').upsert({branch_id:b,rev_date:d,revenue:rev,user_name:currentUser&&currentUser.name},{onConflict:'branch_id,rev_date'});
     }catch(e){}
-    btn.disabled=false;toast('บันทึกปิดกะ ✓');loadHist();
+    btn.disabled=false;toast(changes.length?'บันทึกแก้ไข ✓ (จดไว้แล้วว่าแก้อะไร)':'บันทึกปิดกะ ✓');
+    CUR=Object.assign({},rec);load();loadHist();
   };
   ['.cv_b','.cv_d','.cv_s'].forEach(x=>{$c(x).onchange=load;});
   // กด Enter = เลื่อนไปช่องถัดไปอัตโนมัติ (มือถือ: ปุ่มแป้นพิมพ์เป็น "ถัดไป")
