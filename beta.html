@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b22 — สรุปนับเป็นเพจ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b24 — ดูย้อนหลังจากคลังข้อมูลเก่า</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2241,6 +2241,9 @@ async function openReport(){
   const {data:dd,error:derr}=await sbAll(dqb,40);
   if(derr){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+derr.message+'</div>';return;}
   REPORT_DATES=[...new Set((dd||[]).map(r=>isoFromAny(r.count_date)).filter(Boolean))].sort().reverse();
+  // 1.5) เติมวันที่จากคลังข้อมูลเก่า (ที่ถูกย้ายออกจาก DB แล้ว)
+  try{const ad=await archDates();
+    if(ad.length)REPORT_DATES=[...new Set([...REPORT_DATES,...ad])].sort().reverse();}catch(e){}
   // 2) โหลดข้อมูลของวันล่าสุด
   await loadReportRows(REPORT_DATES[0]||'');
 }
@@ -2252,7 +2255,13 @@ async function loadReportRows(date){
   if(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length)q=q.in('branch_id',accb);
   const {data,error}=await q;
   if(error){$('#rTable').innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+error.message+'</div>';return;}
-  REPORT_ROWS=data||[];
+  let rows=data||[];
+  if(date&&!rows.length){  // วันเก่าที่ถูกย้ายไปคลังแล้ว → ดึงจาก archive
+    try{rows=await archFetch('stock_counts',date,date);
+      if(!isFullRole(currentUser.role)&&currentUser.branchIds&&currentUser.branchIds.length)
+        rows=rows.filter(r=>accb.includes(r.branch_id));
+    }catch(e){}}
+  REPORT_ROWS=rows;
   buildReportFilters(date);applyReport();
 }
 function buildReportFilters(curDate){
@@ -2281,6 +2290,28 @@ async function sbAll(build,maxPages){maxPages=maxPages||25;let out=[];
 function dateVariants(d){const iso=isoFromAny(d);if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return[d];
   const p=iso.split('-');const be=(+p[0]+543)+'-'+p[1]+'-'+p[2]; // เผื่อแถวเก่าที่ยังเป็นปี พ.ศ.
   return [iso,be];}
+/* ===== b24: คลังข้อมูลเก่า — แถวที่ถูกย้ายออกจาก DB ไปเก็บเป็นไฟล์รายเดือนใน Storage (bucket: archive)
+   โดยสคริปต์ nas/archive_jjmk.sh — แอปดึงมาต่อท้ายผลจาก DB ให้ดูย้อนหลังได้เหมือนเดิม ===== */
+const ARCH_CACHE={};
+function archMonthsBetween(f,t){const out=[];
+  if(!/^\d{4}-\d{2}/.test(f)||!/^\d{4}-\d{2}/.test(t))return out;
+  let y=+f.slice(0,4),m=+f.slice(5,7);const ye=+t.slice(0,4),me=+t.slice(5,7);
+  while((y<ye||(y===ye&&m<=me))&&out.length<120){out.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++;}}
+  return out;}
+async function archGet(name){
+  if(name in ARCH_CACHE)return ARCH_CACHE[name];
+  try{const r=await fetch(SB_URL+'/storage/v1/object/public/archive/'+name+'.json');
+    ARCH_CACHE[name]=r.ok?await r.json():null;}catch(e){ARCH_CACHE[name]=null;}
+  return ARCH_CACHE[name];}
+async function archFetch(table,f,t){  // แถวในคลังช่วงวันที่ f..t (ISO)
+  const dcol=table==='stock_receipts'?'order_date':'count_date';
+  f=isoFromAny(f);t=isoFromAny(t);const rows=[];
+  for(const m of archMonthsBetween(f,t)){
+    const a=await archGet(table+'_'+m);
+    if(Array.isArray(a))for(const r of a){const d=isoFromAny(r[dcol]);if(d>=f&&d<=t)rows.push(r);}
+  }
+  return rows;}
+async function archDates(){const a=await archGet('stock_counts_dates');return Array.isArray(a)?a:[];}
 let reportQuick='all';
 function filteredReport(){
   const b=$('#rBranch').value,d=$('#rDate').value,c=$('#rCat').value,s=$('#rSup').value,
@@ -2415,12 +2446,22 @@ function openUsage(){
       if(bf)q=q.eq('branch_id',bf);return q;};
     const {data,error}=await sbAll(build,30);
     if(error){out.innerHTML='<div class="rempty">โหลดไม่สำเร็จ: '+escapeHtml(error.message)+'</div>';return;}
+    // b24: ต่อท้ายแถวนับจากคลังข้อมูลเก่า (เดือนที่ย้ายออกจาก DB แล้ว)
+    let CNT=data||[];
+    try{let ar=await archFetch('stock_counts',f,tPlus);
+      if(bf)ar=ar.filter(r=>r.branch_id===bf);CNT=CNT.concat(ar);}catch(e){}
     // ของเข้าจริง = stock_receipts (บันทึกตอนส่งไลน์ / รับจริงถ้ากรอก) + คำนวณวันของถึงจากตารางซัพ
     const RIN={};
     try{const buildRc=()=>{let q=sb.from('stock_receipts').select('branch_id,product_id,order_date,ordered,received,sup')
         .gte('order_date',f).lte('order_date',tPlus);if(bf)q=q.eq('branch_id',bf);return q;};
       const {data:rc}=await sbAll(buildRc,30);
-      (rc||[]).forEach(x=>{
+      let RCA=rc||[];
+      try{let ar2=await archFetch('stock_receipts',f,tPlus);
+        if(bf)ar2=ar2.filter(x=>x.branch_id===bf);RCA=RCA.concat(ar2);}catch(e2){}
+      const rcSeen={};
+      RCA.forEach(x=>{
+        const rk=x.branch_id+'|'+x.product_id+'|'+isoFromAny(x.order_date);
+        if(rcSeen[rk])return;rcSeen[rk]=1;
         const inn=(x.received!=null)?+x.received:(+x.ordered||0);
         if(!inn)return;
         const od=isoFromAny(x.order_date);if(!od)return;
@@ -2431,9 +2472,9 @@ function openUsage(){
         (RIN[x.branch_id+'|'+x.product_id]=RIN[x.branch_id+'|'+x.product_id]||[]).push({deliv,inn,real:x.received!=null});
       });
     }catch(e){}
-    // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน
+    // dedupe: แถวล่าสุดต่อ สาขา|สินค้า|วัน (แถวจาก DB มาก่อน archive → DB ชนะถ้าซ้ำ)
     const seen={},rows=[];
-    (data||[]).forEach(r=>{const d=isoFromAny(r.count_date);const k=r.branch_id+'|'+r.product_id+'|'+d;
+    CNT.forEach(r=>{const d=isoFromAny(r.count_date);const k=r.branch_id+'|'+r.product_id+'|'+d;
       if(seen[k])return;seen[k]=1;rows.push({...r,d});});
     // จับคู่วันติดกันต่อสินค้า
     const byP={};rows.forEach(r=>{(byP[r.branch_id+'|'+r.product_id]=byP[r.branch_id+'|'+r.product_id]||[]).push(r);});
@@ -2471,7 +2512,7 @@ function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remo
 function openModule(name){
   closeModPages();hideAll();CUR_MOD=name;setSbActive(name==='stock'?'count':name);
   if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
-  const meta={sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
+  const meta={sales:['💵','ใบปะหน้า'],cost:['🧮','ข้อมูล Food Cost']}[name];
   const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
   pg.innerHTML=`<div class="mp_head"><button class="mp_menu">☰</button><span class="mp_t">${meta[0]} ${meta[1]}</span><span class="mp_shop">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')}</span></div><div class="mp_body"></div>`;
   document.body.appendChild(pg);
@@ -2546,7 +2587,7 @@ async function renderCostPage(body){
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกราคา</div><div class="hm_big" id="ccPr">…</div></div>
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกยอดขาย</div><div class="hm_big" id="ccRv">…</div></div>
       </div>
-      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ข้อมูลยอดขาย</p>
+      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ใบปะหน้า</p>
     </div>`;
   try{const {data}=await sb.from('stock_receipts').select('order_date').not('unit_price','is',null).limit(5000);
     body.querySelector('#ccPr').textContent=new Set((data||[]).map(x=>String(x.order_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccPr').textContent='—';}
@@ -2578,7 +2619,7 @@ function buildSidebar(){
       </div>`;
   if(money){
     m+=`<div class="sb_div"></div>`;
-    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ข้อมูลยอดขาย</button>`;
+    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ใบปะหน้า</button>`;
     m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
   }
   w.innerHTML=`<div id="sbBack"></div>
@@ -2630,7 +2671,7 @@ function openSales(){
   const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:310';
   const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
   ov.innerHTML=`<div class="sheet" style="max-width:640px">
-    <div class="sheet-head"><h3>💵 ข้อมูลยอดขาย</h3><button class="x" data-x>✕</button></div>
+    <div class="sheet-head"><h3>💵 ใบปะหน้า</h3><button class="x" data-x>✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <select class="sv_b">${bOpts}</select>
