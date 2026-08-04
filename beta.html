@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b30 — รีเฟรชกลับหน้าเดิม</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b31 — เมนูรายรับ + รายจ่าย Supplier</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2512,13 +2512,14 @@ function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remo
 function openModule(name){
   closeModPages();hideAll();CUR_MOD=name;setSbActive(name==='stock'?'count':name);
   if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
-  const meta={sales:['💵','ใบปะหน้า'],cost:['🧮','ข้อมูล Food Cost']}[name];
+  const meta={sales:['💵','รายรับ (ใบปะหน้า)'],supbill:['💸','รายจ่าย Supplier'],cost:['🧮','ข้อมูล Food Cost']}[name];
   const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
   pg.innerHTML=`<div class="mp_head"><button class="mp_menu">☰</button><span class="mp_t">${meta[0]} ${meta[1]}</span><span class="mp_shop">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')}</span></div><div class="mp_body"></div>`;
   document.body.appendChild(pg);
   pg.querySelector('.mp_menu').onclick=()=>{const w=buildSidebar();requestAnimationFrame(()=>w.classList.add('on'));};
   const body=pg.querySelector('.mp_body');
   if(name==='sales')renderSalesPage(body);
+  else if(name==='supbill')renderSupBillPage(body);
   else renderCostPage(body);
 }
 function showHome(){openModule('stock');}
@@ -2801,6 +2802,80 @@ function renderSalesPage_legacy(body){
   loadRev();
 }
 
+/* ----- หน้า รายจ่าย Supplier: บันทึกบิลของแต่ละซัพ (b31) ----- */
+async function renderSupBillPage(body){
+  const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  const sups=[...new Set((SUPPLIERS||[]).map(s=>s.name&&s.name.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  const supOpts=sups.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'<option value="__other">อื่น ๆ (พิมพ์เอง)</option>';
+  body.innerHTML=`<div class="mp_card">
+      <div class="hm_t" style="margin-bottom:8px">บันทึกบิล Supplier</div>
+      <div class="rfilters" style="grid-template-columns:1fr 1fr">
+        <select class="sx_b">${bOpts}</select>
+        <input type="date" class="sx_d" value="${bizTodayISO()}" style="grid-column:auto">
+      </div>
+      <div class="rfilters" style="grid-template-columns:1.3fr .7fr;margin-top:2px">
+        <select class="sx_s">${supOpts}</select>
+        <input class="sx_a" inputmode="decimal" enterkeyhint="next" placeholder="ยอดบิล (บาท)" style="grid-column:auto;font-weight:700;text-align:right">
+      </div>
+      <input class="sx_o" placeholder="พิมพ์ชื่อซัพ (กรณีเลือก อื่น ๆ)" style="display:none;width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
+      <input class="sx_n" placeholder="หมายเหตุ / เลขที่บิล (ไม่บังคับ)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
+      <button class="act wide sx_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกบิล</button>
+    </div>
+    <div class="mp_card" style="margin-top:12px">
+      <div class="hm_t" style="margin-bottom:8px">บิลย้อนหลัง 31 วัน</div>
+      <div class="sx_out"><div class="rempty">กำลังโหลด...</div></div>
+    </div>`;
+  const $x=s=>body.querySelector(s);
+  const num=v=>{const n=parseFloat(String(v||'').replace(/[, ]/g,''));return isFinite(n)?n:0;};
+  $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';};
+  async function loadBills(){
+    const out=$x('.sx_out');
+    try{
+      const since=new Date(bizDate().getTime()-30*86400000).toISOString().slice(0,10);
+      const {data,error}=await sb.from('supplier_bills').select('*').gte('bill_date',since).order('bill_date',{ascending:false}).order('created_at',{ascending:false});
+      if(error)throw error;
+      if(!data||!data.length){out.innerHTML='<div class="rempty">ยังไม่มีบิล — บันทึกใบแรกได้เลย</div>';return;}
+      const BR={};accessibleBranches().forEach(b=>BR[b.id]=b.name.replace('สาขา',''));
+      let tot=0;const byD={};
+      data.forEach(r=>{tot+=(+r.amount||0);const d=String(r.bill_date).slice(0,10);(byD[d]=byD[d]||[]).push(r);});
+      let h='';
+      Object.keys(byD).sort().reverse().forEach(d=>{
+        const dayTot=byD[d].reduce((s,r)=>s+(+r.amount||0),0);
+        h+='<div style="display:flex;justify-content:space-between;margin:10px 0 2px;font-weight:700;color:var(--ink-soft)"><span>📅 '+fmtDate(d)+'</span><span>'+dayTot.toLocaleString('th-TH')+'.-</span></div>';
+        byD[d].forEach(r=>{
+          h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 2px;border-bottom:1px dashed var(--line)">'
+            +'<span>'+escapeHtml(r.sup||'')+' <small style="color:var(--ink-soft)">'+escapeHtml(BR[r.branch_id]||'')+(r.note?' · '+escapeHtml(r.note):'')+' · 👤'+escapeHtml(String(r.user_name||'').split(' ')[0])+'</small></span>'
+            +'<span style="white-space:nowrap"><b style="color:#b3261e">'+(+r.amount).toLocaleString('th-TH')+'</b>'
+            +' <button data-del="'+r.id+'" style="border:none;background:none;color:#b3261e;cursor:pointer">🗑</button></span></div>';
+        });
+      });
+      h+='<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)">รวม 31 วัน <b style="color:#b3261e">'+tot.toLocaleString('th-TH')+'.-</b></div>';
+      out.innerHTML=h;
+      out.querySelectorAll('[data-del]').forEach(btn=>btn.onclick=async()=>{
+        if(!confirm('ลบบิลนี้?'))return;
+        const {error:de}=await sb.from('supplier_bills').delete().eq('id',btn.dataset.del);
+        if(de){toast('ลบไม่ได้: '+de.message);return;}
+        toast('ลบบิลแล้ว ✓');loadBills();
+      });
+    }catch(e){out.innerHTML='<div class="rempty">โหลดไม่ได้: '+escapeHtml(e.message||'')+' (ยังไม่ได้รัน SQL b31?)</div>';}
+  }
+  $x('.sx_save').onclick=async()=>{
+    let sup=$x('.sx_s').value;
+    if(sup==='__other')sup=$x('.sx_o').value.trim();
+    const a=num($x('.sx_a').value);
+    if(!sup){toast('เลือกหรือพิมพ์ชื่อซัพก่อน');return;}
+    if(!(a>0)){toast('ใส่ยอดบิลก่อน');return;}
+    const btn=$x('.sx_save');btn.disabled=true;
+    const {error}=await sb.from('supplier_bills').insert({branch_id:$x('.sx_b').value,bill_date:$x('.sx_d').value,
+      sup:sup,amount:a,note:$x('.sx_n').value.trim()||null,user_name:currentUser&&currentUser.name});
+    btn.disabled=false;
+    if(error){toast('บันทึกไม่ได้: '+error.message+' (ยังไม่ได้รัน SQL b31?)');return;}
+    toast('บันทึกบิล '+a.toLocaleString('th-TH')+'.- ✓');
+    $x('.sx_a').value='';$x('.sx_n').value='';loadBills();
+  };
+  loadBills();
+}
+
 /* ----- หน้า Food Cost (โครงรอเฟสถัดไป) ----- */
 async function renderCostPage(body){
   body.innerHTML=`<div class="mp_card">
@@ -2810,7 +2885,7 @@ async function renderCostPage(body){
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกราคา</div><div class="hm_big" id="ccPr">…</div></div>
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกยอดขาย</div><div class="hm_big" id="ccRv">…</div></div>
       </div>
-      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ใบปะหน้า</p>
+      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 รายรับ</p>
     </div>`;
   try{const {data}=await sb.from('stock_receipts').select('order_date').not('unit_price','is',null).limit(5000);
     body.querySelector('#ccPr').textContent=new Set((data||[]).map(x=>String(x.order_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccPr').textContent='—';}
@@ -2821,7 +2896,7 @@ async function renderCostPage(body){
 /* ----- นำทางกลาง (b30): ทุกการเปิดหน้าจำไว้ → รีเฟรชแล้วกลับหน้าเดิม ----- */
 function goPage(g){
   setSbActive(g);
-  if(g==='sales'||g==='cost')openModule(g);
+  if(g==='sales'||g==='cost'||g==='supbill')openModule(g);
   else if(g==='count')openModule('stock');
   else if(g==='order'){openModule('stock');openSum();}
   else if(g==='dispatch'){openModule('stock');openDispatch();}
@@ -2839,7 +2914,7 @@ function restoreLastPage(){
   const allowed={order:true,usage:true,report:true,
     dispatch:can('viewDispatch'),receive:can('receiveGoods'),
     central:can('manageCentral'),settings:canAnyManage(),
-    sales:canMoney(),cost:canMoney()}[last];
+    sales:canMoney(),cost:canMoney(),supbill:canMoney()}[last];
   if(allowed)setTimeout(()=>{try{goPage(last);}catch(e){}},150);
 }
 
@@ -2867,7 +2942,8 @@ function buildSidebar(){
       </div>`;
   if(money){
     m+=`<div class="sb_div"></div>`;
-    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ใบปะหน้า</button>`;
+    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>รายรับ</button>`;
+    m+=`<button class="sb_it sb_parent" data-go="supbill"><span class="ic">💸</span>รายจ่าย Supplier</button>`;
     m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
   }
   w.innerHTML=`<div id="sbBack"></div>
