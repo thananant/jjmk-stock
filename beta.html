@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b38 — แก้หน้าต่างจับคู่ไม่เด้ง</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b39 — ป้าย 🧾 ซัพที่มีรายการบิล</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3044,6 +3044,12 @@ async function renderSupBillPage(body){
   $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';
     $x('.sx_a').value='';                       // ยอดบิลผูกกับซัพ — เปลี่ยนซัพต้องล้าง กันบันทึกยอดข้ามเจ้า
     loadItems();};
+  // ติดป้าย 🧾 หน้าซัพที่จับคู่ไฟล์บิลแล้ว = เลือกแล้วมีรายการขึ้นแน่นอน
+  (async()=>{try{
+    const m=await loadSupMap();
+    const has={};Object.keys(m).forEach(k=>{if(m[k])has[String(m[k]).trim()]=1;});
+    [...$x('.sx_s').options].forEach(o=>{if(o.value&&o.value!=='__other'&&has[String(o.value).trim()])o.textContent='🧾 '+o.textContent;});
+  }catch(e){}})();
   $x('.sx_map').onclick=()=>openSupMapping(()=>{Object.keys(ITEMS_CACHE).forEach(k=>delete ITEMS_CACHE[k]);loadItems();});
   // ── 🏷️ จับคู่ชื่อสินค้า: ชื่อตามบิล (supplier_items) ↔ ชื่อนับสต๊อก (products) — b36 ──
   async function openItemMapping(appName){
