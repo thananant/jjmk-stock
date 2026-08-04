@@ -9,6 +9,10 @@
 
 set -u
 
+# Task Scheduler ของ Synology มักไม่รู้จักที่อยู่ docker — เติม PATH ให้เอง
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"; export PATH
+command -v docker >/dev/null 2>&1 || { echo "[jjmk-archive] ERROR: ไม่พบ docker"; exit 1; }
+
 # --- ตั้งค่าก่อนใช้งาน ----------------------------------------------
 # DB_URL: อันเดียวกับใน backup_jjmk.sh (Session pooler + รหัสผ่าน DB)
 DB_URL="${SUPABASE_DB_URL:-postgresql://postgres.aikyxvluaiubdidqxwnd:ใส่รหัสผ่านDBตรงนี้@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres}"

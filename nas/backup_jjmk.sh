@@ -7,6 +7,10 @@
 
 set -eu
 
+# Task Scheduler ของ Synology มักไม่รู้จักที่อยู่ docker — เติม PATH ให้เอง
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"; export PATH
+command -v docker >/dev/null 2>&1 || { echo "[jjmk-backup] ERROR: ไม่พบ docker (ลง Container Manager หรือยัง?)"; exit 1; }
+
 # --- ตั้งค่า 3 บรรทัดนี้ก่อนใช้งาน ---------------------------------
 # 1) DB_URL: copy จาก Supabase dashboard -> Connect -> "Session pooler"
 #    (แบบ pooler ใช้ได้กับเน็ตบ้าน IPv4 — แบบ db.xxx.supabase.co ตรง ๆ
