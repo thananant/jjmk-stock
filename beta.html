@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b31 — เมนูรายรับ + รายจ่าย Supplier</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b32 — เลือกซัพแล้วขึ้นรายการบิล</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2802,11 +2802,147 @@ function renderSalesPage_legacy(body){
   loadRev();
 }
 
-/* ----- หน้า รายจ่าย Supplier: บันทึกบิลของแต่ละซัพ (b31) ----- */
+/* ===== จับคู่ชื่อซัพ: ชื่อในชีทบิล (supplier_items.sup_sheet) ↔ ชื่อซัพในแอป (b32) ===== */
+let SUP_MAP=null;                 // {sup_sheet: sup_app}
+function supNorm(s){              // ตัดคำนำหน้านิติบุคคล/ช่องว่าง/วรรณยุกต์ เพื่อเทียบชื่อ
+  return String(s||'').toLowerCase()
+    .replace(/บริษัท|จำกัด|มหาชน|ห้างหุ้นส่วนจำกัด|ห้างหุ้นส่วน|หจก\.?|co\.,?\s*ltd\.?|company|limited|ltd\.?|inc\.?/g,'')
+    .replace(/[\s\-_.,()（）"'’]/g,'');
+}
+// ชื่อซัพไทย↔อังกฤษเขียนคนละแบบ (makro ↔ แม็คโคร) → ถอดเป็น "โครงพยัญชนะ" แล้วค่อยเทียบ
+const THAI_CONS={'ก':'k','ข':'k','ฃ':'k','ค':'k','ฅ':'k','ฆ':'k','ง':'g','จ':'j','ฉ':'c','ช':'c','ซ':'s','ฌ':'c',
+ 'ญ':'y','ฎ':'d','ฏ':'t','ฐ':'t','ฑ':'t','ฒ':'t','ณ':'n','ด':'d','ต':'t','ถ':'t','ท':'t','ธ':'t','น':'n',
+ 'บ':'b','ป':'p','ผ':'p','ฝ':'f','พ':'p','ฟ':'f','ภ':'p','ม':'m','ย':'y','ร':'r','ล':'l','ฤ':'r','ว':'w',
+ 'ศ':'s','ษ':'s','ส':'s','ห':'h','ฬ':'l','ฮ':'h','อ':''};
+function supSkel(s){              // โครงพยัญชนะ: ไทย→ละติน, ตัดสระ/วรรณยุกต์, ยุบตัวซ้ำ
+  s=supNorm(s);
+  let o='';
+  for(const ch of s){
+    if(THAI_CONS[ch]!==undefined){o+=THAI_CONS[ch];continue;}
+    if(/[฀-๿]/.test(ch))continue;   // สระ/วรรณยุกต์/การันต์ (คงพยัญชนะไว้: สไมล์ = smile)
+    if(/[a-z]/.test(ch)){
+      let c=ch;
+      if('aeiou'.indexOf(c)>=0)continue;                     // ตัดสระละติน
+      if(c==='q'||c==='c'||c==='g')c='k';else if(c==='x')c='ks';else if(c==='z')c='s';
+      o+=c;continue;
+    }
+    if(/[0-9]/.test(ch))o+=ch;
+  }
+  return o.replace(/g/g,'k').replace(/(.)\1+/g,'$1');        // จ/ง→เสียงใกล้ k · kk → k
+}
+// ชื่อย่อที่คนไทยเขียนตามเสียงอ่านตัวอักษร: "เคซีจี" = KCG · "พีเอฟพี" = PFP
+const TH_LETTER=[['ดับเบิลยู','w'],['เอ็กซ์','x'],['เอ็ม','m'],['เอ็น','n'],['เอฟ','f'],['เอส','s'],['เอช','h'],
+ ['เอล','l'],['แอล','l'],['อาร์','r'],['แซด','z'],['เอ','a'],['บี','b'],['ซี','c'],['ดี','d'],['อี','e'],
+ ['จี','g'],['ไอ','i'],['เจ','j'],['เค','k'],['โอ','o'],['พี','p'],['คิว','q'],['ที','t'],['ยู','u'],
+ ['วี','v'],['วาย','y']];
+function supAbbr(s){              // ถอดชื่อไทยที่อ่านทีละตัวอักษร → ตัวย่อละติน (ถอดไม่ครบ = null)
+  let t=supNorm(s),o='';
+  while(t.length){
+    const hit=TH_LETTER.find(p=>t.startsWith(p[0]));
+    if(!hit)return null;
+    o+=hit[1];t=t.slice(hit[0].length);
+  }
+  return o.length>=2?o:null;
+}
+function supSim(a,b){             // คะแนนคล้าย 0..1 (bigram dice + โบนัสถ้าเป็นสตริงย่อยกัน + เทียบเสียง)
+  const na=supNorm(a),nb=supNorm(b);
+  if(!na||!nb)return 0;
+  if(na===nb)return 1;
+  if(na.includes(nb)||nb.includes(na))return 0.9;
+  const bg=s=>{const m={};for(let i=0;i<s.length-1;i++){const k=s.slice(i,i+2);m[k]=(m[k]||0)+1;}return m;};
+  const dice=(x,y)=>{const A=bg(x),B=bg(y);let hit=0,ta=0,tb=0;
+    Object.keys(A).forEach(k=>{ta+=A[k];if(B[k])hit+=Math.min(A[k],B[k]);});
+    Object.keys(B).forEach(k=>{tb+=B[k];});
+    return (ta+tb)?(2*hit)/(ta+tb):0;};
+  const ab1=supAbbr(a),ab2=supAbbr(b);     // ตัวย่ออ่านทีละตัวอักษร (เคซีจี = KCG)
+  if((ab1&&ab1===nb)||(ab2&&ab2===na))return 1;
+  if(ab1&&ab2&&ab1===ab2)return 1;
+  let sc=dice(na,nb);
+  const sa=supSkel(a),sbk=supSkel(b);      // เทียบเสียงข้ามภาษา
+  if(sa&&sbk){
+    if(sa===sbk)sc=Math.max(sc,0.88);
+    else if(sa.length>2&&sbk.length>2&&(sa.includes(sbk)||sbk.includes(sa)))sc=Math.max(sc,0.8);
+    else sc=Math.max(sc,dice(sa,sbk)*0.95);
+  }
+  return sc;
+}
+function supRank(sheetName,fullName,appList){    // เรียงชื่อในแอปตามความคล้าย
+  return appList.map(ap=>({app:ap,score:Math.max(supSim(sheetName,ap),fullName?supSim(fullName,ap):0)}))
+    .sort((a,b)=>b.score-a.score);
+}
+function supGuess(sheetName,fullName,appList){  // เดาชื่อในแอปที่ตรงที่สุด (0.62 = กันเดามั่ว)
+  const top=supRank(sheetName,fullName,appList)[0];
+  return (top&&top.score>=0.62)?top:null;
+}
+async function loadSupMap(force){
+  if(SUP_MAP&&!force)return SUP_MAP;
+  SUP_MAP={};
+  try{const {data}=await sb.from('supplier_map').select('*');
+    (data||[]).forEach(r=>{if(r.sup_app)SUP_MAP[r.sup_sheet]=r.sup_app;});}catch(e){}
+  return SUP_MAP;
+}
+async function openSupMapping(onDone){
+  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:340';
+  ov.innerHTML=`<div class="sheet" style="max-width:680px">
+    <div class="sheet-head"><h3>🔗 จับคู่ชื่อซัพ</h3><button class="x" data-x>✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin:0 0 8px">ชื่อซัพในไฟล์บิล (ซ้าย) กับชื่อซัพในแอป (ขวา) มักเขียนไม่เหมือนกัน — จับคู่ครั้งเดียว ระบบจำให้ตลอด</p>
+      <button class="act wide sm_auto" style="background:#1559c7;color:#fff;border:none;margin-bottom:10px">✨ เดาให้อัตโนมัติ</button>
+      <div class="sm_out"><div class="rempty">กำลังโหลด...</div></div>
+      <button class="act wide sm_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกการจับคู่</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('[data-x]').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const apps=[...new Set((SUPPLIERS||[]).map(s=>s.name&&s.name.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  const out=ov.querySelector('.sm_out');
+  let sheets=[];
+  try{
+    const {data,error}=await sb.from('supplier_items').select('sup_sheet,sup_full');
+    if(error)throw error;
+    const seen={};(data||[]).forEach(r=>{if(!seen[r.sup_sheet])seen[r.sup_sheet]={sheet:r.sup_sheet,full:r.sup_full||''};});
+    sheets=Object.values(seen).sort((a,b)=>a.sheet.localeCompare(b.sheet,'th'));
+    if(!sheets.length)throw new Error('ยังไม่มีข้อมูลรายการซัพ');
+  }catch(e){out.innerHTML='<div class="rempty">โหลดไม่ได้: '+escapeHtml(e.message||'')+'<br><small>ยังไม่ได้รัน SQL b32?</small></div>';return;}
+  await loadSupMap(true);
+  // เรียงตัวเลือกตามความคล้าย (ตัวที่น่าจะใช่ขึ้นก่อน) + ติดคะแนนความมั่นใจ
+  out.innerHTML=sheets.map(s=>{
+    const rank=supRank(s.sheet,s.full,apps);
+    const opts=rank.map(r=>`<option value="${escapeHtml(r.app)}">${escapeHtml(r.app)}${r.score>=0.62?' ('+Math.round(r.score*100)+'%)':''}</option>`).join('');
+    return `<div style="display:flex;gap:8px;align-items:center;padding:6px 2px;border-bottom:1px dashed var(--line)">
+      <span style="flex:1;min-width:0"><b>${escapeHtml(s.sheet)}</b>${s.full?'<br><small style="color:var(--ink-soft)">'+escapeHtml(s.full)+'</small>':''}</span>
+      <select class="sm_sel" data-sheet="${escapeHtml(s.sheet)}" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:'Sarabun'">
+        <option value="">— ยังไม่จับคู่ —</option>${opts}</select></div>`;}).join('');
+  const sels=[...out.querySelectorAll('.sm_sel')];
+  sels.forEach(sl=>{const cur=SUP_MAP[sl.dataset.sheet];if(cur&&apps.includes(cur))sl.value=cur;});
+  ov.querySelector('.sm_auto').onclick=()=>{
+    let n=0,sure=0;
+    sels.forEach(sl=>{
+      if(sl.value)return;
+      const s=sheets.find(x=>x.sheet===sl.dataset.sheet)||{};
+      const g=supGuess(s.sheet,s.full,apps);
+      if(g){sl.value=g.app;n++;
+        if(g.score>=0.85){sl.style.background='#eefaf1';sure++;}    // เขียว = มั่นใจสูง
+        else sl.style.background='#fff8e1';}                        // เหลือง = ควรตรวจ
+    });
+    toast(n?('เดาให้ '+n+' รายการ (มั่นใจสูง '+sure+') — ตรวจช่องสีเหลืองแล้วกดบันทึก'):'ไม่มีคู่ใหม่ที่เดาได้');
+  };
+  ov.querySelector('.sm_save').onclick=async()=>{
+    const rows=sels.map(sl=>({sup_sheet:sl.dataset.sheet,sup_app:sl.value||null,updated_at:new Date().toISOString()}));
+    const btn=ov.querySelector('.sm_save');btn.disabled=true;
+    const {error}=await sb.from('supplier_map').upsert(rows,{onConflict:'sup_sheet'});
+    btn.disabled=false;
+    if(error){toast('บันทึกไม่ได้: '+error.message);return;}
+    await loadSupMap(true);
+    toast('บันทึกการจับคู่แล้ว ✓');ov.remove();if(onDone)onDone();
+  };
+}
+
+/* ----- หน้า รายจ่าย Supplier: บันทึกบิลของแต่ละซัพ + เลือกรายการในบิล (b32) ----- */
 async function renderSupBillPage(body){
   const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
   const sups=[...new Set((SUPPLIERS||[]).map(s=>s.name&&s.name.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
-  const supOpts=sups.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'<option value="__other">อื่น ๆ (พิมพ์เอง)</option>';
+  const supOpts='<option value="">— เลือกซัพ —</option>'+sups.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'<option value="__other">อื่น ๆ (พิมพ์เอง)</option>';
   body.innerHTML=`<div class="mp_card">
       <div class="hm_t" style="margin-bottom:8px">บันทึกบิล Supplier</div>
       <div class="rfilters" style="grid-template-columns:1fr 1fr">
@@ -2818,8 +2954,10 @@ async function renderSupBillPage(body){
         <input class="sx_a" inputmode="decimal" enterkeyhint="next" placeholder="ยอดบิล (บาท)" style="grid-column:auto;font-weight:700;text-align:right">
       </div>
       <input class="sx_o" placeholder="พิมพ์ชื่อซัพ (กรณีเลือก อื่น ๆ)" style="display:none;width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
+      <div class="sx_items" style="margin-top:8px"></div>
       <input class="sx_n" placeholder="หมายเหตุ / เลขที่บิล (ไม่บังคับ)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:9px;font-family:'Sarabun'">
       <button class="act wide sx_save" style="background:var(--red);color:#fff;border:none;margin-top:10px">💾 บันทึกบิล</button>
+      <div style="text-align:right;margin-top:6px"><button class="sx_map" style="border:none;background:none;color:#1559c7;font-size:.8em;cursor:pointer">🔗 จับคู่ชื่อซัพกับไฟล์บิล</button></div>
     </div>
     <div class="mp_card" style="margin-top:12px">
       <div class="hm_t" style="margin-bottom:8px">บิลย้อนหลัง 31 วัน</div>
@@ -2827,7 +2965,76 @@ async function renderSupBillPage(body){
     </div>`;
   const $x=s=>body.querySelector(s);
   const num=v=>{const n=parseFloat(String(v||'').replace(/[, ]/g,''));return isFinite(n)?n:0;};
-  $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';};
+  const fmt2=n=>(Math.round(n*100)/100).toLocaleString('th-TH');
+  // ── เลือกซัพ → ขึ้นรายการสินค้าของซัพนั้นให้เลย (จับคู่ชื่อผ่าน supplier_map) ──
+  const ITEMS_CACHE={};
+  async function sheetsFor(appName){        // ชื่อชีทที่จับคู่กับซัพในแอปนี้ (มีได้หลายชื่อ = เจ้าเดียวกัน)
+    const m=await loadSupMap();
+    const hit=Object.keys(m).filter(k=>m[k]===appName);
+    if(hit.length)return hit;
+    // ยังไม่จับคู่ → ลองเดาจากชื่อให้ก่อน (ผู้ใช้ยืนยันทีหลังในหน้าจับคู่)
+    try{const {data}=await sb.from('supplier_items').select('sup_sheet,sup_full');
+      const seen={};(data||[]).forEach(r=>{if(!seen[r.sup_sheet])seen[r.sup_sheet]=r.sup_full||'';});
+      const g=Object.keys(seen).map(k=>({k,s:Math.max(supSim(k,appName),supSim(seen[k],appName))}))
+        .sort((a,b)=>b.s-a.s)[0];
+      if(g&&g.s>=0.62)return [g.k];
+    }catch(e){}
+    return [];
+  }
+  async function loadItems(){
+    const wrap=$x('.sx_items');const appName=$x('.sx_s').value;
+    if(!appName||appName==='__other'){wrap.innerHTML='';return;}
+    wrap.innerHTML='<div class="rempty" style="padding:8px">กำลังโหลดรายการ...</div>';
+    let rows=ITEMS_CACHE[appName];
+    if(!rows){
+      try{
+        const sh=await sheetsFor(appName);
+        if(!sh.length){wrap.innerHTML='<div class="rempty" style="padding:8px">ยังไม่ได้จับคู่ชื่อซัพนี้กับไฟล์บิล<br><small>กด 🔗 จับคู่ชื่อซัพ ด้านล่าง</small></div>';return;}
+        const {data,error}=await sb.from('supplier_items').select('*').in('sup_sheet',sh).eq('active',true).order('sort');
+        if(error)throw error;
+        rows=data||[];ITEMS_CACHE[appName]=rows;
+      }catch(e){wrap.innerHTML='<div class="rempty" style="padding:8px">โหลดรายการไม่ได้: '+escapeHtml(e.message||'')+'</div>';return;}
+    }
+    if(!rows.length){wrap.innerHTML='<div class="rempty" style="padding:8px">ซัพนี้ยังไม่มีรายการในไฟล์บิล</div>';return;}
+    const vat=rows.some(r=>r.has_vat);
+    wrap.innerHTML=`<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:#f6f7f9">
+        <b style="font-size:.9em">🧾 รายการในบิล <small style="color:var(--ink-soft)">(${rows.length} รายการ${vat?' · มี VAT':''})</small></b>
+        <input class="sx_find" placeholder="ค้นหา..." style="width:130px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:.85em;font-family:'Sarabun'">
+      </div>
+      <div class="sx_list" style="max-height:320px;overflow:auto;padding:4px 10px"></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 10px;background:#f6f7f9;font-weight:700">
+        <span>รวมรายการที่เลือก</span><span class="sx_lsum" style="color:#b3261e">0</span></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:.85em;color:var(--ink-soft)">
+      <input type="checkbox" class="sx_auto" checked> ใช้ยอดรวมรายการเป็นยอดบิลอัตโนมัติ</label>`;
+    const list=wrap.querySelector('.sx_list');
+    list.innerHTML=rows.map((r,i)=>`<div class="sx_row" data-i="${i}" data-k="${escapeHtml((r.name+' '+(r.unit||'')).toLowerCase())}" style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line)">
+        <span style="flex:1;min-width:0;font-size:.88em">${escapeHtml(r.name)}<small style="color:var(--ink-soft)"> ${escapeHtml(r.unit||'')}</small></span>
+        <input class="sx_q" inputmode="decimal" placeholder="จำนวน" style="width:64px;padding:6px;border:1px solid var(--line);border-radius:7px;text-align:right;font-size:.85em">
+        <input class="sx_p" inputmode="decimal" placeholder="ราคา" style="width:76px;padding:6px;border:1.5px solid var(--line);border-radius:7px;text-align:right;font-weight:700;font-size:.85em">
+      </div>`).join('');
+    const sumLines=()=>{
+      let t=0;const lines=[];
+      [...list.querySelectorAll('.sx_row')].forEach(el=>{
+        const q=num(el.querySelector('.sx_q').value),p=num(el.querySelector('.sx_p').value);
+        if(!p&&!q)return;
+        const amt=p*(q||1);t+=amt;
+        const r=rows[+el.dataset.i];
+        lines.push({name:r.name,unit:r.unit||'',qty:q||null,price:p,amount:Math.round(amt*100)/100});
+      });
+      t=Math.round(t*100)/100;
+      wrap.querySelector('.sx_lsum').textContent=fmt2(t);
+      if(wrap.querySelector('.sx_auto').checked&&lines.length)$x('.sx_a').value=t;
+      return {t,lines};
+    };
+    wrap.__sum=sumLines;
+    list.querySelectorAll('input').forEach(i=>i.oninput=sumLines);
+    wrap.querySelector('.sx_find').oninput=e=>{const k=e.target.value.trim().toLowerCase();
+      [...list.querySelectorAll('.sx_row')].forEach(el=>{el.style.display=(!k||el.dataset.k.includes(k))?'':'none';});};
+  }
+  $x('.sx_s').onchange=()=>{$x('.sx_o').style.display=($x('.sx_s').value==='__other')?'':'none';loadItems();};
+  $x('.sx_map').onclick=()=>openSupMapping(()=>{Object.keys(ITEMS_CACHE).forEach(k=>delete ITEMS_CACHE[k]);loadItems();});
   async function loadBills(){
     const out=$x('.sx_out');
     try{
@@ -2843,8 +3050,10 @@ async function renderSupBillPage(body){
         const dayTot=byD[d].reduce((s,r)=>s+(+r.amount||0),0);
         h+='<div style="display:flex;justify-content:space-between;margin:10px 0 2px;font-weight:700;color:var(--ink-soft)"><span>📅 '+fmtDate(d)+'</span><span>'+dayTot.toLocaleString('th-TH')+'.-</span></div>';
         byD[d].forEach(r=>{
+          const ln=Array.isArray(r.lines)?r.lines:[];
           h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 2px;border-bottom:1px dashed var(--line)">'
-            +'<span>'+escapeHtml(r.sup||'')+' <small style="color:var(--ink-soft)">'+escapeHtml(BR[r.branch_id]||'')+(r.note?' · '+escapeHtml(r.note):'')+' · 👤'+escapeHtml(String(r.user_name||'').split(' ')[0])+'</small></span>'
+            +'<span>'+escapeHtml(r.sup||'')+(ln.length?' <small style="color:#1559c7" title="'+escapeHtml(ln.map(x=>x.name+' '+(x.amount||0)).join(' · '))+'">🧾'+ln.length+'</small>':'')
+            +' <small style="color:var(--ink-soft)">'+escapeHtml(BR[r.branch_id]||'')+(r.note?' · '+escapeHtml(r.note):'')+' · 👤'+escapeHtml(String(r.user_name||'').split(' ')[0])+'</small></span>'
             +'<span style="white-space:nowrap"><b style="color:#b3261e">'+(+r.amount).toLocaleString('th-TH')+'</b>'
             +' <button data-del="'+r.id+'" style="border:none;background:none;color:#b3261e;cursor:pointer">🗑</button></span></div>';
         });
@@ -2862,16 +3071,18 @@ async function renderSupBillPage(body){
   $x('.sx_save').onclick=async()=>{
     let sup=$x('.sx_s').value;
     if(sup==='__other')sup=$x('.sx_o').value.trim();
+    const wrap=$x('.sx_items');
+    const res=(wrap&&wrap.__sum)?wrap.__sum():{lines:[]};
     const a=num($x('.sx_a').value);
     if(!sup){toast('เลือกหรือพิมพ์ชื่อซัพก่อน');return;}
-    if(!(a>0)){toast('ใส่ยอดบิลก่อน');return;}
+    if(!(a>0)){toast('ใส่ยอดบิล หรือกรอกราคาในรายการก่อน');return;}
     const btn=$x('.sx_save');btn.disabled=true;
     const {error}=await sb.from('supplier_bills').insert({branch_id:$x('.sx_b').value,bill_date:$x('.sx_d').value,
-      sup:sup,amount:a,note:$x('.sx_n').value.trim()||null,user_name:currentUser&&currentUser.name});
+      sup:sup,amount:a,lines:res.lines,note:$x('.sx_n').value.trim()||null,user_name:currentUser&&currentUser.name});
     btn.disabled=false;
-    if(error){toast('บันทึกไม่ได้: '+error.message+' (ยังไม่ได้รัน SQL b31?)');return;}
-    toast('บันทึกบิล '+a.toLocaleString('th-TH')+'.- ✓');
-    $x('.sx_a').value='';$x('.sx_n').value='';loadBills();
+    if(error){toast('บันทึกไม่ได้: '+error.message+' (ยังไม่ได้รัน SQL b31/b32?)');return;}
+    toast('บันทึกบิล '+a.toLocaleString('th-TH')+'.- ✓'+(res.lines.length?(' · '+res.lines.length+' รายการ'):''));
+    $x('.sx_a').value='';$x('.sx_n').value='';loadItems();loadBills();
   };
   loadBills();
 }
