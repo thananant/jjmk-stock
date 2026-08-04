@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b28 — จดใครบันทึก/ใครแก้ใบปะหน้า</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b29 — หัวบรรทัดเดียว + เลือกกะออโต้</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2556,9 +2556,9 @@ async function renderSalesPage(body){
     +row('<b>เงินเก๊ะปิด (นับจริง)</b>',`<input class="cv_cnt" ${NUM}>`)
     +`<div class="cv_diffbox" style="margin-top:10px;padding:14px;border-radius:12px;text-align:center;font-size:1.2em;background:#e3e6ea"><b class="cv_diff">ยังไม่ได้นับเก๊ะปิด</b></div>`);
   body.innerHTML=`<div class="mp_card">
-      <div class="rfilters">
+      <div class="rfilters" style="grid-template-columns:1.15fr 1.05fr .95fr">
         <select class="cv_b">${bOpts}</select>
-        <input type="date" class="cv_d" value="${bizTodayISO()}">
+        <input type="date" class="cv_d" value="${bizTodayISO()}" style="grid-column:auto">
         <select class="cv_s"><option value="am">☀️ กะเช้า</option><option value="pm">🌙 กะเย็น</option></select>
       </div>
       ${sec1}${sec2}${sec3}
@@ -2741,6 +2741,9 @@ async function renderSalesPage(body){
     if(n>-1&&n<L.length-1)L[n+1].focus();
     else e.target.blur();
   });
+  // เลือกกะอัตโนมัติตามเวลาปิดจริง: 06:00-21:00 = กะเช้า · 21:01-05:59 = กะเย็น (เปลี่ยนมือได้เสมอ)
+  {const nw=new Date();const mins=nw.getHours()*60+nw.getMinutes();
+   $c('.cv_s').value=(mins>=360&&mins<=1260)?'am':'pm';}
   load();loadHist();
 }
 
