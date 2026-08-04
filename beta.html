@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b22 — สรุปนับเป็นเพจ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b23 — เมนูใบปะหน้า</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2471,7 +2471,7 @@ function closeModPages(){document.querySelectorAll('.modpage').forEach(e=>e.remo
 function openModule(name){
   closeModPages();hideAll();CUR_MOD=name;setSbActive(name==='stock'?'count':name);
   if(name==='stock')return;                       // สต็อก = แอปฐานข้างใต้
-  const meta={sales:['💵','ข้อมูลยอดขาย'],cost:['🧮','ข้อมูล Food Cost']}[name];
+  const meta={sales:['💵','ใบปะหน้า'],cost:['🧮','ข้อมูล Food Cost']}[name];
   const pg=document.createElement('div');pg.className='modpage';pg.dataset.mod=name;
   pg.innerHTML=`<div class="mp_head"><button class="mp_menu">☰</button><span class="mp_t">${meta[0]} ${meta[1]}</span><span class="mp_shop">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')}</span></div><div class="mp_body"></div>`;
   document.body.appendChild(pg);
@@ -2546,7 +2546,7 @@ async function renderCostPage(body){
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกราคา</div><div class="hm_big" id="ccPr">…</div></div>
         <div class="hm_card"><div class="hm_d">วันที่มีการกรอกยอดขาย</div><div class="hm_big" id="ccRv">…</div></div>
       </div>
-      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ข้อมูลยอดขาย</p>
+      <p class="hint" style="margin-top:10px">กรอกราคา: หน้า 🚚 รับของ (ช่องน้ำเงิน) · กรอกยอดขาย: โมดูล 💵 ใบปะหน้า</p>
     </div>`;
   try{const {data}=await sb.from('stock_receipts').select('order_date').not('unit_price','is',null).limit(5000);
     body.querySelector('#ccPr').textContent=new Set((data||[]).map(x=>String(x.order_date).slice(0,10))).size+' วัน';}catch(e){body.querySelector('#ccPr').textContent='—';}
@@ -2578,7 +2578,7 @@ function buildSidebar(){
       </div>`;
   if(money){
     m+=`<div class="sb_div"></div>`;
-    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ข้อมูลยอดขาย</button>`;
+    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>ใบปะหน้า</button>`;
     m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
   }
   w.innerHTML=`<div id="sbBack"></div>
@@ -2630,7 +2630,7 @@ function openSales(){
   const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:310';
   const bOpts=accessibleBranches().map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
   ov.innerHTML=`<div class="sheet" style="max-width:640px">
-    <div class="sheet-head"><h3>💵 ข้อมูลยอดขาย</h3><button class="x" data-x>✕</button></div>
+    <div class="sheet-head"><h3>💵 ใบปะหน้า</h3><button class="x" data-x>✕</button></div>
     <div class="sheet-body">
       <div class="rfilters">
         <select class="sv_b">${bOpts}</select>
