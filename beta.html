@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b40 — สั่งตามวันที่ของเดือน</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b41 — ย้ายซัพ ถาวร/เฉพาะวันนี้</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1636,6 +1636,51 @@ function buildText(){
 }
 let ORDER={};
 function orderOf(it){ if(ORDER[it.id]!=null)return ORDER[it.id]; const n=needQty(it); return (n!=null&&n>0)?n:0; }
+/* ===== ย้ายซัพ (b41): สั่งกับเจ้าอื่น "เฉพาะวันนี้" (จำต่อวันธุรกิจ) หรือย้ายถาวร ===== */
+let SUP_OVERRIDE={};
+(function(){try{const j=JSON.parse(localStorage.getItem('jj_sup_ovr')||'null');
+  if(j&&j.d===bizTodayISO()&&j.m)SUP_OVERRIDE=j.m;}catch(e){}})();
+function saveSupOvr(){try{localStorage.setItem('jj_sup_ovr',JSON.stringify({d:bizTodayISO(),m:SUP_OVERRIDE}));}catch(e){}}
+function effSup(it){return SUP_OVERRIDE[it.id]||it.sup||'';}
+function moveSupDialog(it){
+  const ov=document.createElement('div');ov.className='overlay';ov.style.cssText='display:flex;z-index:400';
+  const cur=effSup(it);
+  const opts=[...new Set(SUPPLIERS.map(s=>s.name&&s.name.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'))
+    .map(s=>`<option value="${escapeHtml(s)}" ${s===cur?'selected':''}>${escapeHtml(s)}</option>`).join('');
+  ov.innerHTML=`<div class="sheet" style="max-width:460px">
+    <div class="sheet-head"><h3>🔀 ย้ายซัพ — ${escapeHtml(it.name)}</h3><button class="x" data-x>✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin:0 0 8px">ซัพประจำ: <b>${escapeHtml(it.sup||'—')}</b>${SUP_OVERRIDE[it.id]?' · วันนี้สั่งกับ: <b style="color:#9a6700">'+escapeHtml(SUP_OVERRIDE[it.id])+'</b>':''}</p>
+      <select class="mv_s" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:'Sarabun'">${opts}</select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer"><input type="radio" name="mv_m" value="once" checked style="width:17px;height:17px;accent-color:var(--red)"> <span><b>เฉพาะวันนี้</b> — ออเดอร์วันนี้ส่งเข้ากลุ่มเจ้าใหม่ พรุ่งนี้กลับซัพประจำเอง</span></label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer"><input type="radio" name="mv_m" value="perm" style="width:17px;height:17px;accent-color:var(--red)"> <span><b>ย้ายถาวร</b> — เปลี่ยนซัพประจำของสินค้านี้ (เฉพาะสาขานี้ · ประวัติเดิมไม่หาย)</span></label>
+      <button class="act wide mv_go" style="background:var(--red);color:#fff;border:none;margin-top:14px">✅ ยืนยันย้ายซัพ</button>
+      ${SUP_OVERRIDE[it.id]?'<button class="act wide mv_clr" style="margin-top:8px">↩️ ยกเลิกของวันนี้ (กลับซัพประจำ)</button>':''}
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('[data-x]').onclick=()=>ov.remove();
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const cl=ov.querySelector('.mv_clr');
+  if(cl)cl.onclick=()=>{delete SUP_OVERRIDE[it.id];saveSupOvr();ov.remove();buildOrder();toast('กลับซัพประจำแล้ว ✓');};
+  ov.querySelector('.mv_go').onclick=async()=>{
+    const ns=ov.querySelector('.mv_s').value;
+    const mode=ov.querySelector('input[name="mv_m"]:checked').value;
+    if(!ns){toast('เลือกซัพก่อน');return;}
+    if(mode==='perm'){
+      const btn=ov.querySelector('.mv_go');btn.disabled=true;
+      const {error}=await sb.from('products').update({sup:ns}).eq('id',it.id);
+      btn.disabled=false;
+      if(error){toast('ย้ายไม่สำเร็จ: '+error.message);return;}
+      it.sup=ns;delete SUP_OVERRIDE[it.id];saveSupOvr();
+      toast('ย้าย "'+it.name+'" ไปซัพ "'+ns+'" ถาวรแล้ว ✓');
+    }else{
+      if(ns===(it.sup||'').trim())delete SUP_OVERRIDE[it.id];else SUP_OVERRIDE[it.id]=ns;
+      saveSupOvr();
+      toast('วันนี้สั่ง "'+it.name+'" กับ "'+ns+'" ✓ (พรุ่งนี้กลับซัพประจำ)');
+    }
+    ov.remove();buildOrder();renderTabs();renderMain();refreshCounters();
+  };
+}
 // ดึง safety/max/pack/step ล่าสุดจาก DB มาทับในหน่วยความจำ (ไม่แตะ qty ที่กำลังนับ)
 function refreshMeta(){loadLastSent();
   return sb.from('products').select('id,safety,max,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
@@ -1654,8 +1699,8 @@ function buildOrder(){
   if(!list.length){ const n=document.createElement('div');n.className='ordnote';
     n.textContent='ยังไม่มีรายการที่ต้องสั่ง — ตั้ง safety stock (📦 ครัวกลาง) และนับให้ครบก่อน แล้วระบบจะคำนวณให้';
     box.appendChild(n);return; }
-  // group by supplier
-  const sup={};list.forEach(i=>{const s=(i.sup||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
+  // group by supplier (นับซัพที่ย้ายเฉพาะวันนี้ด้วย — b41)
+  const sup={};list.forEach(i=>{const s=(effSup(i)||'').trim()||'(ไม่ระบุซัพพลายเออร์)';(sup[s]=sup[s]||[]).push(i)});
   const MUSTO=new Set(mustOrderToday().map(x=>x.name));
   Object.keys(sup).sort((a,b)=>{const ma=MUSTO.has(a)?0:1,mb=MUSTO.has(b)?0:1;return ma!==mb?ma-mb:a.localeCompare(b,'th');}).forEach(s=>{
     const sh=document.createElement('div');sh.className='osup';
@@ -1679,12 +1724,16 @@ function buildOrder(){
     box.appendChild(sh);
     const hd=document.createElement('div');hd.className='ochead';hd.innerHTML='<span>'+tr('col_item')+'</span><span>'+tr('col_left')+'</span><span>safety</span><span>max</span><span>'+tr('col_rec')+'</span><span>'+tr('col_order')+'</span>';box.appendChild(hd);
     sup[s].forEach(i=>{const rec=needQty(i);
+      const canMv=can('manageProducts');
+      const ovr=SUP_OVERRIDE[i.id]?'<small style="color:#9a6700"> 🔀 เฉพาะวันนี้ (ประจำ: '+escapeHtml(i.sup||'—')+')</small>':'';
+      const mv=canMv?' <button class="mvsup" title="ย้ายซัพ" style="border:none;background:none;cursor:pointer;font-size:.95em;padding:0 3px">🔀</button>':'';
       const row=document.createElement('div');row.className='orow';
-      row.innerHTML=`<div class="on">${escapeHtml(itemName(i))} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span></div>
+      row.innerHTML=`<div class="on">${escapeHtml(itemName(i))}${mv} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span>${ovr}</div>
         <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov">${i.max==null?'–':fmt(i.max)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
       box.appendChild(row);
+      const mvb=row.querySelector('.mvsup');if(mvb)mvb.onclick=()=>moveSupDialog(i);
       inp.onchange=()=>{const t=inp.value.trim();const v=t===''?0:Math.max(0,parseFloat(t.replace(',','.'))||0);ORDER[i.id]=v;inp.value=fmt(v);};
       inp.onfocus=()=>inp.select();
     });
@@ -1716,7 +1765,7 @@ $('#sendBtn').onclick=async()=>{const btn=$('#sendBtn');
   if(!toPush.length){done('ทุกแถวเหมือนที่บันทึกล่าสุดแล้ว ✓ ไม่ต้องเซฟซ้ำ');return}
   const histRows=toPush.map(({c,i})=>({branch_id:B().id,branch_name:B().name,count_date:cd,
     counter:currentUser&&currentUser.name,user_id:currentUser&&currentUser.id,
-    cat_key:c.key,cat_label:c.label,product_id:i.id,name:i.name,unit:i.unit||'',sup:i.sup||'',
+    cat_key:c.key,cat_label:c.label,product_id:i.id,name:i.name,unit:i.unit||'',sup:effSup(i)||'',
     qty:i.qty,out_of_stock:isOut(i),safety:i.safety,max:i.max,recommended:needQty(i),ordered:orderOf(i)}));
   const curRows=toPush.map(({i})=>({branch_id:B().id,product_id:i.id,qty:i.qty,counter:currentUser&&currentUser.name,updated_at:new Date().toISOString()}));
   try{
@@ -3788,7 +3837,8 @@ function lgLabel(g){return (g.name&&g.name.trim())?g.name:('กลุ่ม '+St
 function itemName(it){return (it&&it.i18n&&it.i18n[LANG])?it.i18n[LANG]:(it?(it.name||''):'');}
 /* ===== สั่งของเต็มหน่วย: ปัดเป็นลัง (pack) + สั่งทีละ/หารลงตัว (step) ต่อสินค้า ===== */
 const CASE_PACK={'Smoosh':24}; // legacy fallback (ก่อนรัน SQL pack); ใช้เมื่อสินค้ายังไม่มีค่า pack
-function rowSup(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.sup)||r.sup||'';}
+function rowSup(r){if(SUP_OVERRIDE[r.product_id])return SUP_OVERRIDE[r.product_id];  // ย้ายซัพเฉพาะวันนี้ (b41)
+  const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.sup)||r.sup||'';}
 function rowUnit(r){const ix=ITEM_INDEX[r.product_id];return (ix&&ix.item.unit)||r.unit||'';}
 function pmeta(r){const ix=ITEM_INDEX[r.product_id];const it=ix&&ix.item;const unit=rowUnit(r);
   let pack=(it&&it.pack!=null)?+it.pack:0, pu=(it&&it.pack_unit)||'ลัง';
@@ -3872,7 +3922,7 @@ function bizDate(){const d=new Date(Date.now()-resetMins()*60000);d.setHours(0,0
 function bizTodayISO(){const d=bizDate();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function nowMinEff(){const n=new Date();const nm=n.getHours()*60+n.getMinutes();return nm+(nm<resetMins()?1440:0);} // หลังเที่ยงคืนก่อนรีเซ็ต = ท้ายวันเดิม (เลย cutoff แล้ว)
 let SHOW_SKIP=localStorage.getItem('jj_show_skip')==='1';
-function countable(it){return SHOW_SKIP||supOrderableToday(it.sup);}
+function countable(it){return SHOW_SKIP||supOrderableToday(effSup(it));}
 function mustOrderToday(){ // ซัพโหมดบังคับที่วันนี้เป็นวันสั่ง
   const today=bizDate();
   const dk=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
@@ -4173,8 +4223,8 @@ function needQty(it,dateStr){ // safety = ใช้/วัน · max = ใช้
   const stock=+it.qty;
   const mx=(it.max===null||it.max===undefined||it.max==='')?null:(+it.max);
   const rate=(mx!==null&&mx>safety)?mx:safety;         // อัตราเผื่อวันขายดี
-  const h=supHorizon(it.sup,dateStr);
-  if(h.mode==='fixed'||h.mode==='interval'){
+  const h=supHorizon(effSup(it),dateStr);
+  if(h.mode==='fixed'||h.mode==='interval'||h.mode==='monthdays'){
     // สูตรวันบังคับ: ล็อตใหม่ต้องพอ cycle วัน − ของที่คาดว่าเหลือตอนของมา (กินไป safety×lead)
     const leftAtDelivery=Math.max(0,stock-safety*h.lead);
     return orderRound(rate*h.cycle-leftAtDelivery,it.unit);
