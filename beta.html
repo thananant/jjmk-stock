@@ -599,7 +599,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b39 — ป้าย 🧾 ซัพที่มีรายการบิล</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b40 — สั่งตามวันที่ของเดือน</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3814,9 +3814,26 @@ function supMode(s){if(!s)return 'any';
   if(s.order_mode==='any')return 'any';
   if(s.order_mode==='interval')return 'interval';
   if(s.order_mode==='fixed')return 'fixed';
+  if(s.order_mode==='monthdays')return 'monthdays';
   const sc=s.schedule; // ยังไม่ตั้งโหมด: มีตาราง=fixed ไม่มี=any (เข้ากันได้กับข้อมูลเดิม)
   return (sc&&typeof sc==='object'&&Object.keys(sc).some(k=>DOW_IDX[k]!=null&&sc[k]))?'fixed':'any';}
 function cycleDays(s){const n=s?parseInt(s.cycle_days,10):NaN;return (n>=2&&n<=90)?n:15;}
+/* โหมด monthdays (b40): สั่งตามวันที่ของเดือน เช่น "1,16" = ทุกวันที่ 1 กับ 16 */
+function monthDays(s){return String((s&&s.month_days)||'').split(',').map(x=>parseInt(x,10)).filter(n=>n>=1&&n<=31).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b);}
+function mdDate(y,m,day){const dt=new Date(y,m,1);const last=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();return new Date(dt.getFullYear(),dt.getMonth(),Math.min(day,last));} // เดือนสั้นเลื่อนเป็นวันสุดท้าย
+function monthdaysDueOn(s,d){ // วันนี้เป็นวันสั่งไหม (เดือนสั้น: วันที่เกิน = วันสุดท้ายของเดือน)
+  const md=monthDays(s);if(!md.length)return false;
+  const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  return md.includes(d.getDate())||(d.getDate()===last&&md.some(x=>x>last));}
+function monthdaysNext(s,from){ // วันสั่งรอบแรกตั้งแต่ from และรอบถัดไป
+  const md=monthDays(s);if(!md.length)return null;
+  const d=from||bizDate();const cur=d.getDate();
+  const odDay=md.find(x=>x>=cur);
+  const od=(odDay!=null)?mdDate(d.getFullYear(),d.getMonth(),odDay):mdDate(d.getFullYear(),d.getMonth()+1,md[0]);
+  const nxDay=md.find(x=>x>od.getDate());
+  const nx=(nxDay!=null)?mdDate(od.getFullYear(),od.getMonth(),nxDay):mdDate(od.getFullYear(),od.getMonth()+1,md[0]);
+  return {od,nx,md};
+}
 let LAST_SENT={}; // ซัพ → วันส่งใบสั่งไลน์ล่าสุด (ใช้นับรอบโหมด interval)
 async function loadLastSent(){try{
   const since=new Date(Date.now()-120*86400000).toISOString().slice(0,10);
@@ -3844,6 +3861,7 @@ function supOrderableToday(supName){ // วันนี้สั่งซัพ�
   const s=SUPPLIERS.find(x=>x.name===(supName||'').trim());
   if(!s)return true;
   if(supMode(s)==='interval')return intervalNext(s).due;
+  if(supMode(s)==='monthdays'){const md=monthDays(s);return !md.length||monthdaysDueOn(s,bizDate());}
   if(supMode(s)!=='fixed')return true;
   const sc=s.schedule;if(!sc||typeof sc!=='object')return true;
   return !!sc[['sun','mon','tue','wed','thu','fri','sat'][bizDate().getDay()]];
@@ -3865,6 +3883,7 @@ function mustOrderToday(){ // ซัพโหมดบังคับที่�
     let due=false;
     if(m==='fixed'){const sc=s.schedule;due=!!(sc&&typeof sc==='object'&&sc[dk]);}
     else if(m==='interval'){due=intervalNext(s).due;}
+    else if(m==='monthdays'){due=monthdaysDueOn(s,today);}
     if(!due)return;
     const cm=cutoffMin(s);
     out.push({name:s.name,cut:cm!=null?((s.cutoff||'').trim().slice(0,5)):null,cutMin:cm,missed:cm!=null&&nm>=cm});});
@@ -3897,6 +3916,22 @@ function supReminder(si){ // เตือนรอบสั่งตอนเช
     const t0=bizDate();
     const dleft=Math.round((new Date(iv.next+'T00:00:00')-t0)/86400000);
     return {cls:'blue',html:'🗓️ รอบหน้า: '+fmtDate(iv.next)+' (อีก '+dleft+' วัน) · รอบทุก '+iv.cyc+' วัน · ส่งล่าสุด '+fmtDate(iv.last)};
+  }
+  if(supMode(si)==='monthdays'){
+    const md=monthDays(si);
+    if(!md.length)return {cls:'blue',html:'🗓️ สั่งตามวันที่ของเดือน — ยังไม่ได้ตั้งวันที่ (ไปตั้งใน ⚙️ ซัพพลายเออร์)'};
+    const t0=bizDate();const lbl='ทุกวันที่ '+md.join(', ');
+    if(monthdaysDueOn(si,t0)){
+      const cm=cutoffMin(si);const nm=nowMinEff();
+      if(cm!=null&&nm>=cm)return {cls:'red',html:'🟠 <b>พลาดรอบ!</b> เลยเวลาตัด '+escapeHtml((si.cutoff||'').trim().slice(0,5))+' ('+lbl+')'};
+      const cutTxt=cm!=null?(' ก่อน <b>'+escapeHtml((si.cutoff||'').trim().slice(0,5))+'</b> · <span class="cutleft" data-cut="'+cm+'">เหลือ '+fmtLeft(cm-nm)+'</span>'):'';
+      return {cls:'red',html:'🔴 <b>วันนี้วันสั่ง! ('+lbl+')</b>'+cutTxt};
+    }
+    const mn=monthdaysNext(si,t0);
+    const dleft=Math.round((mn.od-t0)/86400000);
+    const p2=n=>String(n).padStart(2,'0');
+    const odISO=mn.od.getFullYear()+'-'+p2(mn.od.getMonth()+1)+'-'+p2(mn.od.getDate());
+    return {cls:'blue',html:'🗓️ รอบหน้า: '+fmtDate(odISO)+' (อีก '+dleft+' วัน) · '+lbl};
   }
   if(supMode(si)==='any'){const L=supLead(si);
     return {cls:'blue',html:'🟢 สั่งได้ทุกวัน · สั่งวันนี้ได้ของใน <b>+'+L+' วัน</b>'+(L>1?' · <b style="color:var(--red)">×'+L+' (เผื่อ '+L+' วัน)</b>':'')};}
@@ -3953,11 +3988,16 @@ function renderSuppliers(){
             <option value="any" ${mode==='any'?'selected':''}>สั่งได้ทุกวัน</option>
             <option value="fixed" ${mode==='fixed'?'selected':''}>วันบังคับสั่ง (ตามตารางด้านล่าง)</option>
             <option value="interval" ${mode==='interval'?'selected':''}>รอบทุก N วัน (เช่น 15 วันสั่งครั้ง)</option>
+            <option value="monthdays" ${mode==='monthdays'?'selected':''}>ตามวันที่ของเดือน (เช่น ทุกวันที่ 1 กับ 16)</option>
           </select></div>
         <div class="sfield f_cycwrap" style="display:${mode==='interval'?'block':'none'}">
           <label>สั่งทุกกี่วัน (นับจากวันส่งใบสั่งไลน์ล่าสุด)</label>
           <input class="f_cyc" type="number" inputmode="numeric" min="2" max="90" value="${cycleDays(s)}">
           <p class="hint" style="margin:4px 0 0">ระบบเริ่มนับรอบจากวันที่กดส่งใบสั่งทางไลน์ · ครบรอบ = ขึ้น 🔴 ต้องสั่ง + เผื่อยอดเต็มรอบ</p></div>
+        <div class="sfield f_mdwrap" style="display:${mode==='monthdays'?'block':'none'}">
+          <label>สั่งทุกวันที่ (คั่นด้วย , )</label>
+          <input class="f_md" inputmode="numeric" value="${escapeHtml(String(s.month_days||''))}" placeholder="เช่น 1,16">
+          <p class="hint" style="margin:4px 0 0">เดือนละครั้ง = ใส่เลขเดียว เช่น 1 · เดือนละ 2 ครั้ง = 1,16 · เดือนไหนไม่มีวันที่นั้น (เช่น 31 ก.พ.) ระบบเลื่อนเป็นวันสุดท้ายของเดือนให้</p></div>
         <div class="sfield f_leadwrap" style="display:${mode!=='fixed'?'block':'none'}">
           <label>สั่งวันนี้ ได้ของในอีกกี่วัน (+N)</label>
           <input class="f_lead" type="number" inputmode="numeric" min="1" max="30" value="${supLead(s)}">
@@ -3993,7 +4033,12 @@ function renderSuppliers(){
         save({order_mode:v}).then(ok=>{if(!ok)return;
           body.querySelector('.f_leadwrap').style.display=(v!=='fixed')?'block':'none';
           body.querySelector('.f_cycwrap').style.display=(v==='interval')?'block':'none';
+          body.querySelector('.f_mdwrap').style.display=(v==='monthdays')?'block':'none';
           body.querySelector('.f_schedwrap').style.display=(v==='fixed')?'block':'none';});};
+      body.querySelector('.f_md').onchange=e=>{
+        const v=e.target.value.split(',').map(x=>parseInt(x,10)).filter(n=>n>=1&&n<=31);
+        const t=v.length?[...new Set(v)].sort((a,b)=>a-b).join(','):null;
+        e.target.value=t||'';save({month_days:t});};
       body.querySelector('.f_lead').onchange=e=>{let v=parseInt(e.target.value,10);if(!(v>=1))v=1;if(v>30)v=30;e.target.value=v;save({lead_days:v});};
       body.querySelector('.f_cyc').onchange=e=>{let v=parseInt(e.target.value,10);if(!(v>=2))v=2;if(v>90)v=90;e.target.value=v;save({cycle_days:v});};
       body.querySelector('.f_min').onchange=e=>{const t=e.target.value.trim();const v=t===''?null:Math.max(0,parseFloat(t)||0);save({min_cases:v});};
@@ -4145,6 +4190,19 @@ function supHorizon(supName,dateStr){ // {lead:วันกินสต็อก
   const s=SUPPLIERS.find(x=>x.name===(supName||'').trim());
   if(s&&supMode(s)==='any')return {lead:supLead(s),cycle:1,mode:'any'};
   if(s&&supMode(s)==='interval')return {lead:supLead(s),cycle:cycleDays(s),mode:'interval'};
+  if(s&&supMode(s)==='monthdays'){
+    const md=monthDays(s);
+    if(!md.length)return {lead:supLead(s),cycle:30,mode:'monthdays'};
+    let d0;
+    if(dateStr)d0=new Date(isoFromAny(dateStr)+'T00:00:00');
+    else{const cd=(document.getElementById('countDate')||{}).value;d0=cd?new Date(cd+'T00:00:00'):bizDate();}
+    if(isNaN(+d0))d0=bizDate();
+    const mn=monthdaysNext(s,d0);
+    const del1=new Date(mn.od);del1.setDate(del1.getDate()+supLead(s));   // วันสั่ง + วันรอส่ง = วันของถึง
+    const lead=Math.max(1,Math.round((del1-d0)/86400000));
+    const cycle=Math.max(1,Math.round((mn.nx-mn.od)/86400000));           // วันสั่งรอบนี้ → รอบถัดไป
+    return {lead,cycle,mode:'monthdays'};
+  }
   const sc=s&&s.schedule; if(!sc||typeof sc!=='object')return {lead:1,cycle:1,mode:'none'};
   const keys=Object.keys(sc).filter(k=>DOW_IDX[k]!=null&&sc[k]&&DOW_IDX[sc[k]]!=null);
   if(!keys.length)return {lead:1,cycle:1,mode:'none'};
