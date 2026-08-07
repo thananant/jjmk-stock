@@ -1,0 +1,147 @@
+# CLAUDE.md — JJMK Stock / หลังบ้านจริงใจ (อัปเดตถึง b41 · 5 ส.ค. 2026)
+
+คู่มือบริบทโปรเจกต์ — อ่านไฟล์นี้ก่อนแก้อะไรเสมอ
+ผู้ใช้ (Pattrick) คุยภาษาไทย ตอบภาษาไทยกระชับ ๆ
+
+## 1. โปรเจกต์คืออะไร
+
+เว็บแอปหลังบ้านร้านหมูกระทะ "จริงใจหมูกระทะ" 2 สาขา (สาขารัชดา / สาขาลาดพร้าว):
+นับสต็อกรายวัน → ระบบคำนวณยอดสั่ง → ส่งใบสั่งเข้ากลุ่ม LINE ของแต่ละซัพ → บันทึกรับของ+ราคา →
+ใบปะหน้าปิดกะ (รายรับ/กระทบยอดเงินสด) → บิลรายจ่ายซัพ → รายงานการใช้ของ / (กำลังทำ) Food Cost
+
+- **Frontend:** ไฟล์เดียว `index.html` (production) + `beta.html` (ทดลอง) — HTML+CSS+JS ล้วน ไม่มี build step
+- **Hosting:** GitHub Pages · repo `thananant/jjmk-stock` · URL `https://thananant.github.io/jjmk-stock/`
+- **Backend:** Supabase project `aikyxvluaiubdidqxwnd` (region ap-southeast-1)
+- **LINE Messaging API:** ส่งใบสั่ง/แจ้งเตือน (แพ็กเกจไม่จำกัดข้อความ)
+- **Edge Functions:** `line-order`, `order-reminders` (cron 15 นาที — เวอร์ชันรองรับ monthdays อยู่ใน repo แล้ว ต้อง deploy), `sync-line-groups`, `admin-reset-password`
+- **NAS (Synology "Phagunruay_NAS"):** สำรองข้อมูล + คลังข้อมูลเก่า — ดูข้อ 8
+
+## 2. สถานะเวอร์ชัน
+
+| ไฟล์ | เวอร์ชัน | หมายเหตุ |
+|---|---|---|
+| `index.html` (production) | v24.3 | ยังไม่ได้ promote โครงหลังบ้าน |
+| `beta.html` | **b41** | ทุกฟีเจอร์ล่าสุด |
+
+ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
+เปิดกันแคช: `beta.html?v=N`
+
+ไทม์ไลน์ b23–b41: b23 เมนูใบปะหน้า · b24 คลังข้อมูลเก่า (archive) · b25-b29 ใบปะหน้าปิดกะ ·
+b30 รีเฟรชกลับหน้าเดิม · b31-b33 รายจ่าย Supplier + คลังรายการบิล · b34-b35 (SQL) ชื่อซัพบริษัทเต็ม+จับคู่ ·
+b36-b39 จับคู่ชื่อสินค้า/แก้ z-index/ป้าย 🧾 · b40 สั่งตามวันที่ของเดือน · b41 ย้ายซัพ
+
+## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
+
+1. แก้ที่ `beta.html` ก่อนเสมอ (beta-first) → ผู้ใช้ทดลอง → ค่อยออก production
+2. ทุกการแก้: assert ว่า string เดิมมีอยู่ก่อน replace · เช็ค syntax ทุก `<script>` block ด้วย `node -e "new Function(...)"`
+3. ฟีเจอร์ใหญ่ → เสนอ flow/diagram ให้ดูก่อนลงมือ
+4. **Git:** dev บน branch → สร้าง PR → **merge เข้า main อัตโนมัติได้เลย** (ผู้ใช้อนุญาตถาวรแล้ว) — GitHub Pages deploy เอง 1-2 นาที
+5. SQL ต้อง idempotent (`if not exists`) + **ตารางใหม่ต้อง enable RLS + policy + grant ให้ anon/authenticated** (โปรเจกต์เคย revoke default) + grant sequence ถ้ามี identity column · SQL รันมือใน SQL Editor (GitHub ไม่ auto-run)
+6. SQL ห้ามคอมเมนต์ไทยยาว ๆ (เคยเจอ encoding พังใน SQL Editor) — ข้อมูลภาษาไทยใน values ใช้ได้
+7. Supabase SQL Editor **ตัดผลลัพธ์ที่ 100 แถว** — export ข้อมูลเยอะให้เปลี่ยน Limit dropdown หรือใช้ json_agg/string_agg ยุบแถว
+
+## 4. โครงสร้าง DB (ตารางทั้งหมด)
+
+- `products` — id (text, gen เอง: `'p'||substr(md5(random()::text||clock_timestamp()::text),1,14)`),
+  branch_id, cat_key, cat_label, name, **i18n (jsonb {en,lo,my})**, unit, sup, safety, "max", pack, pack_unit,
+  order_step, step_unit, location, **image_url**, sort, deleted_at (soft delete) · ~412 แถว (สินค้าแยกต่อสาขา — ชื่อเดียวกัน id คนละตัว)
+- `branches` — id, name, sort
+- `suppliers` — **คีย์คือ name ไม่มี id** · ตอนนี้ใช้**ชื่อบริษัทเต็ม**เป็นหลัก (b34) เช่น "บริษัท ซีพี แอ็กตร้า จำกัด(มหาชน)" (=makro เดิม) ·
+  order_mode ('any'/'fixed'/'interval'/**'monthdays'**), lead_days, cycle_days, **month_days (text "1,16")**, min_cases,
+  cutoff (HH:MM), schedule (jsonb {mon:'wed',...}), last_order_date, last_delivery_date, reopen_date, line_group_id, note
+  · ⚠️ ค้างแก้: ซัพ "KCG Indoguna เนือ" (สะกดตกไม้โท) ยังไม่ถูกเปลี่ยนเป็น "บริษัท อินโดกูนา(ประเทศไทย) จำกัด"
+- `stock_counts` — log การนับ (append เฉพาะแถวเปลี่ยน) · count_date เป็น date · **ห้ามใช้คอลัมน์ ordered เป็น "ของเข้า"**
+- `stock_current` — ยอดสดบนจอ (upsert onConflict branch_id,product_id)
+- `stock_receipts` — **แหล่งความจริง "สั่งจริง/รับจริง/ราคา"** · key (branch_id,product_id,order_date) ·
+  ordered เขียนตอนส่ง LINE สำเร็จ · received/diff/unit_price จากหน้ารับของ · sup = ซัพที่สั่งจริงวันนั้น (รองรับย้ายซัพ)
+- `daily_revenue` — branch_id, rev_date, revenue, note, user_name · PK(branch_id,rev_date) · **ซิงก์อัตโนมัติจาก shift_close** · เก็บตลอด ไม่ archive
+- `shift_close` (b25+) — **ใบปะหน้าปิดกะ** · PK(branch_id, close_date, shift 'am'/'pm') ·
+  float_start (เก๊ะเปิด), cash_sales, transfers (jsonb {ช่องทาง:ยอด}), expenses (jsonb [{d,by,a}]),
+  deposit (กะเช้า=0 เสมอ), counted_cash (เก๊ะปิด), note, user_name (คนบันทึกแรก คงไว้), edits (jsonb log ใครแก้อะไร), updated_at
+- `supplier_bills` (b31+) — บิลรายจ่ายซัพ · id identity, branch_id, bill_date, sup, amount, **lines (jsonb [{name,unit,qty,price,amount}])**, note, user_name
+- `supplier_items` (b32+) — คลังรายการบิล 494 รายการจากไฟล์ Excel · sup_sheet (ชื่อในไฟล์บิล), sup_full, name, unit, has_vat, has_disc, **stock_name (b36 — จับคู่ชื่อสินค้านับ)**, sort, active
+- `supplier_map` (b32+) — sup_sheet → sup_app (จับคู่ชื่อซัพ ครบ 36 แถวแล้ว, หลายชีทชี้ซัพเดียวได้)
+- `config` — key/value: resetTime (06:00), remind_before_min, remind_nocut_time, remind_line_group, shop, **pay_channels ("QR พร้อมเพย์,เครดิต")**
+- `line_groups`, `reminder_log`, `app_users`/`roles`, `units`
+- **Storage buckets:** `product-images` (รูปสินค้า public), `archive` (b24 — คลังข้อมูลเก่า public read)
+- สำรองก่อนล้าง 11 ก.ค.: `stock_counts_backup_20260711`, `stock_receipts_backup_20260711`
+
+## 5. Business logic สำคัญ (อย่าทำพัง)
+
+- **safety = ใช้เฉลี่ย/วัน, max = ใช้พีค/วัน** (ไม่ใช่ minimum stock)
+- **สูตรสั่ง (fixed/interval/monthdays):** `แนะนำ = rate×cycle − max(0, stock − safety×lead)` โดย rate=max(safety,max) ·
+  supHorizon() คืน {lead:วันนับ→วันส่ง, cycle:วันส่งรอบนี้→รอบหน้า} · โหมด any: gate stock≥safety, target=rate×lead
+- **โหมด monthdays (b40):** month_days="1,16" · เดือนสั้นเลื่อนวันเกินเป็นวันสุดท้ายของเดือน (monthdaysDueOn) ·
+  helpers: monthDays(), mdDate(), monthdaysNext() · needQty ต้องมี mode 'monthdays' ในเงื่อนไขสูตรเต็มรอบ
+- **โหมด interval:** นับรอบจาก LAST_SENT (วันส่ง LINE ล่าสุดจาก stock_receipts)
+- **ย้ายซัพ (b41):** `SUP_OVERRIDE` (localStorage `jj_sup_ovr` จำต่อวันธุรกิจ) = ย้ายเฉพาะวันนี้ ·
+  `effSup(it)` ใช้แทน it.sup ในสูตร/จัดกลุ่ม/บันทึก · `rowSup(r)` เช็ค override ก่อน · ย้ายถาวร = update products.sup (ต่อสาขา)
+- **orderRound():** ปัดขึ้นเต็มหน่วย ยกเว้น unit ตรง regex `/โล|กิโล|กก|กรัม/` → แปลงลัง (pack) / สั่งทีละ (order_step)
+- **วันธุรกิจ:** เส้นแบ่งวัน = resetTime (06:00) — ใช้ bizDate()/bizTodayISO()/nowMinEff() แทน new Date() เสมอ
+- **ส่ง LINE สำเร็จ → upsert stock_receipts** (ordered=ยอดส่งจริง, sup=ซัพที่สั่งจริง) + อัปเดต LAST_SENT — ห้ามลบ
+- **ใบปะหน้าปิดกะ (b25-b29):** 2 กะเสมอ (เช้า 06:00-21:00 / เย็น 21:01-05:59 เลือกออโต้ตามเวลา แก้มือได้) ·
+  ช่องทางรายรับ: QR พร้อมเพย์ → เงินสด → เครดิต (แก้ได้ผ่าน config.pay_channels) ·
+  **เงินฝากกะเช้า = 0 ล็อกเสมอ** · **เก๊ะเปิด = เก๊ะปิดกะก่อนหน้าอัตโนมัติ** (เย็น←เช้าวันเดียวกัน, เช้า←เย็นเมื่อวาน) ·
+  สูตร: ควรมีในเก๊ะปิด = เก๊ะเปิด + ขายสด − รายจ่ายสด − เงินฝาก · Diff = นับจริง − ควรมี ·
+  ยอดขายวัน (เช้า+เย็น) ซิงก์เข้า daily_revenue อัตโนมัติ · บันทึกใครบันทึก/ใครแก้อะไร (edits log) · Enter เลื่อนช่องถัดไป
+- **รายจ่าย Supplier (b31-b39):** เลือกซัพ (ป้าย 🧾 = มีรายการบิล) → รายการจาก supplier_items ผ่าน supplier_map →
+  กรอกจำนวน/ราคา รวมเป็นยอดบิลอัตโนมัติ → บันทึกลง supplier_bills.lines · จับคู่ชื่อซัพ/ชื่อสินค้าในแอปได้ (มีเดาอัตโนมัติ supSim — เทียบเสียงไทย↔อังกฤษ)
+- **คลังข้อมูลเก่า (b24):** DB เก็บ 120 วันล่าสุด · เดือนเก่า → JSON รายเดือนใน Storage bucket `archive` ·
+  หน้าดูย้อนหลัง/การใช้ของ อ่าน DB+คลังต่อกันอัตโนมัติ (archFetch/archDates) · ดูย้อนหลังได้ไม่จำกัด
+- **รายงานการใช้ของ (openUsage):** inflow จาก stock_receipts เท่านั้น (received ?? ordered) เทียบวันของถึงตาม supHorizon lead
+- **ห้ามมี dashboard "ภาพรวม"** — ผู้ใช้สั่งตัดออกแล้ว
+- **ซอง→ลัง conversion:** เฉพาะ dispatch board + ข้อความ LINE — ไม่เอาในหน้า order review
+
+## 6. โครง UI (b22 shell + โมดูล)
+
+- **Shell:** body.jjshell → sidebar 264px ค้างซ้าย ≥1024px (มือถือ = drawer ☰) · `.modpage` z-index **350** — overlay ที่จะลอยเหนือเพจต้อง z-index ≥400
+- **เมนู:** ข้อมูลสต็อก (นับ/ใบสั่งซื้อ/รายการสั่งของ/รับของ+ราคา/การใช้ของ/ดูย้อนหลัง/Safety-Max/ตั้งค่า) ·
+  💵 **รายรับ** (=ใบปะหน้า, module 'sales') · 💸 **รายจ่าย Supplier** (module 'supbill') · 🧮 ข้อมูล Food Cost (โครงรอ) — โมดูลเงินเห็นเฉพาะ admin/owner (canMoney)
+- **นำทาง:** goPage(g) จำหน้าล่าสุดใน localStorage `jj_last_page` → รีเฟรช (F5) กลับหน้าเดิม (restoreLastPage เช็คสิทธิ์ก่อน)
+- ฟังก์ชันหลัก: openModule(), buildSidebar(), renderSalesPage() (ใบปะหน้า), renderSupBillPage(), openSupMapping(), openItemMapping(), moveSupDialog()
+
+## 7. ระบบชื่อซัพ 2 โลก (สำคัญมากตอน integrate)
+
+```
+ชื่อในไฟล์บิล/ชีท (sup_sheet เช่น "makro")
+   └─ supplier_map ─→ ชื่อซัพในแอป (suppliers.name = ชื่อบริษัทเต็ม เช่น "บริษัท ซีพี แอ็กตร้า จำกัด(มหาชน)")
+รายการบิล (supplier_items.name เช่น "เอโร่ ผักรวมแช่แข็ง1กก.")
+   └─ supplier_items.stock_name ─→ สินค้านับ (products.name เช่น "ผักรวมแช่แข็ง")
+```
+- สินค้านับกับรายการบิลตั้งใจแยกกัน (ชื่อนับสั้นไว้นับเร็ว / ชื่อบิลตรงกระดาษ) — เชื่อมด้วย mapping ไม่บังคับรวม
+- ตัวเดาชื่อ: supNorm/supSkel (ถอดเสียงพยัญชนะไทย→ละติน)/supAbbr (เคซีจี=KCG)/supSim — threshold 0.62
+
+## 8. NAS (Synology · shared folder "JingJai-System")
+
+- `backup_jjmk.sh` — ทุกวันตี 4 (Task Scheduler, root): pg_dump ผ่าน docker → dump/ (.dump+.sql.gz) + csv/ ทุกตาราง · เก็บ 90 วัน
+- `archive_jjmk.sh` — เดือนละครั้ง: ย้ายเดือนที่เก่ากว่า 120 วัน (stock_counts, stock_receipts) → NAS + Storage `archive` → เทียบ byte ตรงกันแล้วค่อยลบจาก DB · ไม่มี backup ใหม่ = ไม่ยอมลบ
+- ต่อ DB ใช้ **Session pooler** (aws-1-ap-southeast-1.pooler.supabase.com:5432) — direct host เป็น IPv6 ต่อจากบ้านไม่ติด
+- สคริปต์ใน repo ไม่มีรหัสผ่าน (placeholder) — ตัวจริงอยู่บน NAS ของผู้ใช้เท่านั้น
+
+## 9. SQL ที่รันแล้ว / ค้างรัน
+
+รันแล้ว: setup ทั้งหมดถึง b35 (cover sheet, edits, supplier_bills, catalog 494, rename b34, new6 b35), archive bucket
+ต้องเช็ค/ค้าง: `setup_item_names_b36.sql` (stock_name), `setup_monthdays_b40.sql` (month_days), deploy `order-reminders.ts` ใหม่
+
+## 10. กับดักที่เคยเจอ (จำไว้)
+
+- Supabase default 1,000 แถว/query ฝั่งแอป → ใช้ sbAll(build,n) เสมอเมื่อดึงเยอะ · SQL Editor ตัด 100 แถวตอน export
+- toISOString() เป็น UTC — ใช้ bizTodayISO() · วันที่ใน DB บางแถวเป็นปี พ.ศ. → isoFromAny()/dateVariants()
+- `.modpage` z-index 350 — overlay ต่ำกว่านี้จะโดนบัง (เคยทำหน้าต่างจับคู่ "หาย")
+- GitHub merge แบบ squash ทำ branch conflict — ใช้ merge commit ธรรมดา + sync branch หลัง merge ทุกครั้ง
+- Claude session ต่อ Supabase/NAS ตรง ๆ ไม่ได้ (egress block) — ให้ผู้ใช้รัน SQL แล้วส่ง CSV กลับ
+- suppliers ไม่มี id — เปลี่ยนชื่อซัพต้อง cascade: products.sup, stock_receipts.sup, stock_counts.sup, supplier_bills.sup, supplier_map.sup_app (ดูฟังก์ชัน _jj_rename_sup ใน setup_supplier_rename_b34.sql)
+- Edge Function ใช้ service_role ข้าม RLS แต่**ไม่ข้าม GRANT**
+- Synology Task Scheduler ไม่รู้จัก PATH docker — สคริปต์เติม PATH เองแล้ว
+- save() ฝั่งแอป = localStorage เท่านั้น — persistence จริงคือ call Supabase ตรง ๆ
+
+## 11. คิวงานถัดไป
+
+1. **หน้า Food Cost จริง 3 มุมมอง** — FC% = มูลค่าใช้÷รายได้ (เป้า ~35-45%) · จับสั่งเกิน · ราคาย้อนหลัง —
+   ข้อมูลพร้อมแล้ว: daily_revenue (จากใบปะหน้า) + supplier_bills + stock_receipts.unit_price
+2. รอไฟล์จับคู่ชื่อสินค้า (จับคู่ชื่อสินค้า_JJMK.xlsx) กลับจากผู้ใช้ → gen SQL update stock_name + แก้ชื่อ "KCG Indoguna เนือ" + ผูกซัพให้สินค้า 4 ตัวที่ sup=null (ชีส, น้ำยาถังขาวฝาแดง, หมูยอ, หอยแมลงภู่ชิลี)
+3. Promote โครงหลังบ้าน → production v25 (รอผู้ใช้สั่ง)
+4. สูตรหักของค้างท่อ (pipeline deduction — KCG สั่งทุกวันของถึงช้า สั่งซ้ำซ้อน) — เสนอไว้ ยังไม่เคาะ
+5. จูน safety/max จากข้อมูลจริง (`analyze_safety_max_v5.sql` — ใช้ v5 เท่านั้น)
+6. เคลียร์สินค้าซ้ำ: ข้าวคั่ว ×2 ทั้งสองสาขา, น้ำมัน ×2 ลาดพร้าว
+7. บันทึกบิลซัพ: แนบรูปบิล (เฟสถัดไปที่คุยไว้)
