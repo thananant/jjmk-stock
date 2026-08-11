@@ -330,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.1 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.2 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -1095,10 +1095,13 @@ function composeOrder(supId){
   const msg = buildLineMsg(s, items, info.deliveryDate);
   openModal(`<div class="modal-h"><h3>📤 ส่งเข้า LINE กลุ่ม: ${esc(s.lineGroup||s.name)}</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="modal-b"><div class="msg-preview" id="msgPrev">${esc(msg)}</div>
-  <div class="t-sub" style="margin-top:10px">${s.lineGroup? `✅ ผูกกลุ่ม «${esc(s.lineGroup)}» แล้ว — เวอร์ชันใช้งานจริงบอทจะส่งเข้ากลุ่มนี้อัตโนมัติ (ตอนนี้คัดลอกไปวางก่อน)` : `⚠️ ซัพนี้ยังไม่ผูกกลุ่มไลน์ — ไปหน้า "ซัพพลายเออร์ → แก้ไข" เพื่อเลือกกลุ่ม`}</div></div>
+  <div class="t-sub" style="margin-top:10px">${s.lineGroupId? `✅ ผูกกลุ่ม «${esc(s.lineGroup)}» — กด 📨 แล้วข้อความเข้ากลุ่มซัพจริงทันที` : (s.lineGroup? `⚠️ ผูกชื่อกลุ่ม «${esc(s.lineGroup)}» ไว้ แต่ยังไม่ตรงกับกลุ่มจริงจากบอท — เปิดฟอร์มซัพ กด 🔄 แล้วเลือกกลุ่มใหม่อีกครั้ง` : `⚠️ ซัพนี้ยังไม่ผูกกลุ่มไลน์ — ไปหน้า "ซัพพลายเออร์ → แก้ไข" เพื่อเลือกกลุ่ม`)}</div>
+  <div id="sendMsgStat"></div></div>
   <div class="modal-f"><button class="btn btn-ghost" onclick="closeModal()">ปิด</button>
   <button class="btn btn-gold" onclick="copyMsg()">📋 คัดลอกข้อความ</button>
-  <button class="btn btn-red" onclick='saveOrder(${JSON.stringify(supId)},${JSON.stringify(info.deliveryDate)},${JSON.stringify(items)})'>✓ บันทึกว่าสั่งแล้ว</button></div>`);
+  <button class="btn ${s.lineGroupId?'btn-ghost':'btn-red'}" onclick='saveOrder(${JSON.stringify(supId)},${JSON.stringify(info.deliveryDate)},${JSON.stringify(items)})'>✓ บันทึกว่าสั่งแล้ว</button>
+  ${s.lineGroupId? `<button class="btn btn-red" onclick="sendOrderLine()">📨 ส่งเข้ากลุ่มจริง</button>`:''}</div>`);
+  window._sendCtx = {supId, gid:s.lineGroupId||null, gname:s.lineGroup||'', msg, deliveryDate:info.deliveryDate, items};
 }
 function copyMsg(){
   const txt = $('#msgPrev').innerText;
@@ -1109,6 +1112,48 @@ function copyMsg(){
 function saveOrder(supId, deliv, items){
   B().orders.push({id:uid('o_'), supId, date:todayISO(), time:nowTime(), deliveryDate:deliv, items, status:'sent'});
   DB.save(); closeModal(); refreshTop(); renderOrder(); toast('บันทึกออเดอร์แล้ว รอรับของ '+fmtDate(deliv));
+}
+/* ---------- ส่งออเดอร์เข้ากลุ่ม LINE จริง (edge function line-order ตัวเดียวกับ beta.html) ---------- */
+function lineChunks(msg){
+  /* LINE จำกัดความยาว/ข้อความ — แบ่งท่อนที่ ~4200 ตัวอักษร ตัดตามบรรทัด */
+  const out = []; let cur = '';
+  String(msg).split('\n').forEach(line=>{
+    if(cur && (cur.length + 1 + line.length) > 4200){ out.push(cur); cur = line; }
+    else cur = cur ? cur + '\n' + line : line;
+  });
+  if(cur) out.push(cur);
+  return out;
+}
+function sendOrderLine(){
+  const c = window._sendCtx;
+  if(!c || !c.gid) return toast('ซัพนี้ยังไม่ผูกกลุ่มจริง');
+  confirmBox(`ส่งออเดอร์ ${c.items.length} รายการ เข้ากลุ่ม «${esc(c.gname)}» เลยไหม?<br>
+    <span class="t-sub">ข้อความจะเข้ากลุ่ม LINE ซัพ<b>จริง</b>ทันที</span>`, ()=>sendOrderLineGo());
+}
+async function sendOrderLineGo(){
+  const c = window._sendCtx; if(!c) return;
+  const chunks = lineChunks(c.msg);
+  openModal(`<div class="modal-h"><h3>📨 กำลังส่งเข้ากลุ่ม «${esc(c.gname)}»</h3></div>
+    <div class="modal-b"><div class="t-sub" id="sendProg">เริ่มส่ง… (${chunks.length} ท่อน)</div></div>`);
+  let ok = 0, fail = 0;
+  for(let i=0; i<chunks.length; i++){
+    const pg = $('#sendProg'); if(pg) pg.textContent = `⏳ ส่งท่อน ${i+1}/${chunks.length}…`;
+    try{
+      const r = await fetch(SB_URL+'/functions/v1/line-order', {method:'POST', headers:SB_H,
+        body: JSON.stringify({to:c.gid, text:chunks[i]})});
+      const j = await r.json().catch(()=>({}));
+      if(r.ok && j.ok) ok++; else { fail++; console.log('line-order fail', j); }
+    }catch(e){ fail++; }
+    if(i < chunks.length-1) await new Promise(rs=>setTimeout(rs, 400));
+  }
+  if(fail){
+    openModal(`<div class="modal-h"><h3>ส่งไม่สำเร็จ</h3><button class="x" onclick="closeModal()">×</button></div>
+      <div class="modal-b"><div class="scan-err">ส่งได้ ${ok}/${chunks.length} ท่อน — เช็คเน็ตแล้วลองใหม่ หรือใช้ 📋 คัดลอกไปวางในกลุ่มแทน</div></div>
+      <div class="modal-f"><button class="btn btn-red" onclick="closeModal()">ปิด</button></div>`);
+    return;
+  }
+  saveOrder(c.supId, c.deliveryDate, c.items);   /* ส่งครบ → บันทึกออเดอร์อัตโนมัติ */
+  toast(`📨 เข้ากลุ่ม «${c.gname}» แล้ว ✓`);
 }
 function viewOrderMsg(oid){
   const o = B().orders.find(x=>x.id===oid); if(!o) return;
@@ -1719,6 +1764,33 @@ function deleteProd(pid){
 
 /* =====================  ซัพพลายเออร์  ===================== */
 let supQ = '';
+/* ---------- ต่อระบบจริง: Supabase (กลุ่มไลน์จากบอท + ส่งออเดอร์ผ่าน edge function) ---------- */
+const SB_URL = 'https://aikyxvluaiubdidqxwnd.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpa3l4dmx1YWl1YmRpZHF4d25kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mjc1MjQsImV4cCI6MjA5ODIwMzUyNH0.YSZ-dWsdVisRd3diGA_Cos6U2YQYQZPJzSXYuGp7FfM';
+const SB_H = {'Content-Type':'application/json', 'Authorization':'Bearer '+SB_ANON, 'apikey':SB_ANON};
+let LINE_REAL = false;   /* true = รายชื่อกลุ่มมาจากบอทจริงแล้ว */
+
+async function fetchRealLineGroups(){
+  /* 1) ให้ edge function ไปอัปเดตชื่อกลุ่มจาก LINE ก่อน (พังก็ไม่เป็นไร) */
+  try{ await fetch(SB_URL+'/functions/v1/sync-line-groups', {method:'POST', headers:SB_H, body:'{}'}); }catch(e){}
+  /* 2) อ่านตาราง line_groups ตัวเดียวกับ beta.html */
+  const r = await fetch(SB_URL+'/rest/v1/line_groups?select=group_id,name,seen_at&order=seen_at.desc', {headers:SB_H});
+  if(!r.ok) throw new Error('โหลดกลุ่มไม่ได้ ('+r.status+')');
+  const rows = await r.json();
+  return rows.map(g=>({id:g.group_id, name:(g.name && String(g.name).trim()) || ('กลุ่ม …'+String(g.group_id).slice(-6))}));
+}
+async function refreshLineGroups(silent){
+  try{
+    const gs = await fetchRealLineGroups();
+    if(gs.length){ S.lineGroups = gs; LINE_REAL = true; DB.save(); }
+    if(!silent) toast(gs.length? `🔄 ดึงกลุ่มจริงจากบอท ${gs.length} กลุ่ม ✓` : 'บอทยังไม่เห็นกลุ่มไหนเลย — เชิญบอทเข้ากลุ่ม + พิมพ์ 1 ข้อความ แล้วกดใหม่');
+    return true;
+  }catch(e){
+    if(!silent) toast('ต่อเซิร์ฟเวอร์ไม่ได้ — ใช้รายชื่อกลุ่มล่าสุดที่เคยดึงไว้ก่อน');
+    return false;
+  }
+}
+
 /* ---------- ผูกกลุ่มไลน์: อ่าน "ชื่อกลุ่ม" ที่บอทเห็น มาจับคู่กับชื่อซัพอัตโนมัติ ---------- */
 function lineNorm(s){
   return String(s||'').toLowerCase()
@@ -1765,7 +1837,8 @@ function lineGroupPanelHTML(s){
     <div class="t-sub" style="margin-top:7px">เชิญบอท LINE OA เข้ากลุ่มซัพ + พิมพ์ 1 ข้อความในกลุ่ม → กลุ่มจะโผล่ในรายการ (กด 🔄 รีโหลดถ้ายังไม่เห็น)</div>
   </div>`;
 }
-function reloadLineGroups(){
+async function reloadLineGroups(){
+  await refreshLineGroups(false);
   const sel = $('#sfLine');
   if(sel){
     const keep = sel.value;
@@ -1773,14 +1846,13 @@ function reloadLineGroups(){
     if(keep && !names.includes(keep)) names.unshift(keep);
     sel.innerHTML = `<option value="">— ไม่ผูกกลุ่ม —</option>` + names.map(n=>`<option value="${esc(n)}" ${n===keep?'selected':''}>${esc(n)}</option>`).join('');
   }
-  toast('รีโหลดรายชื่อกลุ่มแล้ว (เวอร์ชันใช้จริงดึงจากบอท LINE OA อัตโนมัติ)');
 }
 function autoMatchLine(){
   const props = [];
   S.suppliers.forEach(s=>{
     if(s.lineGroup || s.id==='s_none') return;
     const m = bestLineMatch(s.name);
-    if(m) props.push({sid:s.id, sname:s.name, gname:m.g.name, score:m.score});
+    if(m) props.push({sid:s.id, sname:s.name, gname:m.g.name, gid:m.g.id, score:m.score});
   });
   if(!props.length) return toast('ไม่พบคู่ใหม่ให้จับ — ซัพที่เหลือชื่อไม่ใกล้กับชื่อกลุ่มไหนเลย');
   props.sort((a,b)=>b.score-a.score);
@@ -1802,7 +1874,7 @@ function applyLineMatch(){
     if(!ck.checked) return;
     const p = window._lmProps[Number(ck.dataset.i)];
     const s = supById(p.sid);
-    if(s){ s.lineGroup = p.gname; n++; }
+    if(s){ s.lineGroup = p.gname; s.lineGroupId = p.gid || null; n++; }
   });
   DB.save(); closeModal(); renderSuppliers(); toast(`ผูกกลุ่มไลน์ให้ ${n} ซัพแล้ว`);
 }
@@ -1810,7 +1882,8 @@ function openLineGroupsModal(){
   const gs = S.lineGroups||[];
   openModal(`<div class="modal-h"><h3>💬 กลุ่มไลน์ที่บอทมองเห็น (${gs.length})</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="modal-b">
-    <div class="t-sub" style="margin-bottom:10px">ของจริง: เชิญบอท LINE OA เข้ากลุ่ม + มีคนพิมพ์ 1 ข้อความ → ชื่อกลุ่มจะโผล่ที่นี่เอง (edge function sync-line-groups) · ในเดโม่เพิ่มชื่อเองเพื่อทดลองได้</div>
+    <div class="t-sub" style="margin-bottom:10px">เชิญบอท LINE OA เข้ากลุ่ม + มีคนพิมพ์ 1 ข้อความ → กด 🔄 ชื่อกลุ่มจะโผล่ที่นี่ · เพิ่มชื่อเองได้เฉพาะกรณีพิเศษ</div>
+    <button class="btn btn-ghost btn-sm" style="margin-bottom:10px" onclick="refreshLineGroups(false).then(()=>openLineGroupsModal())">🔄 ดึงกลุ่มจากบอทใหม่</button>
     <div style="display:grid; gap:6px; max-height:300px; overflow:auto; margin-bottom:12px">
       ${gs.length? gs.map(g=>{
         const used = S.suppliers.filter(s=>s.lineGroup===g.name).map(s=>s.name);
@@ -1929,7 +2002,9 @@ function saveSup(sid){
   const dayMap = [null,null,null,null,null,null,null];
   $$('.sf-dm').forEach(sel=>{ dayMap[Number(sel.dataset.wd)] = sel.value==='' ? null : Number(sel.value); });
   const monthDays = $('#sfMd').value.split(',').map(x=>parseInt(x.trim(),10)).filter(x=>x>=1 && x<=31);
-  const data = {name, lineGroup:$('#sfLine').value.trim(), mode:$('#sfMode').value,
+  const lgName = $('#sfLine').value.trim();
+  const lgId = ((S.lineGroups||[]).find(g=>g.name===lgName)||{}).id || null;
+  const data = {name, lineGroup:lgName, lineGroupId:lgId, mode:$('#sfMode').value,
     cutoff:$('#sfCut').value||null, minOrder:Number($('#sfMin').value)||null,
     cycleDays:Number($('#sfCyc').value)||null, monthDays:monthDays.length?[...new Set(monthDays)].sort((a,b)=>a-b):null,
     leadDays:Number($('#sfLead').value)||1, dayMap};
@@ -2055,6 +2130,7 @@ if(!S || !S.version || S.version < 2) seedReal();
 if(S.version === 2){ S.version = 3; DB.save(); }
 if(!S.lineGroups){ S.lineGroups = DEFAULT_LINE_GROUPS.map(g=>({...g})); DB.save(); }
 if(!S.billAlias){ S.billAlias = {}; DB.save(); }
+refreshLineGroups(true);   /* ดึงกลุ่มไลน์จริงเข้ามาแทนรายชื่อจำลองทันทีที่เน็ตถึง */
 if(!S.bd[S.activeBranch]) S.activeBranch = S.branches[0].id;
 refreshTop();
 showPage('dash');
