@@ -458,6 +458,7 @@ function seedReal(){
     activeBranch: 'jjrd',
     suppliers: SEED.suppliers.map(s=>({...s, dayMap:[...s.dayMap]})),
     lineGroups: DEFAULT_LINE_GROUPS.map(g=>({...g})),
+    billAlias: {},   /* คู่ชื่อบิล→ชื่อสินค้านับ (จำถาวร) */
     bd: {
       jjrd: {...emptyBD(), products: SEED.products.jjrd.map(p=>({...p, price:0, rate:{...p.rate}}))},
       jjlp: {...emptyBD(), products: SEED.products.jjlp.map(p=>({...p, price:0, rate:{...p.rate}}))},
@@ -1200,6 +1201,7 @@ function renderBills(){
     </select>
     <div class="spacer"></div>
     <span class="pill gold">รวม <b style="margin-left:4px">฿${fmtMoney(total)}</b></span>
+    <button class="btn btn-ghost" onclick="openAliasModal()">🔗 คู่ชื่อบิล (${Object.keys(S.billAlias||{}).length})</button>
     <button class="btn btn-gold" onclick="openScanModal()">📷 สแกนบิล</button>
     <button class="btn btn-red" onclick="openBillModal()">+ เพิ่มบิล</button>
   </div>
@@ -1277,6 +1279,29 @@ function saveBillManual(){
 const BILLOCR_URL = 'https://jjmk-billocr.thananantpatt.workers.dev';   /* ย้าย worker เมื่อไหร่ เปลี่ยนที่นี่จุดเดียว */
 let scanImgs = [];      /* รูปที่เลือก [{data:base64, mime, url:preview}] */
 let scanBusy = false;
+
+/* ---- สมุดจำคู่ชื่อ: "ชื่อบนบิล" → "ชื่อสินค้านับสต๊อก" (แบบเดียวกับ supplier_items.stock_name ของระบบจริง) ---- */
+function aliasKey(supId, name){ return supId + '|' + lineNorm(name); }
+function aliasLookup(supId, name){
+  const e = (S.billAlias||{})[aliasKey(supId, name)];
+  if(!e) return null;
+  return B().products.find(p=>p.supId===supId && p.name===e.stock) || null;
+}
+function aliasLearn(supId, billName, pid){
+  const p = prodById(pid); if(!p || !billName) return false;
+  if(lineNorm(billName) === lineNorm(p.name)) return false;          /* ชื่อแทบเหมือนกัน ไม่ต้องจำ */
+  const k = aliasKey(supId, billName);
+  const cur = (S.billAlias||{})[k];
+  if(cur && cur.stock === p.name) return false;                       /* จำไว้แล้ว */
+  S.billAlias[k] = {raw: String(billName).trim(), stock: p.name};
+  return true;
+}
+function scanResolveProd(supId, name){
+  const a = aliasLookup(supId, name);
+  if(a) return {p:a, via:'alias'};
+  const m = scanMatchProd(supId, name);
+  return m ? {p:m, via:'fuzzy'} : null;
+}
 
 function openScanModal(){
   scanImgs = []; scanBusy = false;
@@ -1373,8 +1398,8 @@ function scanReview(res){
     const qty = (it.qty==null? null : Number(it.qty));
     const price = (it.unit_price==null? null : Number(it.unit_price));
     const amt = (it.amount!=null)? Number(it.amount) : ((qty!=null && price!=null)? +(qty*price).toFixed(2) : null);
-    const p = scanMatchProd(supId, it.name);
-    return {name: it.name||'', pid: p? p.id : '', qty, unit: it.unit||'', price, amount: amt};
+    const rv = scanResolveProd(supId, it.name);
+    return {name: it.name||'', pid: rv? rv.p.id : '', via: rv? rv.via : '', qty, unit: it.unit||'', price, amount: amt};
   });
   const d = (res.bill_date && /^\d{4}-\d{2}-\d{2}$/.test(res.bill_date)) ? res.bill_date : todayISO();
   openModal(`<div class="modal-h"><h3>📷 ตรวจบิลที่สแกนได้</h3><button class="x" onclick="closeModal()">×</button></div>
@@ -1405,7 +1430,7 @@ function scanReview(res){
 }
 function scanSupChange(){
   const supId = $('#scSup').value;
-  scanRows.forEach(r=>{ const p = scanMatchProd(supId, r.name); r.pid = p? p.id : ''; });
+  scanRows.forEach(r=>{ const rv = scanResolveProd(supId, r.name); r.pid = rv? rv.p.id : ''; r.via = rv? rv.via : ''; });
   scanRowsDraw();
 }
 function scanRowsDraw(){
@@ -1416,10 +1441,11 @@ function scanRowsDraw(){
     <thead><tr><th style="min-width:210px">สินค้า (แก้ได้)</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th><th></th></tr></thead>
     <tbody>${scanRows.map((r,i)=>`<tr>
       <td><input class="inp mini" style="width:100%" value="${esc(r.name)}" oninput="scanRows[${i}].name=this.value">
-        <select class="inp mini" style="width:100%; margin-top:4px; color:${r.pid?'var(--green)':'var(--sub)'}" onchange="scanRows[${i}].pid=this.value; scanRowsDraw()">
+        <select class="inp mini" style="width:100%; margin-top:4px; color:${r.pid?'var(--green)':'var(--sub)'}" onchange="scanRows[${i}].pid=this.value; scanRows[${i}].via='user'; scanRowsDraw()">
           <option value="">— ไม่ผูกกับสินค้านับสต๊อก —</option>
           ${prods.map(p=>`<option value="${p.id}" ${p.id===r.pid?'selected':''}>${esc(p.name)}</option>`).join('')}
-        </select></td>
+        </select>
+        ${r.pid && r.via==='alias'? `<div class="t-sub" style="color:var(--green); margin-top:3px">💾 จำคู่ชื่อนี้ไว้แล้ว</div>` : (r.pid && r.via==='fuzzy'? `<div class="t-sub" style="margin-top:3px">🪄 เดาให้ — เช็คก่อนบันทึก</div>` : '')}</td>
       <td class="num"><input type="number" step="0.01" class="inp inp-num mini" style="width:76px" value="${r.qty==null?'':r.qty}" oninput="scanCellQP(${i},'qty',this.value)"></td>
       <td><input class="inp mini" style="width:64px" value="${esc(r.unit||'')}" oninput="scanRows[${i}].unit=this.value"></td>
       <td class="num"><input type="number" step="0.01" class="inp inp-num mini" style="width:86px" value="${r.price==null?'':r.price}" oninput="scanCellQP(${i},'price',this.value)"></td>
@@ -1449,6 +1475,25 @@ function scanSumHint(){
   }
   el.innerHTML = t;
 }
+function openAliasModal(){
+  const ks = Object.keys(S.billAlias||{});
+  window._aliasKeys = ks;
+  openModal(`<div class="modal-h"><h3>🔗 คู่ชื่อบิล → สินค้านับสต๊อก (${ks.length})</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="modal-b">
+    <div class="t-sub" style="margin-bottom:10px">ระบบจำจากบิลที่เคยสแกนแล้วกดบันทึก — เจอชื่อเดิมครั้งหน้าจะผูกให้อัตโนมัติ · จับคู่ผิดให้ลบทิ้งแล้วสแกนใหม่</div>
+    <div style="display:grid; gap:6px; max-height:340px; overflow:auto">
+      ${ks.length? ks.map((k,i)=>{ const e=S.billAlias[k]; const sup=supById(k.split('|')[0]);
+        return `<div style="display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:13px">
+          <span style="min-width:0"><b>«${esc(e.raw)}»</b> → ${esc(e.stock)}<br><span class="t-sub">${esc(sup?.name||'?')}</span></span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto; color:var(--bad)" onclick="delAliasIdx(${i})">ลบ</button></div>`; }).join('')
+      : '<div class="empty">ยังไม่มีคู่ชื่อที่จำไว้ — สแกนบิลแล้วผูกสินค้า ระบบจะจำให้เอง</div>'}
+    </div></div>
+  <div class="modal-f"><button class="btn btn-red" onclick="closeModal()">ปิด</button></div>`);
+}
+function delAliasIdx(i){
+  const k = (window._aliasKeys||[])[i]; if(k==null) return;
+  delete S.billAlias[k]; DB.save(); openAliasModal(); renderBills();
+}
 function saveScanBill(){
   const supId = $('#scSup').value;
   if(!supId) return toast('เลือกซัพพลายเออร์ก่อน');
@@ -1458,11 +1503,13 @@ function saveScanBill(){
               amount: (r.amount!=null? Number(r.amount) : +(((Number(r.qty)||0)*(Number(r.price)||0)).toFixed(2)))}));
   if(!items.length) return toast('ไม่มีรายการในบิล');
   items.forEach(x=>{ if(x.pid && x.price>0){ const p=prodById(x.pid); if(p) p.price = x.price; } });
+  let learned = 0;
+  items.forEach(x=>{ if(x.pid && aliasLearn(supId, x.name, x.pid)) learned++; });
   const totEl = $('#scTotal');
   const total = ((totEl && totEl.value!=='')? Number(totEl.value) : +scanSum().toFixed(2)) || 0;
   B().bills.push({id:uid('b_'), date:$('#scDate').value||todayISO(), supId, no:($('#scNo').value||'').trim()||'-',
     items, total, src:'scan', ocr:scanMeta});
-  DB.save(); closeModal(); renderBills(); toast('บันทึกบิลจากสแกนแล้ว 📷');
+  DB.save(); closeModal(); renderBills(); toast('บันทึกบิลจากสแกนแล้ว 📷' + (learned? ` · จำคู่ชื่อใหม่ ${learned} คู่ ครั้งหน้าผูกให้เอง`:''));
 }
 
 /* =====================  ประวัติการใช้  ===================== */
@@ -2007,6 +2054,7 @@ S = DB.load();
 if(!S || !S.version || S.version < 2) seedReal();
 if(S.version === 2){ S.version = 3; DB.save(); }
 if(!S.lineGroups){ S.lineGroups = DEFAULT_LINE_GROUPS.map(g=>({...g})); DB.save(); }
+if(!S.billAlias){ S.billAlias = {}; DB.save(); }
 if(!S.bd[S.activeBranch]) S.activeBranch = S.branches[0].id;
 refreshTop();
 showPage('dash');
