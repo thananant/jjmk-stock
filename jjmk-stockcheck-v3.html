@@ -330,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.2 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.3 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -1889,7 +1889,8 @@ function openLineGroupsModal(){
         const used = S.suppliers.filter(s=>s.lineGroup===g.name).map(s=>s.name);
         return `<div style="display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:13px">
           <span style="min-width:0"><b>${esc(g.name)}</b>${used.length? `<br><span class="t-sub">ผูกกับ: ${esc(used.join(', '))}</span>`:''}</span>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto; color:var(--bad)" onclick="delLineGroup('${g.id}')">ลบ</button></div>`;
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="sendTestLine('${g.id}')">🧪 ทดสอบ</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="delLineGroup('${g.id}')">ลบ</button></div>`;
       }).join('') : '<div class="empty">ยังไม่มีกลุ่ม</div>'}
     </div>
     <label class="fld">+ เพิ่มชื่อกลุ่ม (จำลองว่าบอทเพิ่งถูกเชิญเข้ากลุ่ม)</label>
@@ -1908,6 +1909,22 @@ function addLineGroup(){
 function delLineGroup(id){
   S.lineGroups = (S.lineGroups||[]).filter(g=>g.id!==id);
   DB.save(); openLineGroupsModal();
+}
+function sendTestLine(gid){
+  const g0 = (S.lineGroups||[]).find(x=>x.id===gid); if(!g0) return;
+  /* group_id จริงของ LINE ยาว 33 ตัว ขึ้นต้น C — id สั้นคือชื่อที่เพิ่มเอง/จำลอง ส่งไม่ได้ */
+  if(String(gid).length < 20) return toast('กลุ่มนี้เป็นชื่อที่เพิ่มเอง — ส่งได้เฉพาะกลุ่มจริงที่ดึงจากบอท (กด 🔄)');
+  confirmBox(`ส่งข้อความทดสอบเข้ากลุ่ม «${esc(g0.name)}» เลยไหม?<br>
+    <span class="t-sub">ข้อความ "test ระบบสั่งของ 🧪" จะเข้ากลุ่ม LINE จริงทันที</span>`, async ()=>{
+    try{
+      const r = await fetch(SB_URL+'/functions/v1/line-order', {method:'POST', headers:SB_H,
+        body: JSON.stringify({to:gid, text:'test ระบบสั่งของ 🧪 (ทดสอบจาก JJ StockCheck ไม่ต้องตอบกลับครับ)'})});
+      const j = await r.json().catch(()=>({}));
+      if(r.ok && j.ok) toast(`🧪 ส่งเข้า «${g0.name}» แล้ว ✓ เปิด LINE เช็คได้เลย`);
+      else toast('ส่งไม่สำเร็จ: ' + (j.error || ('HTTP '+(r.status||'?'))));
+    }catch(e){ toast('ส่งไม่สำเร็จ — เช็คเน็ตแล้วลองใหม่'); }
+    openLineGroupsModal();
+  });
 }
 
 function renderSuppliers(){
