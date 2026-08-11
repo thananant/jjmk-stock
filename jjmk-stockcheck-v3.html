@@ -272,6 +272,19 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
   box-shadow:0 6px 18px -6px rgba(63,8,11,.5)}
 .btn-sum:hover{background:var(--maroon-2)}
 /* ===== แผงผูกกลุ่มไลน์ (ในฟอร์มซัพ) ===== */
+/* ---------- 📷 สแกนบิล ---------- */
+.modal.wide{max-width:840px}
+.scan-drop{border:2px dashed var(--gold-deep); background:var(--gold-soft); border-radius:14px; padding:26px 16px;
+  text-align:center; cursor:pointer; display:grid; gap:5px; justify-items:center}
+.scan-drop:hover{filter:brightness(.98)}
+.scan-thumbs{display:flex; gap:9px; flex-wrap:wrap; margin-top:12px}
+.scan-th{position:relative; width:86px; height:86px; border-radius:10px; overflow:hidden; border:1px solid var(--line)}
+.scan-th img{width:100%; height:100%; object-fit:cover}
+.scan-th button{position:absolute; top:3px; right:3px; width:22px; height:22px; border:0; border-radius:50%;
+  background:rgba(0,0,0,.55); color:#fff; cursor:pointer; line-height:1}
+.scan-th span{position:absolute; left:5px; bottom:3px; color:#fff; font-size:11px; text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.scan-err{margin-top:10px; background:var(--bad-bg); color:var(--bad); border-radius:10px; padding:10px 13px; font-size:13px}
+.scan-note{margin-top:10px; background:var(--warn-bg); color:var(--warn); border-radius:10px; padding:9px 13px; font-size:13px}
 .line-panel{background:#F0FAF3; border:1.5px solid #BFDFC9; border-radius:12px; padding:12px 14px; margin-bottom:13px}
 .line-panel .fld{color:#0B5B34}
 .line-chosen{margin-top:8px; background:#FDF8EE; border:1px solid #EAD9B0; border-radius:9px; padding:8px 12px;
@@ -317,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.1 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -641,7 +654,7 @@ function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2400);
 }
-function openModal(html){ $('#modalBox').innerHTML = html; $('#modalBg').classList.add('show'); }
+function openModal(html, wide){ const m=$('#modalBox'); m.classList.toggle('wide', !!wide); m.innerHTML = html; $('#modalBg').classList.add('show'); }
 function closeModal(){ $('#modalBg').classList.remove('show'); }
 function confirmBox(msg, onYes){
   openModal(`<div class="modal-h"><h3>ยืนยัน</h3><button class="x" onclick="closeModal()">×</button></div>
@@ -1187,6 +1200,7 @@ function renderBills(){
     </select>
     <div class="spacer"></div>
     <span class="pill gold">รวม <b style="margin-left:4px">฿${fmtMoney(total)}</b></span>
+    <button class="btn btn-gold" onclick="openScanModal()">📷 สแกนบิล</button>
     <button class="btn btn-red" onclick="openBillModal()">+ เพิ่มบิล</button>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px">
@@ -1195,23 +1209,26 @@ function renderBills(){
   <div class="card">${list.length?`<div class="tbl-wrap"><table>
     <thead><tr><th>วันที่</th><th>เลขบิล</th><th>ซัพพลายเออร์</th><th class="num">รายการ</th><th class="num">ยอดรวม</th><th></th></tr></thead>
     <tbody>${list.map(b=>`<tr>
-      <td>${fmtDate(b.date)}</td><td class="t-sub">${esc(b.no||'-')}</td>
+      <td>${fmtDate(b.date)}</td><td class="t-sub">${b.src==='scan'?'📷 ':''}${esc(b.no||'-')}</td>
       <td class="t-name">${esc(supById(b.supId)?.name||'-')}</td>
       <td class="num">${b.items.length}</td><td class="num"><b>฿${fmtMoney(b.total)}</b></td>
       <td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="viewBill('${b.id}')">ดู</button></td></tr>`).join('')}
-    </tbody></table></div>`:`<div class="empty"><b>ไม่มีบิลในช่วงนี้</b>ลงบิลจากหน้ารับสินค้า หรือกด "+ เพิ่มบิล"</div>`}</div>`;
+    </tbody></table></div>`:`<div class="empty"><b>ไม่มีบิลในช่วงนี้</b>ลงบิลจากหน้ารับสินค้า · กด 📷 สแกนบิล ให้ AI อ่านจากรูปถ่าย หรือ "+ เพิ่มบิล"</div>`}</div>`;
 }
 function viewBill(bid){
   const b = B().bills.find(x=>x.id===bid); if(!b) return;
-  openModal(`<div class="modal-h"><h3>บิล ${esc(b.no||'-')} — ${esc(supById(b.supId)?.name)}</h3><button class="x" onclick="closeModal()">×</button></div>
-  <div class="modal-b"><div class="t-sub" style="margin-bottom:10px">วันที่ ${fmtDateFull(b.date)}</div>
+  openModal(`<div class="modal-h"><h3>${b.src==='scan'?'📷 ':''}บิล ${esc(b.no||'-')} — ${esc(supById(b.supId)?.name)}</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="modal-b"><div class="t-sub" style="margin-bottom:10px">วันที่ ${fmtDateFull(b.date)}${b.src==='scan'?' · บันทึกจากสแกนบิล':''}</div>
   <div class="tbl-wrap" style="border:1px solid var(--line); border-radius:10px"><table>
     <thead><tr><th>สินค้า</th><th class="num">จำนวน</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th></tr></thead>
-    <tbody>${b.items.map(i=>{const p=prodById(i.pid); return `<tr><td>${esc(p?.name||i.pid)}</td>
-      <td class="num">${fmtQty(i.qty)} ${esc(p?unitOf(p):'')}</td><td class="num">${fmtQty(i.price)}</td>
-      <td class="num">฿${fmtMoney(i.qty*i.price)}</td></tr>`;}).join('')}
+    <tbody>${b.items.map(i=>{const p=prodById(i.pid); const nm=p?.name||i.name||i.pid; const un=i.unit||(p?unitOf(p):''); const amt=(i.amount!=null)?i.amount:i.qty*i.price;
+      return `<tr><td>${esc(nm)}${!p&&i.name?` <span class="t-sub">(นอกรายการสต๊อก)</span>`:''}</td>
+      <td class="num">${fmtQty(i.qty)} ${esc(un)}</td><td class="num">${fmtQty(i.price)}</td>
+      <td class="num">฿${fmtMoney(amt)}</td></tr>`;}).join('')}
     <tr><td colspan="3" style="text-align:right"><b>ยอดรวม</b></td><td class="num"><b>฿${fmtMoney(b.total)}</b></td></tr>
-    </tbody></table></div></div>
+    </tbody></table></div>
+  ${b.ocr && (b.ocr.discount!=null || b.ocr.vat!=null)? `<div class="t-sub" style="margin-top:8px; text-align:right">${b.ocr.discount!=null?`ส่วนลด ฿${fmtMoney(b.ocr.discount)} · `:''}${b.ocr.vat!=null?`VAT ฿${fmtMoney(b.ocr.vat)}`:''}</div>`:''}
+  ${b.ocr && b.ocr.notes? `<div class="scan-note">📝 AI: ${esc(b.ocr.notes)}</div>`:''}</div>
   <div class="modal-f"><button class="btn btn-ghost" onclick="deleteBill('${b.id}')" style="margin-right:auto; color:var(--bad)">ลบบิล</button>
   <button class="btn btn-red" onclick="closeModal()">ปิด</button></div>`);
 }
@@ -1254,6 +1271,198 @@ function saveBillManual(){
   B().bills.push({id:uid('b_'), date:$('#nbDate').value||todayISO(), supId, no:$('#nbBill').value.trim()||'-',
     items, total:items.reduce((t,x)=>t+x.qty*x.price,0)});
   DB.save(); closeModal(); renderBills(); toast('บันทึกบิลแล้ว');
+}
+
+/* ---------- 📷 สแกนบิลด้วย AI (Cloudflare Worker jjmk-billocr → Gemini) ---------- */
+const BILLOCR_URL = 'https://jjmk-billocr.thananantpatt.workers.dev';   /* ย้าย worker เมื่อไหร่ เปลี่ยนที่นี่จุดเดียว */
+let scanImgs = [];      /* รูปที่เลือก [{data:base64, mime, url:preview}] */
+let scanBusy = false;
+
+function openScanModal(){
+  scanImgs = []; scanBusy = false;
+  openModal(`<div class="modal-h"><h3>📷 สแกนบิลด้วย AI</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="modal-b">
+    <input type="file" id="scanFile" accept="image/*" multiple style="display:none" onchange="scanAddFiles(this.files); this.value=''">
+    <div class="scan-drop" onclick="$('#scanFile').click()">
+      <div style="font-size:34px">📷</div>
+      <b>ถ่ายรูป / เลือกรูปบิล</b>
+      <div class="t-sub">บิลยาวถ่ายหลายรูปต่อกันได้ (สูงสุด 6 รูป) · ระบบอ่านชื่อร้าน วันที่ รายการ ราคา ให้อัตโนมัติ</div>
+    </div>
+    <div id="scanThumbs" class="scan-thumbs"></div>
+    <div id="scanMsg"></div>
+  </div>
+  <div class="modal-f"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+  <button class="btn btn-red" id="scanGo" onclick="scanRead()" disabled>🔍 อ่านบิล</button></div>`);
+}
+async function scanAddFiles(files){
+  for(const f of Array.from(files||[])){
+    if(scanImgs.length >= 6){ toast('ได้สูงสุด 6 รูปต่อบิล'); break; }
+    try{ scanImgs.push(await scanCompress(f)); }
+    catch(e){ toast('อ่านรูปไม่ได้: ' + (f.name||'')); }
+  }
+  scanThumbsDraw();
+}
+function scanCompress(file){
+  /* ย่อรูปฝั่งเครื่องก่อนส่ง (ยาวสุด 1600px, JPEG 85%) — ประหยัดเน็ตร้าน + Gemini อ่านพอ */
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const MAX = 1600;
+        const sc = Math.min(1, MAX / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        const durl = cv.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(url);
+        resolve({data: durl.split(',')[1], mime: 'image/jpeg', url: durl});
+      }catch(e){ URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('โหลดรูปไม่ได้')); };
+    img.src = url;
+  });
+}
+function scanThumbsDraw(){
+  const el = $('#scanThumbs'); if(!el) return;
+  el.innerHTML = scanImgs.map((im,i)=>`<div class="scan-th"><img src="${im.url}">
+    <button onclick="scanImgs.splice(${i},1); scanThumbsDraw()">×</button><span>${i+1}</span></div>`).join('');
+  const go = $('#scanGo'); if(go) go.disabled = !scanImgs.length || scanBusy;
+}
+async function scanRead(){
+  if(!scanImgs.length || scanBusy) return;
+  scanBusy = true;
+  const go = $('#scanGo'); if(go){ go.disabled = true; go.textContent = '⏳ กำลังอ่านบิล…'; }
+  const msg = $('#scanMsg'); if(msg) msg.innerHTML = `<div class="t-sub" style="margin-top:10px">AI กำลังอ่านรูป ${scanImgs.length} รูป ใช้เวลาราว 10-30 วินาที…</div>`;
+  try{
+    const r = await fetch(BILLOCR_URL, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({images: scanImgs.map(im=>({data:im.data, mime:im.mime}))})});
+    const j = await r.json();
+    if(!j || !j.ok) throw new Error(((j&&j.error)||'อ่านไม่สำเร็จ') + ((j&&j.detail)? ' — '+j.detail : ''));
+    scanReview(j.result || {});
+  }catch(e){
+    scanBusy = false;
+    const go2 = $('#scanGo'); if(go2){ go2.disabled = false; go2.textContent = '🔍 อ่านบิล'; }
+    const m2 = $('#scanMsg'); if(m2) m2.innerHTML = `<div class="scan-err">อ่านบิลไม่สำเร็จ: ${esc(String(e.message||e))}<br>ลองใหม่อีกครั้ง หรือถ่ายรูปให้ชัด/สว่างขึ้น</div>`;
+  }
+}
+
+/* ---- จับคู่ชื่อจากบิล → ซัพ/สินค้าในระบบ (ใช้ lineScore ตัวเดียวกับระบบกลุ่มไลน์) ---- */
+function scanMatchSup(name){
+  if(!name) return null;
+  let best=null, bs=0;
+  supsInBranch().forEach(s=>{ if(s.id==='s_none') return; const sc=lineScore(name, s.name); if(sc>bs){bs=sc; best=s;} });
+  return bs >= 0.5 ? {s:best, score:bs} : null;
+}
+function scanMatchProd(supId, name){
+  if(!name || !supId) return null;
+  let best=null, bs=0;
+  B().products.filter(p=>p.supId===supId).forEach(p=>{ const sc=lineScore(name, p.name); if(sc>bs){bs=sc; best=p;} });
+  return bs >= 0.55 ? best : null;
+}
+
+let scanRows = [];      /* แถวที่กำลังตรวจ [{name, pid, qty, unit, price, amount}] */
+let scanMeta = null;
+function scanReview(res){
+  scanBusy = false;
+  scanMeta = {subtotal:(res.subtotal!=null?Number(res.subtotal):null), discount:(res.discount!=null?Number(res.discount):null),
+              vat:(res.vat!=null?Number(res.vat):null), notes:res.notes||null};
+  const supM = scanMatchSup(res.supplier_name);
+  const supId = supM ? supM.s.id : '';
+  scanRows = (Array.isArray(res.items)? res.items : []).map(it=>{
+    const qty = (it.qty==null? null : Number(it.qty));
+    const price = (it.unit_price==null? null : Number(it.unit_price));
+    const amt = (it.amount!=null)? Number(it.amount) : ((qty!=null && price!=null)? +(qty*price).toFixed(2) : null);
+    const p = scanMatchProd(supId, it.name);
+    return {name: it.name||'', pid: p? p.id : '', qty, unit: it.unit||'', price, amount: amt};
+  });
+  const d = (res.bill_date && /^\d{4}-\d{2}-\d{2}$/.test(res.bill_date)) ? res.bill_date : todayISO();
+  openModal(`<div class="modal-h"><h3>📷 ตรวจบิลที่สแกนได้</h3><button class="x" onclick="closeModal()">×</button></div>
+  <div class="modal-b">
+    <div class="fld-row f-3">
+      <div><label class="fld">ซัพพลายเออร์</label><select id="scSup" class="inp" onchange="scanSupChange()">
+        <option value="">— เลือกซัพ —</option>
+        ${supsInBranch().map(s=>`<option value="${s.id}" ${s.id===supId?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+        ${res.supplier_name? `<div class="t-sub" style="margin-top:4px">จากบิล: «${esc(res.supplier_name)}»${supM? ` · จับคู่ ${Math.round(Math.min(1,supM.score)*100)}%` : ` · <b style='color:var(--warn)'>ไม่พบซัพชื่อใกล้เคียง เลือกเอง</b>`}</div>`:''}</div>
+      <div><label class="fld">วันที่บิล</label><input type="date" id="scDate" class="inp" value="${d}"></div>
+      <div><label class="fld">เลขบิล</label><input id="scNo" class="inp" value="${esc(res.bill_no||'')}" placeholder="INV-…"></div>
+    </div>
+    <div id="scRows"></div>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="scanRows.push({name:'',pid:'',qty:null,unit:'',price:null,amount:null}); scanRowsDraw()">+ เพิ่มแถว</button>
+      <div class="spacer"></div>
+      ${scanMeta.discount!=null? `<span class="pill">ส่วนลด ฿${fmtMoney(scanMeta.discount)}</span>`:''}
+      ${scanMeta.vat!=null? `<span class="pill">VAT ฿${fmtMoney(scanMeta.vat)}</span>`:''}
+      <label class="fld" style="margin:0">ยอดสุทธิ</label>
+      <input type="number" step="0.01" id="scTotal" class="inp inp-num" style="width:130px" value="${res.total!=null? Number(res.total) : ''}" oninput="scanSumHint()">
+    </div>
+    <div id="scSumHint" class="t-sub" style="text-align:right; margin-top:5px"></div>
+    ${scanMeta.notes? `<div class="scan-note">📝 AI อ่านแล้วไม่ชัวร์ตรงนี้: ${esc(scanMeta.notes)}</div>`:''}
+  </div>
+  <div class="modal-f"><button class="btn btn-ghost" onclick="openScanModal()">⟲ สแกนใหม่</button>
+  <button class="btn btn-red" onclick="saveScanBill()">✓ บันทึกบิล</button></div>`, true);
+  scanRowsDraw();
+}
+function scanSupChange(){
+  const supId = $('#scSup').value;
+  scanRows.forEach(r=>{ const p = scanMatchProd(supId, r.name); r.pid = p? p.id : ''; });
+  scanRowsDraw();
+}
+function scanRowsDraw(){
+  const supId = $('#scSup') ? $('#scSup').value : '';
+  const prods = B().products.filter(p=>p.supId===supId);
+  const el = $('#scRows'); if(!el) return;
+  el.innerHTML = `<div class="tbl-wrap" style="border:1px solid var(--line); border-radius:10px; max-height:320px; overflow:auto"><table>
+    <thead><tr><th style="min-width:210px">สินค้า (แก้ได้)</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th><th></th></tr></thead>
+    <tbody>${scanRows.map((r,i)=>`<tr>
+      <td><input class="inp mini" style="width:100%" value="${esc(r.name)}" oninput="scanRows[${i}].name=this.value">
+        <select class="inp mini" style="width:100%; margin-top:4px; color:${r.pid?'var(--green)':'var(--sub)'}" onchange="scanRows[${i}].pid=this.value; scanRowsDraw()">
+          <option value="">— ไม่ผูกกับสินค้านับสต๊อก —</option>
+          ${prods.map(p=>`<option value="${p.id}" ${p.id===r.pid?'selected':''}>${esc(p.name)}</option>`).join('')}
+        </select></td>
+      <td class="num"><input type="number" step="0.01" class="inp inp-num mini" style="width:76px" value="${r.qty==null?'':r.qty}" oninput="scanCellQP(${i},'qty',this.value)"></td>
+      <td><input class="inp mini" style="width:64px" value="${esc(r.unit||'')}" oninput="scanRows[${i}].unit=this.value"></td>
+      <td class="num"><input type="number" step="0.01" class="inp inp-num mini" style="width:86px" value="${r.price==null?'':r.price}" oninput="scanCellQP(${i},'price',this.value)"></td>
+      <td class="num"><input type="number" step="0.01" class="inp inp-num mini" style="width:96px" value="${r.amount==null?'':r.amount}" oninput="scanRows[${i}].amount=this.value===''?null:Number(this.value); scanSumHint()"></td>
+      <td><button class="btn btn-ghost btn-sm" style="color:var(--bad)" onclick="scanRows.splice(${i},1); scanRowsDraw()">✕</button></td></tr>`).join('')}
+    </tbody></table></div>`;
+  scanSumHint();
+}
+function scanCellQP(i, k, v){
+  scanRows[i][k] = (v===''? null : Number(v));
+  const r = scanRows[i];
+  if(r.qty!=null && r.price!=null){
+    r.amount = +(r.qty*r.price).toFixed(2);
+    const tb = $('#scRows tbody');
+    if(tb && tb.children[i]){ const ins = tb.children[i].querySelectorAll('input'); if(ins[4]) ins[4].value = r.amount; }
+  }
+  scanSumHint();
+}
+function scanSum(){ return scanRows.reduce((t,r)=> t + (r.amount!=null? (Number(r.amount)||0) : (Number(r.qty)||0)*(Number(r.price)||0)), 0); }
+function scanSumHint(){
+  const el = $('#scSumHint'); if(!el) return;
+  const sum = scanSum();
+  const totEl = $('#scTotal');
+  let t = `รวมรายการ ฿${fmtMoney(sum)}`;
+  if(totEl && totEl.value!=='' && Math.abs(Number(totEl.value) - sum) > 1){
+    t += ` · <b style="color:var(--warn)">⚠ ต่างจากยอดสุทธิ ฿${fmtMoney(Math.abs(Number(totEl.value)-sum))} (เช็คส่วนลด/VAT/แถวตกหล่น)</b>`;
+  }
+  el.innerHTML = t;
+}
+function saveScanBill(){
+  const supId = $('#scSup').value;
+  if(!supId) return toast('เลือกซัพพลายเออร์ก่อน');
+  const items = scanRows
+    .filter(r=> (r.name && r.name.trim()) && ((Number(r.qty)||0) > 0 || (Number(r.amount)||0) > 0))
+    .map(r=>({pid:r.pid||null, name:r.name.trim(), qty:Number(r.qty)||0, unit:r.unit||'', price:Number(r.price)||0,
+              amount: (r.amount!=null? Number(r.amount) : +(((Number(r.qty)||0)*(Number(r.price)||0)).toFixed(2)))}));
+  if(!items.length) return toast('ไม่มีรายการในบิล');
+  items.forEach(x=>{ if(x.pid && x.price>0){ const p=prodById(x.pid); if(p) p.price = x.price; } });
+  const totEl = $('#scTotal');
+  const total = ((totEl && totEl.value!=='')? Number(totEl.value) : +scanSum().toFixed(2)) || 0;
+  B().bills.push({id:uid('b_'), date:$('#scDate').value||todayISO(), supId, no:($('#scNo').value||'').trim()||'-',
+    items, total, src:'scan', ocr:scanMeta});
+  DB.save(); closeModal(); renderBills(); toast('บันทึกบิลจากสแกนแล้ว 📷');
 }
 
 /* =====================  ประวัติการใช้  ===================== */
