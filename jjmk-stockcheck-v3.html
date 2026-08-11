@@ -330,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.4 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.5 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -1910,8 +1910,29 @@ function addLineGroup(){
   DB.save(); openLineGroupsModal(); toast('เพิ่มกลุ่มแล้ว');
 }
 function delLineGroup(id){
+  const g0 = (S.lineGroups||[]).find(x=>x.id===id); if(!g0) return;
+  const isReal = String(id).length >= 20;
+  const bound = S.suppliers.filter(s=>s.lineGroupId===id);
+  const warn = [
+    isReal? 'ลบออกจากฐานข้อมูลจริง — หายจาก beta.html ด้วย' : null,
+    bound.length? `ซัพที่ผูกอยู่จะถูกปลด: ${bound.map(s=>esc(s.name)).join(', ')}` : null,
+  ].filter(Boolean).join('<br>');
+  confirmBox(`ลบกลุ่ม «${esc(g0.name)}» ?${warn? `<br><span class="t-sub" style="color:var(--warn)">${warn}</span>`:''}`, ()=>delLineGroupGo(id, isReal));
+}
+async function delLineGroupGo(id, isReal){
+  if(isReal){
+    try{
+      const r = await fetch(SB_URL+'/rest/v1/line_groups?group_id=eq.'+encodeURIComponent(id), {method:'DELETE', headers:SB_H});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    }catch(e){
+      openLineGroupsModal();
+      return toast('ลบจากเซิร์ฟเวอร์ไม่ได้ ('+String(e.message||e)+') — ลบด้วย SQL แทน');
+    }
+  }
+  S.suppliers.forEach(s=>{ if(s.lineGroupId===id){ s.lineGroupId = null; s.lineGroup = ''; } });
   S.lineGroups = (S.lineGroups||[]).filter(g=>g.id!==id);
   DB.save(); openLineGroupsModal();
+  toast(isReal? 'ลบกลุ่มออกจากฐานข้อมูลแล้ว ✓' : 'ลบแล้ว');
 }
 function sendTestLine(gid){
   const g0 = (S.lineGroups||[]).find(x=>x.id===gid); if(!g0) return;
