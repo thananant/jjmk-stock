@@ -330,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.3 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.4 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -1883,7 +1883,10 @@ function openLineGroupsModal(){
   openModal(`<div class="modal-h"><h3>💬 กลุ่มไลน์ที่บอทมองเห็น (${gs.length})</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="modal-b">
     <div class="t-sub" style="margin-bottom:10px">เชิญบอท LINE OA เข้ากลุ่ม + มีคนพิมพ์ 1 ข้อความ → กด 🔄 ชื่อกลุ่มจะโผล่ที่นี่ · เพิ่มชื่อเองได้เฉพาะกรณีพิเศษ</div>
-    <button class="btn btn-ghost btn-sm" style="margin-bottom:10px" onclick="refreshLineGroups(false).then(()=>openLineGroupsModal())">🔄 ดึงกลุ่มจากบอทใหม่</button>
+    <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="refreshLineGroups(false).then(()=>openLineGroupsModal())">🔄 ดึงกลุ่มจากบอทใหม่</button>
+      <button class="btn btn-gold btn-sm" onclick="sendTestAll()">🧪 ทดสอบทุกกลุ่ม (${(S.lineGroups||[]).filter(g=>String(g.id).length>=20).length})</button>
+    </div>
     <div style="display:grid; gap:6px; max-height:300px; overflow:auto; margin-bottom:12px">
       ${gs.length? gs.map(g=>{
         const used = S.suppliers.filter(s=>s.lineGroup===g.name).map(s=>s.name);
@@ -1925,6 +1928,42 @@ function sendTestLine(gid){
     }catch(e){ toast('ส่งไม่สำเร็จ — เช็คเน็ตแล้วลองใหม่'); }
     openLineGroupsModal();
   });
+}
+
+function testableGroups(){ return (S.lineGroups||[]).filter(g=>String(g.id).length >= 20); }
+function sendTestAll(){
+  const gs = testableGroups();
+  if(!gs.length) return toast('ยังไม่มีกลุ่มจริงจากบอท — กด 🔄 ดึงก่อน');
+  confirmBox(`ส่งข้อความทดสอบเข้า <b>ทุกกลุ่มจริง ${gs.length} กลุ่ม</b> เลยไหม?<br>
+    <span class="t-sub">${gs.map(g=>esc(g.name)).join(' · ')}</span><br>
+    <span class="t-sub" style="color:var(--warn)">⚠ ข้อความจะเข้ากลุ่มซัพจริงทุกกลุ่ม คนของซัพเห็นด้วย</span>`, ()=>sendTestAllGo(gs));
+}
+async function sendTestAllGo(gs){
+  openModal(`<div class="modal-h"><h3>🧪 กำลังทดสอบ ${gs.length} กลุ่ม</h3></div>
+    <div class="modal-b"><div class="t-sub" id="taProg">เริ่ม…</div></div>`);
+  const res = [];
+  for(let i=0; i<gs.length; i++){
+    const pg = $('#taProg'); if(pg) pg.textContent = `⏳ ${i+1}/${gs.length} — ${gs[i].name}`;
+    let okk = false, why = '';
+    try{
+      const r = await fetch(SB_URL+'/functions/v1/line-order', {method:'POST', headers:SB_H,
+        body: JSON.stringify({to:gs[i].id, text:'test ระบบสั่งของ 🧪 (ทดสอบจาก JJ StockCheck ไม่ต้องตอบกลับครับ)'})});
+      const j = await r.json().catch(()=>({}));
+      okk = !!(r.ok && j.ok);
+      if(!okk) why = j.error || ('HTTP ' + (r.status||'?'));
+    }catch(e){ why = 'เน็ตหลุด'; }
+    res.push({name:gs[i].name, ok:okk, why});
+    if(i < gs.length-1) await new Promise(rs=>setTimeout(rs, 400));
+  }
+  const good = res.filter(r=>r.ok).length;
+  openModal(`<div class="modal-h"><h3>ผลทดสอบ ${good}/${res.length} กลุ่ม</h3><button class="x" onclick="openLineGroupsModal()">×</button></div>
+  <div class="modal-b"><div style="display:grid; gap:6px; max-height:340px; overflow:auto">
+    ${res.map(r=>`<div style="display:flex; gap:9px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:13px">
+      <span>${r.ok?'✅':'❌'}</span><span style="min-width:0"><b>${esc(r.name)}</b>${r.ok?'':`<br><span class="t-sub" style="color:var(--bad)">${esc(r.why)} — บอทอาจโดนเอาออกจากกลุ่ม หรือกลุ่มถูกลบ</span>`}</span></div>`).join('')}
+  </div>
+  ${good<res.length? `<div class="t-sub" style="margin-top:9px">กลุ่มที่ ❌: เช็คว่าบอทยังอยู่ในกลุ่ม → มีคนพิมพ์ 1 ข้อความ → กด 🔄 ดึงใหม่แล้วผูกซัพอีกรอบ</div>`:''}</div>
+  <div class="modal-f"><button class="btn btn-red" onclick="openLineGroupsModal()">กลับไปหน้ากลุ่ม</button></div>`);
+  toast(good===res.length? `🧪 ผ่านครบ ${good} กลุ่ม ✓` : `ส่งเข้าได้ ${good}/${res.length} กลุ่ม`);
 }
 
 function renderSuppliers(){
