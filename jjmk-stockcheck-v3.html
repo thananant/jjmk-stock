@@ -330,7 +330,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.5 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.6 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -645,6 +645,7 @@ let currentPage = 'dash';
 
 function showPage(p){
   currentPage = p;
+  try{ localStorage.setItem('jj3_last_page', p); }catch(e){}   /* จำหน้าล่าสุด — F5 แล้วกลับมาหน้าเดิม */
   $$('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.page===p));
   $$('.page').forEach(el=>el.classList.toggle('active', el.id==='page-'+p));
   $('#pageTitle').textContent = PAGE_TITLES[p];
@@ -2210,7 +2211,10 @@ if(!S.billAlias){ S.billAlias = {}; DB.save(); }
 refreshLineGroups(true);   /* ดึงกลุ่มไลน์จริงเข้ามาแทนรายชื่อจำลองทันทีที่เน็ตถึง */
 if(!S.bd[S.activeBranch]) S.activeBranch = S.branches[0].id;
 refreshTop();
-showPage('dash');
+/* F5 กลับหน้าเดิมเสมอ (ถ้าหน้าที่จำไว้ไม่มีอยู่จริง กลับแดชบอร์ด) */
+let _lastPage = null;
+try{ _lastPage = localStorage.getItem('jj3_last_page'); }catch(e){}
+showPage(RENDER[_lastPage] ? _lastPage : 'dash');
 setInterval(refreshTop, 60000);
 </script>
 </body>
