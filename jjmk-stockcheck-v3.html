@@ -283,6 +283,8 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
 .scan-th button{position:absolute; top:3px; right:3px; width:22px; height:22px; border:0; border-radius:50%;
   background:rgba(0,0,0,.55); color:#fff; cursor:pointer; line-height:1}
 .scan-th span{position:absolute; left:5px; bottom:3px; color:#fff; font-size:11px; text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.scan-pdf{width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--cream); font-size:24px}
+.scan-pdf span{font-size:10px; color:var(--sub); padding:0 4px; text-align:center; word-break:break-all; line-height:1.2}
 .scan-err{margin-top:10px; background:var(--bad-bg); color:var(--bad); border-radius:10px; padding:10px 13px; font-size:13px}
 .scan-note{margin-top:10px; background:var(--warn-bg); color:var(--warn); border-radius:10px; padding:9px 13px; font-size:13px}
 .line-panel{background:#F0FAF3; border:1.5px solid #BFDFC9; border-radius:12px; padding:12px 14px; margin-bottom:13px}
@@ -330,7 +332,7 @@ label.fld{display:block; font-size:12px; color:var(--sub); font-family:'Prompt';
     <button data-page="suppliers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 17.5v-11h12v11M13.5 9h4.5l3 3.5v5h-7.5"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>ซัพพลายเออร์</button>
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>ตั้งค่า</button>
   </nav>
-  <div class="side-foot">JJ StockCheck v3.7 · <span id="footBranch"></span></div>
+  <div class="side-foot">JJ StockCheck v3.8 · <span id="footBranch"></span></div>
 </aside>
 
 <div class="main">
@@ -1354,11 +1356,11 @@ function openScanModal(){
   scanImgs = []; scanBusy = false;
   openModal(`<div class="modal-h"><h3>📷 สแกนบิลด้วย AI</h3><button class="x" onclick="closeModal()">×</button></div>
   <div class="modal-b">
-    <input type="file" id="scanFile" accept="image/*" multiple style="display:none" onchange="scanAddFiles(this.files); this.value=''">
+    <input type="file" id="scanFile" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="scanAddFiles(this.files); this.value=''">
     <div class="scan-drop" onclick="$('#scanFile').click()">
       <div style="font-size:34px">📷</div>
       <b>ถ่ายรูป / เลือกรูปบิล</b>
-      <div class="t-sub">บิลยาวถ่ายหลายรูปต่อกันได้ (สูงสุด 6 รูป) · ระบบอ่านชื่อร้าน วันที่ รายการ ราคา ให้อัตโนมัติ</div>
+      <div class="t-sub">รองรับรูปถ่าย + ไฟล์ PDF · บิลยาวถ่ายหลายรูป/หลายไฟล์ต่อกันได้ (รวมสูงสุด 6) · ระบบอ่านชื่อร้าน วันที่ รายการ ราคา ให้อัตโนมัติ</div>
     </div>
     <div id="scanThumbs" class="scan-thumbs"></div>
     <div id="scanMsg"></div>
@@ -1369,10 +1371,23 @@ function openScanModal(){
 async function scanAddFiles(files){
   for(const f of Array.from(files||[])){
     if(scanImgs.length >= 6){ toast('ได้สูงสุด 6 รูปต่อบิล'); break; }
-    try{ scanImgs.push(await scanCompress(f)); }
-    catch(e){ toast('อ่านรูปไม่ได้: ' + (f.name||'')); }
+    try{
+      const isPdf = ((f.type||'').includes('pdf')) || /\.pdf$/i.test(f.name||'');
+      scanImgs.push(isPdf ? await scanReadPdf(f) : await scanCompress(f));
+    }
+    catch(e){ toast('อ่านไฟล์ไม่ได้: ' + (f.name||'') + (e && e.message ? ' — ' + e.message : '')); }
   }
   scanThumbsDraw();
+}
+function scanReadPdf(file){
+  /* PDF ส่งทั้งไฟล์ตรง ๆ (Gemini อ่าน PDF ได้ ไม่ต้องแปลงเป็นรูป) */
+  return new Promise((resolve, reject)=>{
+    if(file.size > 15*1024*1024) return reject(new Error('PDF ใหญ่เกิน 15MB — แคปหน้าจอส่งเป็นรูปแทน'));
+    const fr = new FileReader();
+    fr.onload = ()=> resolve({data: String(fr.result).split(',')[1], mime:'application/pdf', url:null, pdf:true, name:file.name||'bill.pdf'});
+    fr.onerror = ()=> reject(new Error('อ่าน PDF ไม่ได้'));
+    fr.readAsDataURL(file);
+  });
 }
 function scanCompress(file){
   /* ย่อรูปฝั่งเครื่องก่อนส่ง (ยาวสุด 1600px, JPEG 85%) — ประหยัดเน็ตร้าน + Gemini อ่านพอ */
@@ -1397,7 +1412,9 @@ function scanCompress(file){
 }
 function scanThumbsDraw(){
   const el = $('#scanThumbs'); if(!el) return;
-  el.innerHTML = scanImgs.map((im,i)=>`<div class="scan-th"><img src="${im.url}">
+  el.innerHTML = scanImgs.map((im,i)=>`<div class="scan-th">${im.pdf
+      ? `<div class="scan-pdf">📄<span>${esc(String(im.name||'PDF').slice(0,16))}</span></div>`
+      : `<img src="${im.url}">`}
     <button onclick="scanImgs.splice(${i},1); scanThumbsDraw()">×</button><span>${i+1}</span></div>`).join('');
   const go = $('#scanGo'); if(go) go.disabled = !scanImgs.length || scanBusy;
 }
