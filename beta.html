@@ -617,7 +617,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b42 — ธีมใหม่โทน v2</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b43 — แก้รีเซ็ตรหัสผ่าน</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -2067,7 +2067,7 @@ async function resetUserPassword(u){
     const token=session&&session.access_token; if(!token){toast('เซสชันหมดอายุ ล็อกอินใหม่');return;}
     const r=await fetch(SB_URL+'/functions/v1/admin-reset-password',{method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SB_ANON},
-      body:JSON.stringify({target_uid:u.id,new_password:p})});
+      body:JSON.stringify({target_uid:u.id,username:u.username,new_password:p})});
     const j=await r.json().catch(()=>({}));
     if(r.ok&&j.ok)toast('รีเซ็ตรหัสให้ '+(u.name||u.username)+' แล้ว ✓');
     else toast('รีเซ็ตไม่สำเร็จ: '+(j.error||('HTTP '+r.status)));

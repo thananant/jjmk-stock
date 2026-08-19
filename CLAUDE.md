@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.3 | ยังไม่ได้ promote โครงหลังบ้าน |
-| `beta.html` | **b42** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b43** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -29,7 +29,8 @@
 ไทม์ไลน์ b23–b42: b23 เมนูใบปะหน้า · b24 คลังข้อมูลเก่า (archive) · b25-b29 ใบปะหน้าปิดกะ ·
 b30 รีเฟรชกลับหน้าเดิม · b31-b33 รายจ่าย Supplier + คลังรายการบิล · b34-b35 (SQL) ชื่อซัพบริษัทเต็ม+จับคู่ ·
 b36-b39 จับคู่ชื่อสินค้า/แก้ z-index/ป้าย 🧾 · b40 สั่งตามวันที่ของเดือน · b41 ย้ายซัพ ·
-b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Prompt + พาเลตสว่าง + sidebar maroon · แก้เฉพาะ CSS ใน proSkin · ไฟล์อ้างอิงดีไซน์ `design/jjmk-stockcheck-v2.html` · หน้าเช็คสต๊อก layout เดิม)
+b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Prompt + พาเลตสว่าง + sidebar maroon · แก้เฉพาะ CSS ใน proSkin · ไฟล์อ้างอิงดีไซน์ `design/jjmk-stockcheck-v2.html` · หน้าเช็คสต๊อก layout เดิม) ·
+b43 แก้รีเซ็ตรหัสผ่าน (Edge Function `admin-reset-password` v2 — หาได้ทั้ง uid/username + ซ่อมบัญชีที่ auth_uid หาย · **ต้อง deploy ไฟล์ `admin-reset-password.ts` ใน dashboard**)
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -90,7 +91,7 @@ b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Pr
 - **คลังข้อมูลเก่า (b24):** DB เก็บ 120 วันล่าสุด · เดือนเก่า → JSON รายเดือนใน Storage bucket `archive` ·
   หน้าดูย้อนหลัง/การใช้ของ อ่าน DB+คลังต่อกันอัตโนมัติ (archFetch/archDates) · ดูย้อนหลังได้ไม่จำกัด
 - **รายงานการใช้ของ (openUsage):** inflow จาก stock_receipts เท่านั้น (received ?? ordered) เทียบวันของถึงตาม supHorizon lead
-- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟส b43
+- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟสถัดไป (b44 — เลข b43 ถูกใช้กับ hotfix รีเซ็ตรหัสผ่านแล้ว)
 - **ซอง→ลัง conversion:** เฉพาะ dispatch board + ข้อความ LINE — ไม่เอาในหน้า order review
 
 ## 6. โครง UI (b22 shell + โมดูล)
