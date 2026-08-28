@@ -20,8 +20,8 @@
 
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
-| `index.html` (production) | v24.4 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4 = hotfix แจ้งสาเหตุล็อกอินไม่ผ่าน |
-| `beta.html` | **b44** | ทุกฟีเจอร์ล่าสุด |
+| `index.html` (production) | v24.5 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4 = hotfix แจ้งสาเหตุล็อกอินไม่ผ่าน |
+| `beta.html` | **b45** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -31,7 +31,8 @@ b30 รีเฟรชกลับหน้าเดิม · b31-b33 ราย�
 b36-b39 จับคู่ชื่อสินค้า/แก้ z-index/ป้าย 🧾 · b40 สั่งตามวันที่ของเดือน · b41 ย้ายซัพ ·
 b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Prompt + พาเลตสว่าง + sidebar maroon · แก้เฉพาะ CSS ใน proSkin · ไฟล์อ้างอิงดีไซน์ `design/jjmk-stockcheck-v2.html` · หน้าเช็คสต๊อก layout เดิม) ·
 b43 แก้รีเซ็ตรหัสผ่าน (Edge Function `admin-reset-password` v2 — หาได้ทั้ง uid/username + ซ่อมบัญชีที่ auth_uid หาย · **ต้อง deploy ไฟล์ `admin-reset-password.ts` ใน dashboard**) ·
-b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซสชันหาย / REST error+code / ไม่มีแถว) แล้วโชว์บนหน้าล็อกอิน + console (แก้ทั้ง beta และ index v24.4) · ตัวแปร `PROF_ERR`
+b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซสชันหาย / REST error+code / ไม่มีแถว) แล้วโชว์บนหน้าล็อกอิน + console (แก้ทั้ง beta และ index v24.4) · ตัวแปร `PROF_ERR` ·
+b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -92,7 +93,7 @@ b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซ�
 - **คลังข้อมูลเก่า (b24):** DB เก็บ 120 วันล่าสุด · เดือนเก่า → JSON รายเดือนใน Storage bucket `archive` ·
   หน้าดูย้อนหลัง/การใช้ของ อ่าน DB+คลังต่อกันอัตโนมัติ (archFetch/archDates) · ดูย้อนหลังได้ไม่จำกัด
 - **รายงานการใช้ของ (openUsage):** inflow จาก stock_receipts เท่านั้น (received ?? ordered) เทียบวันของถึงตาม supHorizon lead
-- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟสถัดไป (**b45** — b43/b44 ถูกใช้กับ hotfix ไปแล้ว)
+- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟสถัดไป (**b46** — b43/b44/b45 ถูกใช้กับ hotfix ไปแล้ว)
 - **ซอง→ลัง conversion:** เฉพาะ dispatch board + ข้อความ LINE — ไม่เอาในหน้า order review
 
 ## 6. โครง UI (b22 shell + โมดูล)
@@ -137,11 +138,12 @@ b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซ�
 - Edge Function ใช้ service_role ข้าม RLS แต่**ไม่ข้าม GRANT**
 - Synology Task Scheduler ไม่รู้จัก PATH docker — สคริปต์เติม PATH เองแล้ว
 - save() ฝั่งแอป = localStorage เท่านั้น — persistence จริงคือ call Supabase ตรง ๆ
+- **PGRST303 `JWT issued at future`** = นาฬิกาเซิร์ฟเวอร์ Auth เดินล่วงหน้ากว่า PostgREST → ล็อกอินผ่านแต่อ่านตารางไม่ได้ทุกตาราง · เช็คด้วย `select last_sign_in_at - now() from auth.users` (บวก = Auth ล่วงหน้า) · แก้ถาวร = Restart project ใน Settings > General (28 ส.ค. 2026)
 - **โควตา Supabase free = Cached Egress 5 GB/เดือน** — เกินแล้ว REST/Storage ถูกจำกัดทั้งที่ Auth ยังทำงาน อาการคือ "ล็อกอินผ่านแต่ไม่พบโปรไฟล์" (28 ส.ค. 2026 ชน 101%) · ตัวกินหลัก = รูปสินค้าใน bucket `product-images` · ดู Dashboard > Usage ก่อนโทษโค้ดเสมอ
 
 ## 11. คิวงานถัดไป
 
-1. **b45: แดชบอร์ดสไตล์ v2** (KPI+กราฟ ข้อมูลจริง) + เก็บรายละเอียดรีสกินรายหน้า (อ้างอิง `design/jjmk-stockcheck-v2.html`)
+1. **b46: แดชบอร์ดสไตล์ v2** (KPI+กราฟ ข้อมูลจริง) + เก็บรายละเอียดรีสกินรายหน้า (อ้างอิง `design/jjmk-stockcheck-v2.html`)
 2. **หน้า Food Cost จริง 3 มุมมอง** — FC% = มูลค่าใช้÷รายได้ (เป้า ~35-45%) · จับสั่งเกิน · ราคาย้อนหลัง —
    ข้อมูลพร้อมแล้ว: daily_revenue (จากใบปะหน้า) + supplier_bills + stock_receipts.unit_price
 3. รอไฟล์จับคู่ชื่อสินค้า (จับคู่ชื่อสินค้า_JJMK.xlsx) กลับจากผู้ใช้ → gen SQL update stock_name + แก้ชื่อ "KCG Indoguna เนือ" + ผูกซัพให้สินค้า 4 ตัวที่ sup=null (ชีส, น้ำยาถังขาวฝาแดง, หมูยอ, หอยแมลงภู่ชิลี)

@@ -530,7 +530,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.4 ✓</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">v24.5 ✓</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -997,14 +997,23 @@ const uname2email=u=>u.toLowerCase().trim()+EMAIL_DOMAIN;
 async function sbSignup(u,p,name){const {data,error}=await sb.auth.signUp({email:uname2email(u),password:p,options:{data:{name:name||u}}});if(error)throw error;return data;}
 async function sbLogin(u,p){const {error}=await sb.auth.signInWithPassword({email:uname2email(u),password:p});if(error)throw error;}
 let PROF_ERR='';
-async function sbProfile(){PROF_ERR='';
+const CLOCK_SKEW=e=>{const c=(e&&e.code)||'',m=(e&&e.message)||String(e||'');return c==='PGRST303'||/issued at future/i.test(m);};
+async function sbProfile(onWait){PROF_ERR='';
   const g=await sb.auth.getUser();
   const user=g&&g.data&&g.data.user;
   if(!user){PROF_ERR='เซสชันหาย ('+((g&&g.error&&g.error.message)||'getUser ไม่คืนผู้ใช้')+')';console.error('sbProfile/getUser',g);return null;}
-  const {data,error}=await sb.from('app_users').select('*').eq('auth_uid',user.id).maybeSingle();
-  if(error){PROF_ERR='อ่าน app_users ไม่ได้: '+(error.message||error)+(error.code?' ['+error.code+']':'');console.error('sbProfile/select',error);return null;}
-  if(!data){PROF_ERR='ไม่มีแถวใน app_users ที่ auth_uid='+user.id;console.error('sbProfile/norow',user.id);return null;}
-  return data;}
+  const TRY=10;
+  for(let i=0;i<TRY;i++){
+    const {data,error}=await sb.from('app_users').select('*').eq('auth_uid',user.id).maybeSingle();
+    if(!error){
+      if(!data){PROF_ERR='ไม่มีแถวใน app_users ที่ auth_uid='+user.id;console.error('sbProfile/norow',user.id);return null;}
+      return data;}
+    // นาฬิกาเซิร์ฟเวอร์ Auth เดินล่วงหน้า -> token ยังใช้ไม่ได้ รอให้เวลาไล่ทันแล้วลองใหม่
+    if(CLOCK_SKEW(error)&&i<TRY-1){
+      if(onWait)onWait(i+1,TRY);
+      await new Promise(r=>setTimeout(r,3000));continue;}
+    PROF_ERR='อ่าน app_users ไม่ได้: '+(error.message||error)+(error.code?' ['+error.code+']':'');console.error('sbProfile/select',error);return null;}
+  return null;}
 function profToUser(p){return {id:p.auth_uid,name:p.name||p.username,username:p.username,role:p.role||'staff',branchIds:p.branch_ids||[],catKeys:p.cat_keys||[],status:p.status,perms:(p.perms&&typeof p.perms==='object')?p.perms:null};}
 async function sbLoadData(prof){
   const [br,pr,un,rl,cf,sp]=await Promise.all([
@@ -1368,7 +1377,7 @@ async function doLogin(){
   setLoginBusy(true,'⏳ เข้าสู่ระบบ...');
   try{
     await sbLogin(u,p);
-    const prof=await sbProfile();
+    const prof=await sbProfile((n,t)=>setLoginBusy(true,'⏳ นาฬิกาเซิร์ฟเวอร์คลาด รอสักครู่... ('+n+'/'+t+')'));
     if(!prof){await sb.auth.signOut();loginErr('ไม่พบโปรไฟล์ในระบบ'+(PROF_ERR?' — '+PROF_ERR:''));return}
     if(prof.status!=='active'){await sb.auth.signOut();loginErr('บัญชีนี้รอผู้ดูแลอนุมัติก่อนใช้งาน');return}
     await sbLoadData(prof);applyShop();enterApp();
