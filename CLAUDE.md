@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.5 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4 = hotfix แจ้งสาเหตุล็อกอินไม่ผ่าน |
-| `beta.html` | **b45** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b46** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -32,7 +32,8 @@ b36-b39 จับคู่ชื่อสินค้า/แก้ z-index/ป�
 b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Prompt + พาเลตสว่าง + sidebar maroon · แก้เฉพาะ CSS ใน proSkin · ไฟล์อ้างอิงดีไซน์ `design/jjmk-stockcheck-v2.html` · หน้าเช็คสต๊อก layout เดิม) ·
 b43 แก้รีเซ็ตรหัสผ่าน (Edge Function `admin-reset-password` v2 — หาได้ทั้ง uid/username + ซ่อมบัญชีที่ auth_uid หาย · **ต้อง deploy ไฟล์ `admin-reset-password.ts` ใน dashboard**) ·
 b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซสชันหาย / REST error+code / ไม่มีแถว) แล้วโชว์บนหน้าล็อกอิน + console (แก้ทั้ง beta และ index v24.4) · ตัวแปร `PROF_ERR` ·
-b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5
+b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5 ·
+b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์)
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -72,9 +73,9 @@ b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่�
 
 ## 5. Business logic สำคัญ (อย่าทำพัง)
 
-- **safety = ใช้เฉลี่ย/วัน, max = ใช้พีค/วัน** (ไม่ใช่ minimum stock)
-- **สูตรสั่ง (fixed/interval/monthdays):** `แนะนำ = rate×cycle − max(0, stock − safety×lead)` โดย rate=max(safety,max) ·
-  supHorizon() คืน {lead:วันนับ→วันส่ง, cycle:วันส่งรอบนี้→รอบหน้า} · โหมด any: gate stock≥safety, target=rate×lead
+- **อัตราใช้ 3 ช่วงวัน (b46): safety = จ-พฤ/วัน · rate_fri = ศ/วัน · max = ส-อา/วัน** (ไม่ใช่ minimum stock) · วันหยุดพิเศษ (config.special_days) คิดแบบ ส-อา · ช่องว่าง fallback: ศ→ส-อา→จ-พฤ, ส-อา→จ-พฤ
+- **สูตรสั่ง (fixed/interval/monthdays) b46:** `แนะนำ = Σrate(วัน)ช่วง cycle − max(0, stock − Σrate(วัน)ช่วง lead)` เดินปฏิทินทีละวันด้วย dayRate() ·
+  supHorizon() คืน {lead:วันนับ→วันส่ง, cycle:วันส่งรอบนี้→รอบหน้า} · โหมด any: gate stock≥dayRate(วันนี้), target=Σrate(วัน)ช่วง lead
 - **โหมด monthdays (b40):** month_days="1,16" · เดือนสั้นเลื่อนวันเกินเป็นวันสุดท้ายของเดือน (monthdaysDueOn) ·
   helpers: monthDays(), mdDate(), monthdaysNext() · needQty ต้องมี mode 'monthdays' ในเงื่อนไขสูตรเต็มรอบ
 - **โหมด interval:** นับรอบจาก LAST_SENT (วันส่ง LINE ล่าสุดจาก stock_receipts)
@@ -149,6 +150,6 @@ b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่�
 3. รอไฟล์จับคู่ชื่อสินค้า (จับคู่ชื่อสินค้า_JJMK.xlsx) กลับจากผู้ใช้ → gen SQL update stock_name + แก้ชื่อ "KCG Indoguna เนือ" + ผูกซัพให้สินค้า 4 ตัวที่ sup=null (ชีส, น้ำยาถังขาวฝาแดง, หมูยอ, หอยแมลงภู่ชิลี)
 4. Promote โครงหลังบ้าน → production v25 (รอผู้ใช้สั่ง)
 5. สูตรหักของค้างท่อ (pipeline deduction — KCG สั่งทุกวันของถึงช้า สั่งซ้ำซ้อน) — เสนอไว้ ยังไม่เคาะ
-6. จูน safety/max จากข้อมูลจริง (`analyze_safety_max_v5.sql` — ใช้ v5 เท่านั้น)
+6. จูนอัตราใช้จากข้อมูลจริง — SQL วิเคราะห์ 3 ช่วงวันส่งให้ผู้ใช้แล้ว (29 ส.ค.) รอ CSV กลับมา → ทำตารางเทียบ → gen UPDATE safety/rate_fri/max (ไฟล์ v5 เดิมเลิกใช้)
 7. เคลียร์สินค้าซ้ำ: ข้าวคั่ว ×2 ทั้งสองสาขา, น้ำมัน ×2 ลาดพร้าว
 8. บันทึกบิลซัพ: แนบรูปบิล (เฟสถัดไปที่คุยไว้)
