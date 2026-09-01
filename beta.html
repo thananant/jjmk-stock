@@ -617,7 +617,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b47 — ปุ่มเปลี่ยนชื่อซัพ (ย้ายข้อมูลครบ)</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b48 — แยกคอลัมน์อัตราใหม่ (rate_wk/we) ไม่แตะ safety/max เดิม</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1123,7 +1123,7 @@ async function sbLoadData(prof){
   const bmap={};branches.forEach(b=>bmap[b.id]=b);const cmap={};
   (pr.data||[]).forEach(p=>{const b=bmap[p.branch_id];if(!b)return;const k=p.branch_id+'|'+p.cat_key;
     if(!cmap[k]){cmap[k]={key:p.cat_key,label:p.cat_label,ic:p.cat_ic||'📦',items:[]};b.data.categories.push(cmap[k]);}
-    cmap[k].items.push({id:p.id,name:p.name,i18n:(p.i18n&&typeof p.i18n==='object')?p.i18n:null,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),rate_fri:(p.rate_fri==null?null:+p.rate_fri),pack:(p.pack==null?null:+p.pack),pack_unit:p.pack_unit||null,order_step:(p.order_step==null?null:+p.order_step),step_unit:p.step_unit||null,qty:null,img:p.image_url||null});});
+    cmap[k].items.push({id:p.id,name:p.name,i18n:(p.i18n&&typeof p.i18n==='object')?p.i18n:null,unit:p.unit||'',sup:p.sup||'',location:p.location||'',safety:(p.safety==null?null:+p.safety),max:(p.max==null?null:+p.max),rate_fri:(p.rate_fri==null?null:+p.rate_fri),rate_wk:(p.rate_wk==null?null:+p.rate_wk),rate_we:(p.rate_we==null?null:+p.rate_we),pack:(p.pack==null?null:+p.pack),pack_unit:p.pack_unit||null,order_step:(p.order_step==null?null:+p.order_step),step_unit:p.step_unit||null,qty:null,img:p.image_url||null});});
   let users=[profToUser(prof)];
   if(prof.role==='admin'||prof.role==='owner'){const {data}=await sb.from('app_users').select('*');if(data)users=data.map(profToUser);}
   ROOT={schemaVersion:5,config:{shop:conf.shop||'จริงใจหมูกระทะ',endpoint:'',showImages:true,imgQuality:'md',
@@ -1148,7 +1148,7 @@ function subscribeRealtime(){
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'products'},payload=>{
       const r=payload.new;if(!r)return;const x=ITEM_INDEX[r.id];if(!x)return;
-      x.item.safety=(r.safety==null?null:+r.safety);x.item.max=(r.max==null?null:+r.max);x.item.rate_fri=(r.rate_fri==null?null:+r.rate_fri);
+      x.item.safety=(r.safety==null?null:+r.safety);x.item.max=(r.max==null?null:+r.max);x.item.rate_fri=(r.rate_fri==null?null:+r.rate_fri);x.item.rate_wk=(r.rate_wk==null?null:+r.rate_wk);x.item.rate_we=(r.rate_we==null?null:+r.rate_we);
       if(currentUser&&$('#centralOverlay').classList.contains('show'))renderCentral();
     })
     .subscribe();
@@ -1365,7 +1365,7 @@ function normalize(o){
     if(!Array.isArray(u.catKeys))u.catKeys=[];});
   if(!Array.isArray(o.branches)||!o.branches.length) o.branches=[{id:uid('b'),name:'สาขาหลัก',data:{categories:defaultCatalog()}}];
   o.branches.forEach(b=>{if(!b.id)b.id=uid('b');b.data=b.data||{};if(!Array.isArray(b.data.categories))b.data.categories=defaultCatalog();
-    b.data.categories.forEach(c=>c.items.forEach(i=>{if(!i.id)i.id=uid('it');if(i.qty===undefined)i.qty=null;if(i.img===undefined)i.img=null;if(i.safety===undefined)i.safety=null;if(i.max===undefined)i.max=null;if(i.rate_fri===undefined)i.rate_fri=null}))});
+    b.data.categories.forEach(c=>c.items.forEach(i=>{if(!i.id)i.id=uid('it');if(i.qty===undefined)i.qty=null;if(i.img===undefined)i.img=null;if(i.safety===undefined)i.safety=null;if(i.max===undefined)i.max=null;if(i.rate_fri===undefined)i.rate_fri=null;if(i.rate_wk===undefined)i.rate_wk=null;if(i.rate_we===undefined)i.rate_we=null}))});
   return o;
 }
 function load(){ ROOT=normalize(LS.get(ROOT_KEY,null)); }
@@ -1718,9 +1718,9 @@ function moveSupDialog(it){
 }
 // ดึง safety/max/pack/step ล่าสุดจาก DB มาทับในหน่วยความจำ (ไม่แตะ qty ที่กำลังนับ)
 function refreshMeta(){loadLastSent();
-  return sb.from('products').select('id,safety,max,rate_fri,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
+  return sb.from('products').select('id,safety,max,rate_fri,rate_wk,rate_we,pack,pack_unit,order_step,step_unit').is('deleted_at',null)
   .then(({data})=>{if(!data)return;data.forEach(p=>{const x=ITEM_INDEX[p.id];if(!x)return;const it=x.item;
-    it.safety=(p.safety==null?null:+p.safety);it.max=(p.max==null?null:+p.max);it.rate_fri=(p.rate_fri==null?null:+p.rate_fri);
+    it.safety=(p.safety==null?null:+p.safety);it.max=(p.max==null?null:+p.max);it.rate_fri=(p.rate_fri==null?null:+p.rate_fri);it.rate_wk=(p.rate_wk==null?null:+p.rate_wk);it.rate_we=(p.rate_we==null?null:+p.rate_we);
     it.pack=(p.pack==null?null:+p.pack);it.pack_unit=p.pack_unit||null;
     it.order_step=(p.order_step==null?null:+p.order_step);it.step_unit=p.step_unit||null;});})
   .catch(e=>console.log('refreshMeta',e));}
@@ -1764,7 +1764,7 @@ function buildOrder(){
       const mv=canMv?' <button class="mvsup" title="ย้ายซัพ" style="border:none;background:none;cursor:pointer;font-size:.95em;padding:0 3px">🔀</button>':'';
       const row=document.createElement('div');row.className='orow';
       row.innerHTML=`<div class="on">${escapeHtml(itemName(i))}${mv} <span style="color:var(--ink-soft);font-size:.85em">${escapeHtml(i.unit||'')}</span>${ovr}</div>
-        <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(i.safety)}</div><div class="ov">${i.max==null?'–':fmt(i.max)}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
+        <div class="ov">${fmt(i.qty)}</div><div class="ov">${fmt(numR(i.rate_wk,i.safety))}</div><div class="ov">${numR(i.rate_we,i.max)==null?'–':fmt(numR(i.rate_we,i.max))}</div><div class="ov" style="color:var(--out)">${fmt(rec)}</div>
         <input class="ord" inputmode="decimal" value="${fmt(orderOf(i))}">`;
       const inp=row.querySelector('.ord');
       box.appendChild(row);
@@ -4288,10 +4288,11 @@ function specialDaySet(){const raw=String(cfg().special_days||'').trim();
 function isSpecialDay(d){const sp=specialDaySet();if(!sp.yearly.size&&!sp.once.size)return false;
   const p=n=>String(n).padStart(2,'0');const md=p(d.getMonth()+1)+'-'+p(d.getDate());
   return sp.yearly.has(md)||sp.once.has(d.getFullYear()+'-'+md);}
-function dayRate(it,d){ // อัตราใช้ของวันนั้น (Date) · ช่องว่างใช้ช่องข้างเคียงแทน
-  const wk=(it.safety===null||it.safety===undefined||it.safety==='')?null:+it.safety;
-  const fr=(it.rate_fri===null||it.rate_fri===undefined||it.rate_fri==='')?null:+it.rate_fri;
-  const we=(it.max===null||it.max===undefined||it.max==='')?null:+it.max;
+function numR(a,b){const x=(a===null||a===undefined||a==='')?null:+a;if(x!=null)return x;return (b===null||b===undefined||b==='')?null:+b;}
+function dayRate(it,d){ // อัตราใช้ของวันนั้น (Date) · คอลัมน์ใหม่ (rate_wk/fri/we) ก่อน · safety/max เดิมเป็น fallback
+  const wk=numR(it.rate_wk,it.safety);
+  const fr=numR(it.rate_fri,null);
+  const we=numR(it.rate_we,it.max);
   const dw=d.getDay();
   if(dw===0||dw===6||isSpecialDay(d))return we!=null?we:wk;
   if(dw===5)return fr!=null?fr:(we!=null?we:wk);
@@ -4304,7 +4305,7 @@ function needBase(dateStr){let d;
   else{const cd=(document.getElementById('countDate')||{}).value;d=cd?new Date(cd+'T00:00:00'):bizDate();}
   if(isNaN(+d))d=bizDate();d=new Date(d);d.setHours(0,0,0,0);return d;}
 function needQty(it,dateStr){ // ยอดแนะนำ = เดินปฏิทินทีละวัน คิดอัตราตามชนิดวัน
-  const safety=(it.safety===null||it.safety===undefined||it.safety==='')?null:(+it.safety);
+  const safety=numR(it.rate_wk,it.safety);
   if(safety===null)return null;
   if(it.qty===null||it.qty===undefined)return null;
   const stock=+it.qty;
@@ -4416,17 +4417,18 @@ function renderCentral(){
       if(n>0)totalNeed++;
       const row=document.createElement('div');row.className='crow';
       const stockTxt=(it.qty===null||it.qty===undefined)?'ยังไม่นับ':fmt(it.qty);
+      const vwk=numR(it.rate_wk,it.safety),vfr=numR(it.rate_fri,null),vwe=numR(it.rate_we,it.max);
       row.innerHTML=`<div class="cn">${escapeHtml(it.name)} <span style="color:var(--ink-soft);font-size:.8em">${escapeHtml(it.unit||'')}</span></div>
         <div class="cstock ${it.qty===null?'un':''}">${stockTxt}</div>
-        <input class="csafe" inputmode="decimal" value="${(it.safety===null||it.safety===undefined)?'':fmt(it.safety)}" placeholder="–">
-        <input class="cfri" inputmode="decimal" value="${(it.rate_fri===null||it.rate_fri===undefined)?'':fmt(it.rate_fri)}" placeholder="–">
-        <input class="cmax" inputmode="decimal" value="${(it.max===null||it.max===undefined)?'':fmt(it.max)}" placeholder="–">
+        <input class="csafe" inputmode="decimal" value="${vwk==null?'':fmt(vwk)}" placeholder="–">
+        <input class="cfri" inputmode="decimal" value="${vfr==null?'':fmt(vfr)}" placeholder="–">
+        <input class="cmax" inputmode="decimal" value="${vwe==null?'':fmt(vwe)}" placeholder="–">
         <div class="cneed ${n>0?'go':''}">${n===null?'—':fmt(n)}</div>`;
       const sf=row.querySelector('.csafe'),mx=row.querySelector('.cmax'),fr=row.querySelector('.cfri');
-      sf.onchange=async()=>{const t=sf.value.trim();it.safety=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
-        const {error}=await sb.from('products').update({safety:it.safety}).eq('id',it.id);if(error)toast('บันทึก safety ไม่สำเร็จ: '+error.message);};
-      mx.onchange=async()=>{const t=mx.value.trim();it.max=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
-        const {error}=await sb.from('products').update({max:it.max}).eq('id',it.id);if(error)toast('บันทึก max ไม่สำเร็จ: '+error.message);};
+      sf.onchange=async()=>{const t=sf.value.trim();it.rate_wk=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
+        const {error}=await sb.from('products').update({rate_wk:it.rate_wk}).eq('id',it.id);if(error)toast('บันทึกอัตรา จ-พฤ ไม่สำเร็จ: '+error.message);};
+      mx.onchange=async()=>{const t=mx.value.trim();it.rate_we=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
+        const {error}=await sb.from('products').update({rate_we:it.rate_we}).eq('id',it.id);if(error)toast('บันทึกอัตรา ส-อา ไม่สำเร็จ: '+error.message);};
       fr.onchange=async()=>{const t=fr.value.trim();it.rate_fri=(t===''?null:Math.max(0,parseFloat(t.replace(',','.'))||0));renderCentral();
         const {error}=await sb.from('products').update({rate_fri:it.rate_fri}).eq('id',it.id);if(error)toast('บันทึกอัตรา ศ ไม่สำเร็จ: '+error.message);};
       sf.onfocus=()=>sf.select();mx.onfocus=()=>mx.select();fr.onfocus=()=>fr.select();
@@ -4444,7 +4446,7 @@ function centralText(){
     const rows=c.items.filter(it=>{const n=needQty(it);return n>0});
     if(!rows.length)return;
     s+=`\n${c.ic} ${c.label}\n`;
-    rows.forEach(it=>{const n=needQty(it);total++;s+=`• ${it.name} — จัด ${fmt(n)} ${it.unit||''} (คงเหลือ ${fmt(it.qty)} · จ-พฤ ${fmt(it.safety)})\n`});
+    rows.forEach(it=>{const n=needQty(it);total++;s+=`• ${it.name} — จัด ${fmt(n)} ${it.unit||''} (คงเหลือ ${fmt(it.qty)} · จ-พฤ ${fmt(numR(it.rate_wk,it.safety))})\n`});
   });
   s+=`\nรวมต้องจัด ${total} รายการ`;return s;
 }
