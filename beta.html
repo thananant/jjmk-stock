@@ -617,7 +617,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b46 — อัตราใช้ 3 ช่วงวัน (จ-พฤ/ศ/ส-อา)</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b47 — ปุ่มเปลี่ยนชื่อซัพ (ย้ายข้อมูลครบ)</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -4111,7 +4111,7 @@ function renderSuppliers(){
             <div><label style="font-weight:400">เปิดรับอีกครั้ง</label><input class="f_re" type="date" value="${s.reopen_date||''}"></div>
           </div></div>
         <div class="sfield"><label>หมายเหตุ</label><input class="f_note" value="${escapeHtml(s.note||'')}"></div>
-        <div class="actions"><button class="act ghost" data-act="del"><span class="danger">ลบซัพนี้</span></button></div>`;
+        <div class="actions"><button class="act ghost" data-act="ren">✏️ เปลี่ยนชื่อบริษัท</button><button class="act ghost" data-act="del"><span class="danger">ลบซัพนี้</span></button></div>`;
       const save=async(patch)=>{const {error}=await sb.from('suppliers').update(patch).eq('name',s.name);
         if(error){toast('บันทึกไม่สำเร็จ: '+error.message);return false;}Object.assign(s,patch);toast('บันทึกแล้ว ✓');return true;};
       const saveSched=()=>save({schedule:Object.keys(sched).length?sched:null});
@@ -4143,6 +4143,23 @@ function renderSuppliers(){
       body.querySelector('.f_ld').onchange=e=>save({last_delivery_date:e.target.value||null});
       body.querySelector('.f_re').onchange=e=>{save({reopen_date:e.target.value||null}).then(()=>renderSuppliers())};
       body.querySelector('.f_note').onchange=e=>save({note:e.target.value.trim()||null});
+      body.querySelector('[data-act="ren"]').onclick=async()=>{
+        const nv=prompt('ชื่อบริษัทใหม่ของ\n"'+s.name+'"',s.name);
+        if(nv==null)return;const n=nv.trim();
+        if(!n||n===s.name)return;
+        if(SUPPLIERS.some(x=>x.name===n)){toast('มีซัพชื่อนี้อยู่แล้ว — ถ้าต้องการรวมซัพ แจ้ง Claude');return;}
+        if(!confirm('เปลี่ยนชื่อ\n"'+s.name+'" → "'+n+'"\n\nระบบจะย้ายข้อมูลทั้งหมดไปชื่อใหม่ (สินค้า/ประวัตินับ/ประวัติสั่ง/บิล/จับคู่ชื่อ)'))return;
+        const o=s.name;toast('กำลังเปลี่ยนชื่อ...');
+        const {data,error}=await sb.rpc('jj_rename_sup',{o:o,n:n});
+        if(error){const m=String(error.message||'');
+          if((error.code||'')==='PGRST202')toast('ยังไม่ได้ติดตั้งตัวเปลี่ยนชื่อใน DB — รัน setup_rename_b47.sql ใน SQL Editor ก่อน');
+          else toast('เปลี่ยนชื่อไม่สำเร็จ: '+m);
+          return;}
+        s.name=n;SUPPLIERS.sort((a,b)=>a.name.localeCompare(b.name,'th'));expandedSup=n;
+        ROOT.branches.forEach(b2=>b2.data.categories.forEach(c=>c.items.forEach(i=>{if((i.sup||'')===o)i.sup=n;})));
+        Object.keys(SUP_OVERRIDE).forEach(k=>{if(SUP_OVERRIDE[k]===o)SUP_OVERRIDE[k]=n;});saveSupOvr();
+        if(LAST_SENT[o]!=null){LAST_SENT[n]=LAST_SENT[o];delete LAST_SENT[o];}
+        renderSuppliers();refreshSupCount();toast('เปลี่ยนชื่อเป็น "'+n+'" แล้ว ✓ ('+(data||'')+')');};
       body.querySelector('[data-act="del"]').onclick=async()=>{if(!confirm('ลบซัพ "'+s.name+'"? (สินค้าที่ผูกไว้จะยังคงชื่อซัพเดิม)'))return;
         const {error}=await sb.from('suppliers').delete().eq('name',s.name);if(error){toast('ลบไม่สำเร็จ: '+error.message);return;}
         SUPPLIERS=SUPPLIERS.filter(x=>x.name!==s.name);expandedSup=null;renderSuppliers();refreshSupCount();toast('ลบแล้ว');};
