@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.5 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4 = hotfix แจ้งสาเหตุล็อกอินไม่ผ่าน |
-| `beta.html` | **b46** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b47** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -33,7 +33,8 @@ b42 ธีมใหม่โทน v2 (reskin เฟส 1 — ฟอนต์ Pr
 b43 แก้รีเซ็ตรหัสผ่าน (Edge Function `admin-reset-password` v2 — หาได้ทั้ง uid/username + ซ่อมบัญชีที่ auth_uid หาย · **ต้อง deploy ไฟล์ `admin-reset-password.ts` ใน dashboard**) ·
 b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซสชันหาย / REST error+code / ไม่มีแถว) แล้วโชว์บนหน้าล็อกอิน + console (แก้ทั้ง beta และ index v24.4) · ตัวแปร `PROF_ERR` ·
 b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5 ·
-b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์)
+b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์) ·
+b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซัพ ในการ์ดซัพ — เรียก RPC `jj_rename_sup(o,n)` (SECURITY DEFINER เช็ค is_admin/my_perm cascade 7 ตาราง) + อัปเดต in-memory (SUPPLIERS/items.sup/SUP_OVERRIDE/LAST_SENT) · **ต้องรัน `setup_rename_b47.sql` ก่อนใช้ปุ่ม**
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -94,7 +95,7 @@ b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · 
 - **คลังข้อมูลเก่า (b24):** DB เก็บ 120 วันล่าสุด · เดือนเก่า → JSON รายเดือนใน Storage bucket `archive` ·
   หน้าดูย้อนหลัง/การใช้ของ อ่าน DB+คลังต่อกันอัตโนมัติ (archFetch/archDates) · ดูย้อนหลังได้ไม่จำกัด
 - **รายงานการใช้ของ (openUsage):** inflow จาก stock_receipts เท่านั้น (received ?? ordered) เทียบวันของถึงตาม supHorizon lead
-- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟสถัดไป (**b46** — b43/b44/b45 ถูกใช้กับ hotfix ไปแล้ว)
+- **Dashboard:** เดิมเคยสั่งตัดออก แต่ผู้ใช้กลับคำ 8 ส.ค. 2026 — ให้เพิ่มแดชบอร์ดสไตล์ v2 (KPI+กราฟ ใช้ข้อมูลจริงจาก Supabase) เป็นเฟสถัดไป (**b48** — b43-b47 ถูกใช้ไปแล้ว)
 - **ซอง→ลัง conversion:** เฉพาะ dispatch board + ข้อความ LINE — ไม่เอาในหน้า order review
 
 ## 6. โครง UI (b22 shell + โมดูล)
@@ -126,7 +127,7 @@ b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · 
 ## 9. SQL ที่รันแล้ว / ค้างรัน
 
 รันแล้ว: setup ทั้งหมดถึง b35 (cover sheet, edits, supplier_bills, catalog 494, rename b34, new6 b35), archive bucket
-ต้องเช็ค/ค้าง: `setup_item_names_b36.sql` (stock_name), `setup_monthdays_b40.sql` (month_days), deploy `order-reminders.ts` ใหม่
+ต้องเช็ค/ค้าง: `setup_item_names_b36.sql` (stock_name), `setup_monthdays_b40.sql` (month_days), `setup_rename_b47.sql` (jj_rename_sup), deploy `order-reminders.ts` + `admin-reset-password.ts` ใหม่
 
 ## 10. กับดักที่เคยเจอ (จำไว้)
 
@@ -135,7 +136,7 @@ b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · 
 - `.modpage` z-index 350 — overlay ต่ำกว่านี้จะโดนบัง (เคยทำหน้าต่างจับคู่ "หาย")
 - GitHub merge แบบ squash ทำ branch conflict — ใช้ merge commit ธรรมดา + sync branch หลัง merge ทุกครั้ง
 - Claude session ต่อ Supabase/NAS ตรง ๆ ไม่ได้ (egress block) — ให้ผู้ใช้รัน SQL แล้วส่ง CSV กลับ
-- suppliers ไม่มี id — เปลี่ยนชื่อซัพต้อง cascade: products.sup, stock_receipts.sup, stock_counts.sup, supplier_bills.sup, supplier_map.sup_app (ดูฟังก์ชัน _jj_rename_sup ใน setup_supplier_rename_b34.sql)
+- suppliers ไม่มี id — เปลี่ยนชื่อซัพต้อง cascade 7 ตาราง: products.sup, stock_receipts.sup, stock_counts.sup, supplier_bills.sup, supplier_map.sup_app, reminder_log.sup — ใช้ปุ่ม ✏️ ในการ์ดซัพ (b47) หรือ RPC `jj_rename_sup` ตรง ๆ
 - Edge Function ใช้ service_role ข้าม RLS แต่**ไม่ข้าม GRANT**
 - Synology Task Scheduler ไม่รู้จัก PATH docker — สคริปต์เติม PATH เองแล้ว
 - save() ฝั่งแอป = localStorage เท่านั้น — persistence จริงคือ call Supabase ตรง ๆ
@@ -144,7 +145,7 @@ b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · 
 
 ## 11. คิวงานถัดไป
 
-1. **b46: แดชบอร์ดสไตล์ v2** (KPI+กราฟ ข้อมูลจริง) + เก็บรายละเอียดรีสกินรายหน้า (อ้างอิง `design/jjmk-stockcheck-v2.html`)
+1. **b48: แดชบอร์ดสไตล์ v2** (KPI+กราฟ ข้อมูลจริง) + เก็บรายละเอียดรีสกินรายหน้า (อ้างอิง `design/jjmk-stockcheck-v2.html`)
 2. **หน้า Food Cost จริง 3 มุมมอง** — FC% = มูลค่าใช้÷รายได้ (เป้า ~35-45%) · จับสั่งเกิน · ราคาย้อนหลัง —
    ข้อมูลพร้อมแล้ว: daily_revenue (จากใบปะหน้า) + supplier_bills + stock_receipts.unit_price
 3. รอไฟล์จับคู่ชื่อสินค้า (จับคู่ชื่อสินค้า_JJMK.xlsx) กลับจากผู้ใช้ → gen SQL update stock_name + แก้ชื่อ "KCG Indoguna เนือ" + ผูกซัพให้สินค้า 4 ตัวที่ sup=null (ชีส, น้ำยาถังขาวฝาแดง, หมูยอ, หอยแมลงภู่ชิลี)
