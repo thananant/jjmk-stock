@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.6 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4-24.5 = hotfix ล็อกอิน · v24.6 = ปุ่มเปลี่ยนชื่อซัพ (b47) |
-| `beta.html` | **b47** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b48** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -34,7 +34,8 @@ b43 แก้รีเซ็ตรหัสผ่าน (Edge Function `admin-re
 b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซสชันหาย / REST error+code / ไม่มีแถว) แล้วโชว์บนหน้าล็อกอิน + console (แก้ทั้ง beta และ index v24.4) · ตัวแปร `PROF_ERR` ·
 b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5 ·
 b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์) ·
-b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซัพ ในการ์ดซัพ — เรียก RPC `jj_rename_sup(o,n)` (SECURITY DEFINER เช็ค is_admin/my_perm cascade 7 ตาราง) + อัปเดต in-memory (SUPPLIERS/items.sup/SUP_OVERRIDE/LAST_SENT) · **ต้องรัน `setup_rename_b47.sql` ก่อนใช้ปุ่ม**
+b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซัพ ในการ์ดซัพ — เรียก RPC `jj_rename_sup(o,n)` (SECURITY DEFINER เช็ค is_admin/my_perm cascade 7 ตาราง) + อัปเดต in-memory (SUPPLIERS/items.sup/SUP_OVERRIDE/LAST_SENT) · **ต้องรัน `setup_rename_b47.sql` ก่อนใช้ปุ่ม** ·
+b48 แยกคอลัมน์อัตราใหม่ — beta อ่าน/เขียน **rate_wk/rate_fri/rate_we** (fallback → safety/max เดิมเมื่อ null ผ่าน `numR()`) · safety/max เดิมคืนให้ production ใช้ตามเดิม (ทดลองใน beta เท่านั้น ตามคำสั่งผู้ใช้ 1 ก.ย.) · **ต้องรัน alter เพิ่ม rate_wk/rate_we + ย้ายค่า import + กู้ safety/max เดิมจาก NAS backup** · SQL อัตราใช้ต่อไปทั้งหมดต้องลง rate_* ไม่ใช่ safety/max
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -74,7 +75,7 @@ b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซ�
 
 ## 5. Business logic สำคัญ (อย่าทำพัง)
 
-- **อัตราใช้ 3 ช่วงวัน (b46): safety = จ-พฤ/วัน · rate_fri = ศ/วัน · max = ส-อา/วัน** (ไม่ใช่ minimum stock) · วันหยุดพิเศษ (config.special_days) คิดแบบ ส-อา · ช่องว่าง fallback: ศ→ส-อา→จ-พฤ, ส-อา→จ-พฤ
+- **อัตราใช้ 3 ช่วงวัน (b46/b48 · beta เท่านั้น): rate_wk = จ-พฤ/วัน · rate_fri = ศ/วัน · rate_we = ส-อา/วัน** · null → fallback ไป safety/max เดิม (numR) · production ใช้ safety/max แบบเดิมไปก่อนจน promote · วันหยุดพิเศษ (config.special_days) คิดแบบ ส-อา · ช่องว่าง fallback: ศ→ส-อา→จ-พฤ, ส-อา→จ-พฤ
 - **สูตรสั่ง (fixed/interval/monthdays) b46:** `แนะนำ = Σrate(วัน)ช่วง cycle − max(0, stock − Σrate(วัน)ช่วง lead)` เดินปฏิทินทีละวันด้วย dayRate() ·
   supHorizon() คืน {lead:วันนับ→วันส่ง, cycle:วันส่งรอบนี้→รอบหน้า} · โหมด any: gate stock≥dayRate(วันนี้), target=Σrate(วัน)ช่วง lead
 - **โหมด monthdays (b40):** month_days="1,16" · เดือนสั้นเลื่อนวันเกินเป็นวันสุดท้ายของเดือน (monthdaysDueOn) ·
