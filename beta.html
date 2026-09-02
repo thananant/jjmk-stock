@@ -618,7 +618,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b49 — โชว์ชื่อบิล (P&L) ใต้ชื่อนับ</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b50 — ตัดเมนูการเงิน (รายรับ/รายจ่าย/Food Cost) ออก</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -3273,8 +3273,7 @@ async function renderCostPage(body){
 /* ----- นำทางกลาง (b30): ทุกการเปิดหน้าจำไว้ → รีเฟรชแล้วกลับหน้าเดิม ----- */
 function goPage(g){
   setSbActive(g);
-  if(g==='sales'||g==='cost'||g==='supbill')openModule(g);
-  else if(g==='count')openModule('stock');
+  if(g==='count')openModule('stock');
   else if(g==='order'){openModule('stock');openSum();}
   else if(g==='dispatch'){openModule('stock');openDispatch();}
   else if(g==='receive'){openModule('stock');openReceive();}
@@ -3290,8 +3289,7 @@ function restoreLastPage(){
   if(!last||last==='count')return;
   const allowed={order:true,usage:true,report:true,
     dispatch:can('viewDispatch'),receive:can('receiveGoods'),
-    central:can('manageCentral'),settings:canAnyManage(),
-    sales:canMoney(),cost:canMoney(),supbill:canMoney()}[last];
+    central:can('manageCentral'),settings:canAnyManage()}[last];
   if(allowed)setTimeout(()=>{try{goPage(last);}catch(e){}},150);
 }
 
@@ -3300,7 +3298,6 @@ function buildSidebar(){
   let w=document.getElementById('sbWrap');
   if(w)w.remove();
   w=document.createElement('div');w.id='sbWrap';
-  const money=canMoney();
   const it=(ic,label,go)=>`<button class="sb_it sb_subit" data-go="${go}"><span class="ic">${ic}</span>${label}</button>`;
   // กลุ่ม ข้อมูลสต็อก + เมนูย่อยทั้งหมดของงานสต็อก
   let sub='';
@@ -3317,12 +3314,6 @@ function buildSidebar(){
         <button class="sb_it sb_parent" data-toggle="stock"><span class="ic">📦</span>ข้อมูลสต็อก<span class="cv">▾</span></button>
         <div class="sb_sub">${sub}</div>
       </div>`;
-  if(money){
-    m+=`<div class="sb_div"></div>`;
-    m+=`<button class="sb_it sb_parent" data-go="sales"><span class="ic">💵</span>รายรับ</button>`;
-    m+=`<button class="sb_it sb_parent" data-go="supbill"><span class="ic">💸</span>รายจ่าย Supplier</button>`;
-    m+=`<button class="sb_it sb_parent" data-go="cost"><span class="ic">🧮</span>ข้อมูล Food Cost</button>`;
-  }
   w.innerHTML=`<div id="sbBack"></div>
     <nav id="sideBar">
       <div class="sb_head"><div class="bh_t">🏠 หลังบ้านจริงใจ</div><div class="bh_s">${escapeHtml(cfg().shop||'จริงใจหมูกระทะ')} · ${escapeHtml((B()||{}).name||'')}</div></div>
