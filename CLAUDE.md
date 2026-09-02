@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.6 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4-24.5 = hotfix ล็อกอิน · v24.6 = ปุ่มเปลี่ยนชื่อซัพ (b47) |
-| `beta.html` | **b49** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b50** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -36,7 +36,8 @@ b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่�
 b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์) ·
 b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซัพ ในการ์ดซัพ — เรียก RPC `jj_rename_sup(o,n)` (SECURITY DEFINER เช็ค is_admin/my_perm cascade 7 ตาราง) + อัปเดต in-memory (SUPPLIERS/items.sup/SUP_OVERRIDE/LAST_SENT) · **ต้องรัน `setup_rename_b47.sql` ก่อนใช้ปุ่ม** ·
 b48 แยกคอลัมน์อัตราใหม่ — beta อ่าน/เขียน **rate_wk/rate_fri/rate_we** (fallback → safety/max เดิมเมื่อ null ผ่าน `numR()`) · safety/max เดิมคืนให้ production ใช้ตามเดิม (ทดลองใน beta เท่านั้น ตามคำสั่งผู้ใช้ 1 ก.ย.) · **ต้องรัน alter เพิ่ม rate_wk/rate_we + ย้ายค่า import + กู้ safety/max เดิมจาก NAS backup** · SQL อัตราใช้ต่อไปทั้งหมดต้องลง rate_* ไม่ใช่ safety/max ·
-b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ของผู้ใช้ (1 ก.ย.) · แอปโชว์ตัวเล็ก 🧾 ใต้ชื่อนับ (`billTag()`) เฉพาะเมื่อต่างจากชื่อนับ · ไฟล์ `bill_names_b49.sql` (ผู้ใช้รัน)
+b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ของผู้ใช้ (1 ก.ย.) · แอปโชว์ตัวเล็ก 🧾 ใต้ชื่อนับ (`billTag()`) เฉพาะเมื่อต่างจากชื่อนับ · ไฟล์ `bill_names_b49.sql` (ผู้ใช้รัน) ·
+b50 **ตัดเมนูการเงินออกจาก beta** (รายรับ/รายจ่าย Supplier/Food Cost — ผู้ใช้สั่ง 1 ก.ย.) — เอาออกเฉพาะเมนู sidebar + route ใน goPage/restoreLastPage · โค้ด renderSalesPage/renderSupBillPage/renderCostPage และตาราง shift_close/supplier_bills ยังอยู่ (dormant) เผื่อเปิดกลับ · flag สั่งเป็นหน่วยบิล เลื่อนเป็น **b51**
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -106,7 +107,7 @@ b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูก�
 - **ชื่อนับ** (`products.name`) = ชื่อที่พนักงานนับ · **ต้องเหมือนกันทุกสาขา** (อยู่ระหว่างปรับให้ตรง — ไฟล์ รายการปรับสินค้า_2สาขา.xlsx รอผู้ใช้เคาะ)
 - **ชื่อบิล** (`products.bill_name`, b49) = ชื่อตามบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ฝั่ง P&L (คอลัมน์: product_id, branch JJRD/JJLP, ชื่อนับ, ชื่อบิล, สถานะ, หน่วยนับ, หน่วยบิล, ตัวคูณหน่วย, ซัพ) — ชื่อตารางยังไม่ทราบ ถ้ารู้ให้แอปอ่านสดแทนสำเนา
 - **หน่วยนับ** (`products.unit`) = หน่วยเล็ก (ถุง/ห่อ/โล/ซอง) · **หน่วยบิล** = หน่วยใหญ่ (ลัง/กล่อง/กก.) = ช่อง `pack_unit` เดิม · **อัตราแปลง** = `pack` เดิม (1 หน่วยบิล = pack หน่วยนับ) — ป้าย UI จะเปลี่ยนเป็น "หน่วยบิล / อัตราแปลง"
-- **สั่งเป็นหน่วยบิล?** = flag ใหม่ (วางแผน b50, คอลัมน์ `order_big` boolean) — ติ๊กแล้วใบสั่ง/LINE ปัดขึ้นเต็มหน่วยบิลและแสดง "N ลัง (= M ถุง)"
+- **สั่งเป็นหน่วยบิล?** = flag ใหม่ (วางแผน b51, คอลัมน์ `order_big` boolean) — ติ๊กแล้วใบสั่ง/LINE ปัดขึ้นเต็มหน่วยบิลและแสดง "N ลัง (= M ถุง)"
 - อัตราใช้จาก P&L มาเป็นหน่วยบิล → × อัตราแปลง → ลง rate_wk/rate_fri/rate_we (หน่วยนับ) · pipeline: scratchpad `rates_pipeline.py <RD.pdf> <LP.pdf> <tag>` (แกะ PDF Google Sheets ที่ตัวอักษรไทยเบิ้ล ใช้ทศนิยม 4 ตัวท้าย + ตรวจสัดส่วน ศ/ส-อา คงที่)
 - ตารางแม่บท (ตารางแม่บทสินค้า.xlsx: ชื่อนับ·ชื่อบิล·หน่วยนับ·หน่วยบิล·อัตราแปลง·สั่งเป็นหน่วยบิล) ส่งให้ผู้ใช้กรอก 45 ตัวที่ขาดอัตราแปลง → กลับมาแล้ว gen SQL ปรับชื่อ/หน่วย/อัตราแปลง 2 สาขา + ลงอัตราใช้ครบ
 
@@ -114,7 +115,7 @@ b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูก�
 
 - **Shell:** body.jjshell → sidebar 264px ค้างซ้าย ≥1024px (มือถือ = drawer ☰) · `.modpage` z-index **350** — overlay ที่จะลอยเหนือเพจต้อง z-index ≥400
 - **เมนู:** ข้อมูลสต็อก (นับ/ใบสั่งซื้อ/รายการสั่งของ/รับของ+ราคา/การใช้ของ/ดูย้อนหลัง/Safety-Max/ตั้งค่า) ·
-  💵 **รายรับ** (=ใบปะหน้า, module 'sales') · 💸 **รายจ่าย Supplier** (module 'supbill') · 🧮 ข้อมูล Food Cost (โครงรอ) — โมดูลเงินเห็นเฉพาะ admin/owner (canMoney)
+  ~~💵 รายรับ · 💸 รายจ่าย Supplier · 🧮 Food Cost~~ — **ตัดออกจากเมนู b50** (โค้ดยังอยู่ เรียกได้ผ่าน openModule('sales'|'supbill'|'cost') ถ้าจะเปิดกลับ)
 - **นำทาง:** goPage(g) จำหน้าล่าสุดใน localStorage `jj_last_page` → รีเฟรช (F5) กลับหน้าเดิม (restoreLastPage เช็คสิทธิ์ก่อน)
 - ฟังก์ชันหลัก: openModule(), buildSidebar(), renderSalesPage() (ใบปะหน้า), renderSupBillPage(), openSupMapping(), openItemMapping(), moveSupDialog()
 
