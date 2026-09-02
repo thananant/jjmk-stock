@@ -624,7 +624,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b52 — โลโก้+เลือกสาขา ย้ายไปแถบซ้าย</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b53 — เพิ่มสินค้าจากตั้งค่าที่เดียว + ล็อกชื่อ/หน่วยตามแม่บท</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -823,6 +823,20 @@ main{padding-top:6px}
         <button class="act ghost wide" id="openUnits">จัดการหน่วยนับ (<span id="unitCount">0</span> หน่วย)</button>
       </div>
 
+      <div id="blkAddProd" class="setblk">
+        <h4>➕ เพิ่มสินค้าใหม่ (เพิ่มได้ที่นี่ที่เดียว)</h4>
+        <div class="two">
+          <div class="field"><label>ชื่อนับ (ตามแม่บท)</label><input id="apName" placeholder="เช่น น้ำส้ม"></div>
+          <div class="field"><label>หน่วยนับ</label><select id="apUnit"></select></div>
+        </div>
+        <div class="two">
+          <div class="field"><label>แผนก</label><select id="apCat"></select></div>
+          <div class="field"><label>ซัพพลายเออร์ (เว้นได้)</label><select id="apSup"></select></div>
+        </div>
+        <div class="field"><label>ใช้ที่สาขาไหนบ้าง</label><div id="apBranches" style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 2px"></div></div>
+        <button class="act" id="apAdd" style="margin-top:6px">➕ เพิ่มสินค้า</button>
+        <p class="hint" style="margin-top:6px">เพิ่มแล้วไปตั้งอัตราใช้/ต่อลัง/รูป ได้ในหน้าปกติ · ชื่อและหน่วยของสินค้าที่มีอยู่ล็อกตามแม่บท</p>
+      </div>
       <div id="blkSup" class="setblk">
         <div class="sub-title">🏭 ซัพพลายเออร์ &amp; สินค้า</div>
         <button class="act ghost wide" id="openSuppliers">จัดการซัพพลายเออร์ (รอบสั่ง/วันหยุด) — <span id="supCount">0</span> เจ้า</button>
@@ -1600,7 +1614,6 @@ function renderMain(){
   }
   const grid=document.createElement('div');grid.className='grid';
   c.items.filter(countable).forEach(it=>grid.appendChild(itemCard(it,c)));
-  if(can('manageProducts')){const add=document.createElement('button');add.className='add-item';add.textContent='＋ เพิ่มสินค้าในหมวดนี้';add.onclick=()=>openEdit(c,null);grid.appendChild(add)}
   sec.appendChild(grid);mainEl.appendChild(sec);
 }
 function cardState(it){return isOut(it)?'out':(counted(it)?'on':'')}
@@ -1836,7 +1849,9 @@ function openEdit(cat,item){if(!can('manageProducts')&&!can('manageImages'))retu
   $('#editPackWrap').style.display=can('manageProducts')?'':'none';
   $('#editI18nWrap').style.display=can('manageProducts')?'':'none';
   const canImg=can('manageImages');$('#pickImg').style.display=canImg?'':'none';
-  const canProd=can('manageProducts');$('#editName').disabled=!canProd;$('#editUnit').disabled=!canProd;
+  const canProd=can('manageProducts');const lockNU=!!item;  // b53: ชื่อ/หน่วยแก้ผ่านแม่บท/ตั้งค่าเท่านั้น
+  $('#editName').disabled=lockNU||!canProd;$('#editUnit').disabled=lockNU||!canProd;
+  if(item)$('#editTitle').textContent='แก้ไขสินค้า (ชื่อ/หน่วยล็อกตามแม่บท)';
   $('#editSave').style.display=canProd?'':'none';
   $('#editDelete').style.display=(item&&canProd)?'flex':'none';setEditPreview();show('#editOverlay');if(canProd)setTimeout(()=>$('#editName').focus(),250)}
 $('#pickImg').onclick=()=>{if(!can('manageImages')){toast('แก้รูปได้เฉพาะผู้ดูแล');return}$('#imgFile').click()};
@@ -2181,6 +2196,7 @@ function applySettingsPerms(){
   vis('#blkRoles',isFullRole(currentUser&&currentUser.role));
   vis('#blkUnit',can('manageUnits'));
   vis('#blkSup',can('manageSuppliers'));
+  vis('#blkAddProd',can('manageProducts'));
   vis('#blkImg',can('manageImages'));
   vis('#blkConn',false);   // เลิกใช้ Sheet — เก็บใน Supabase ล้วน
   vis('#blkSave',can('manageSettings'));
@@ -2192,9 +2208,45 @@ function applySettingsPerms(){
   ['#resetTime','#autoResetSwitch','#setShop','#specialDays'].forEach(id=>{const e=$(id);if(e)e.disabled=!full;});
   const rb=$('#resetTimeBox');if(rb)rb.style.opacity=full?'1':'.5';
 }
+/* b53: เพิ่มสินค้าจากตั้งค่าเท่านั้น — เลือกชื่อ/หน่วย/แผนก/ซัพ/สาขา */
+function fillAddProd(){
+  if(!can('manageProducts'))return;
+  $('#apUnit').innerHTML=unitOptions(units()[0]);
+  $('#apCat').innerHTML=deptList().map(d=>`<option value="${escapeHtml(d.key)}">${d.ic} ${escapeHtml(d.label)}</option>`).join('');
+  $('#apSup').innerHTML='<option value="">— ไม่ระบุ —</option>'+SUPPLIERS.map(x=>`<option value="${escapeHtml(x.name)}">${escapeHtml(x.name)}</option>`).join('');
+  $('#apBranches').innerHTML=ROOT.branches.map(b=>`<label style="display:flex;gap:6px;align-items:center;font-size:.9rem"><input type="checkbox" class="apBr" value="${b.id}" checked>${escapeHtml(b.name)}</label>`).join('');
+}
+$('#apAdd').onclick=async()=>{
+  if(!can('manageProducts')){toast('เฉพาะผู้ดูแลสินค้า');return;}
+  const name=$('#apName').value.trim(),unit=$('#apUnit').value,catKey=$('#apCat').value,sup=$('#apSup').value||null;
+  const brs=[...document.querySelectorAll('.apBr:checked')].map(x=>x.value);
+  if(!name){toast('ใส่ชื่อสินค้าก่อน');return;}
+  if(!brs.length){toast('เลือกอย่างน้อย 1 สาขา');return;}
+  const dup=[];ROOT.branches.forEach(b=>{if(!brs.includes(b.id))return;
+    b.data.categories.forEach(c=>c.items.forEach(i=>{if((i.name||'').trim()===name)dup.push(b.name);}));});
+  if(dup.length){toast('มีชื่อนี้อยู่แล้วใน: '+dup.join(', '));return;}
+  const btn=$('#apAdd');btn.disabled=true;toast('🌐 กำลังแปลชื่อ + บันทึก...');
+  let i18obj=null;try{i18obj=await autoI18n(name,null);}catch(e){}
+  let okc=0;
+  for(const bid of brs){
+    const b=ROOT.branches.find(x=>x.id===bid);if(!b)continue;
+    const c=b.data.categories.find(x=>x.key===catKey);
+    if(!c){toast(b.name+' ไม่มีแผนกนี้ ข้าม');continue;}
+    const nid=uid('it');
+    const row={id:nid,branch_id:bid,cat_key:c.key,cat_label:c.label,cat_ic:c.ic||'📦',
+      name:name,unit:unit,i18n:i18obj,sup:sup,sort:(c.items.length||0)+1};
+    const {error}=await sb.from('products').insert(row);
+    if(error){toast(b.name+': เพิ่มไม่สำเร็จ — '+error.message);continue;}
+    const item={id:nid,name,unit,qty:null,img:null,i18n:i18obj,sup:sup||'',location:'',safety:null,max:null,
+      rate_wk:null,rate_fri:null,rate_we:null,bill_name:null,pack:null,pack_unit:null,order_step:null,step_unit:null};
+    c.items.push(item);ITEM_INDEX[nid]={item,branchId:bid};okc++;
+  }
+  btn.disabled=false;
+  if(okc){$('#apName').value='';save();renderTabs();renderMain();refreshCounters();toast('เพิ่ม "'+name+'" แล้ว '+okc+' สาขา ✓');}
+};
 $('#gearBtn').onclick=()=>{if(!canAnyManage())return;
   $('#setShop').value=cfg().shop;$('#setEndpoint').value=cfg().endpoint;
-  $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';$('#specialDays').value=cfg().special_days||'';
+  $('#autoResetSwitch').checked=cfg().autoReset!==false;$('#resetTime').value=cfg().resetTime||'06:00';$('#specialDays').value=cfg().special_days||'';fillAddProd();
   updateCounts();updateStoreLine();$('#schemaV').textContent=SCHEMA;applySettingsPerms();applySyncUI();refreshPendingCount();refreshSupCount();show('#setOverlay');pageize('#setOverlay')};
 $('#autoResetSwitch').onchange=e=>{cfg().autoReset=e.target.checked;save();toast(e.target.checked?'เปิดรีเซ็ตอัตโนมัติ':'ปิดรีเซ็ตอัตโนมัติ')};
 $('#resetTime').onchange=e=>{const v=e.target.value;if(/^\d{2}:\d{2}$/.test(v)){cfg().resetTime=v;save();localStorage.setItem(RESET_KEY,resetBoundary());toast('ตั้งเวลารีเซ็ต '+v+' แล้ว')}};
