@@ -618,7 +618,7 @@ main{padding-top:6px}
   <div class="ctx">
     <div class="hlang" id="langSwitchHeader"></div>
     <button class="chip" id="branchChip">🏪 <span id="branchName">สาขาหลัก</span> ▾</button>
-    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b50 — ตัดเมนูการเงิน (รายรับ/รายจ่าย/Food Cost) ออก</span></div>
+    <div style="text-align:right;margin:-2px 2px 4px"><span class="verb">🧪 BETA b51 — ตัดเมนู รับของ/การใช้ของ/ย้อนหลัง ออก</span></div>
     <div class="chip user">👤 <span id="userName">—</span><button class="logout" id="logoutBtn" data-i18n="logout">ออก</button></div>
   </div>
 </header>
@@ -1513,10 +1513,10 @@ function layoutHeaderBtns(){
   const gear=canAnyManage(), central=can('manageCentral'), report=true, dispatch=can('viewDispatch'), recv=can('receiveGoods'), money=canMoney();
   $('#gearBtn').style.display=gear?'flex':'none';
   $('#centralBtn').style.display=central?'flex':'none';
-  $('#reportBtn').style.display=report?'flex':'none';
+  $('#reportBtn').style.display='none';
   $('#dispatchBtn').style.display=dispatch?'flex':'none';
-  $('#receiveBtn').style.display=recv?'flex':'none';
-  $('#usageBtn').style.display=report?'flex':'none';
+  $('#receiveBtn').style.display='none';
+  $('#usageBtn').style.display='none';
   $('#homeBtn').style.display='none';
   if(currentUser)setTimeout(()=>{try{ensureSidebar()}catch(e){}},60);
   applyHdrLang();
@@ -3276,9 +3276,6 @@ function goPage(g){
   if(g==='count')openModule('stock');
   else if(g==='order'){openModule('stock');openSum();}
   else if(g==='dispatch'){openModule('stock');openDispatch();}
-  else if(g==='receive'){openModule('stock');openReceive();}
-  else if(g==='usage'){openModule('stock');openUsage();}
-  else if(g==='report'){openModule('stock');openReport();}
   else if(g==='central'){openModule('stock');$('#centralBtn').click();}
   else if(g==='settings'){openModule('stock');$('#gearBtn').click();}
   else return;
@@ -3287,8 +3284,8 @@ function goPage(g){
 function restoreLastPage(){
   let last=null;try{last=localStorage.getItem('jj_last_page');}catch(e){}
   if(!last||last==='count')return;
-  const allowed={order:true,usage:true,report:true,
-    dispatch:can('viewDispatch'),receive:can('receiveGoods'),
+  const allowed={order:true,
+    dispatch:can('viewDispatch'),
     central:can('manageCentral'),settings:canAnyManage()}[last];
   if(allowed)setTimeout(()=>{try{goPage(last);}catch(e){}},150);
 }
@@ -3304,9 +3301,6 @@ function buildSidebar(){
   sub+=it('📋','นับสต็อก','count');
   sub+=it('🧾','ใบสั่งซื้อ / ส่งไลน์','order');
   if(can('viewDispatch'))sub+=it('📦','รายการสั่งของ','dispatch');
-  if(can('receiveGoods'))sub+=it('🚚','รับของ + ราคา','receive');
-  sub+=it('📈','การใช้ของ','usage');
-  sub+=it('📊','ดูข้อมูลย้อนหลัง','report');
   if(can('manageCentral'))sub+=it('🎯','อัตราใช้/วัน & จัดส่ง','central');
   if(canAnyManage())sub+=it('⚙️','ตั้งค่า','settings');
   let m='';
