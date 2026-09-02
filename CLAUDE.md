@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.6 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4-24.5 = hotfix ล็อกอิน · v24.6 = ปุ่มเปลี่ยนชื่อซัพ (b47) |
-| `beta.html` | **b48** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b49** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -35,7 +35,8 @@ b44 login diagnostics — `sbProfile()` แยก 3 สาเหตุ (เซ�
 b45 ทน PGRST303 — Auth ออก token ล่วงหน้ากว่านาฬิกา API (`JWT issued at future`) แอปวนลองใหม่ 10 ครั้ง × 3 วิ พร้อมข้อความรอบนปุ่ม (`CLOCK_SKEW`, `sbProfile(onWait)`) · index v24.5 ·
 b46 อัตราใช้ 3 ช่วงวัน — **safety=จ-พฤ · rate_fri(คอลัมน์ใหม่)=ศ · max=ส-อา+วันหยุดพิเศษ** · needQty เดินปฏิทินทีละวัน (dayRate/sumRate/needBase/isSpecialDay+SPD_CACHE) · config `special_days` (รับ d/m ทุกปี, d/m/พ.ศ., YYYY-MM-DD · กรอกในตั้งค่า upsert ลง DB) · หน้า central 3 ช่องกรอก ตัด sughint เดิม · **ต้องรัน `alter table products add column if not exists rate_fri numeric;` ก่อนเปิด b46** (refreshMeta select ระบุคอลัมน์) ·
 b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซัพ ในการ์ดซัพ — เรียก RPC `jj_rename_sup(o,n)` (SECURITY DEFINER เช็ค is_admin/my_perm cascade 7 ตาราง) + อัปเดต in-memory (SUPPLIERS/items.sup/SUP_OVERRIDE/LAST_SENT) · **ต้องรัน `setup_rename_b47.sql` ก่อนใช้ปุ่ม** ·
-b48 แยกคอลัมน์อัตราใหม่ — beta อ่าน/เขียน **rate_wk/rate_fri/rate_we** (fallback → safety/max เดิมเมื่อ null ผ่าน `numR()`) · safety/max เดิมคืนให้ production ใช้ตามเดิม (ทดลองใน beta เท่านั้น ตามคำสั่งผู้ใช้ 1 ก.ย.) · **ต้องรัน alter เพิ่ม rate_wk/rate_we + ย้ายค่า import + กู้ safety/max เดิมจาก NAS backup** · SQL อัตราใช้ต่อไปทั้งหมดต้องลง rate_* ไม่ใช่ safety/max
+b48 แยกคอลัมน์อัตราใหม่ — beta อ่าน/เขียน **rate_wk/rate_fri/rate_we** (fallback → safety/max เดิมเมื่อ null ผ่าน `numR()`) · safety/max เดิมคืนให้ production ใช้ตามเดิม (ทดลองใน beta เท่านั้น ตามคำสั่งผู้ใช้ 1 ก.ย.) · **ต้องรัน alter เพิ่ม rate_wk/rate_we + ย้ายค่า import + กู้ safety/max เดิมจาก NAS backup** · SQL อัตราใช้ต่อไปทั้งหมดต้องลง rate_* ไม่ใช่ safety/max ·
+b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ของผู้ใช้ (1 ก.ย.) · แอปโชว์ตัวเล็ก 🧾 ใต้ชื่อนับ (`billTag()`) เฉพาะเมื่อต่างจากชื่อนับ · ไฟล์ `bill_names_b49.sql` (ผู้ใช้รัน)
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -52,6 +53,7 @@ b48 แยกคอลัมน์อัตราใหม่ — beta อ่า
 - `products` — id (text, gen เอง: `'p'||substr(md5(random()::text||clock_timestamp()::text),1,14)`),
   branch_id, cat_key, cat_label, name, **i18n (jsonb {en,lo,my})**, unit, sup, safety, "max", pack, pack_unit,
   order_step, step_unit, location, **image_url**, sort, deleted_at (soft delete) · ~412 แถว (สินค้าแยกต่อสาขา — ชื่อเดียวกัน id คนละตัว)
+- **products.bill_name (b49)** — ชื่อบิล/P&L ของสินค้าตัวนั้น (ผูกด้วย product_id) · ใช้ join กับ jj-pnl ในอนาคต · ผู้ใช้มีตาราง link ฝั่ง P&L (คอลัมน์ product_id, branch JJRD/JJLP, ชื่อนับ, ชื่อบิล, สถานะ, หน่วยนับ, หน่วยบิล, ตัวคูณหน่วย, ซัพ) — ชื่อตารางยังไม่ทราบ ถ้าได้ชื่อให้เปลี่ยนแอปไปอ่านสด · คู่ที่น่าสงสัยในตาราง link: fanta ส้ม→"ส้ม", ข้าว→ไซรัปข้าวโพด, เค้กกล้วยหอม→กล้วยหอม, นม/ช๊อกโกแลต/มัทฉะ→ไอศกรีม, น้ำตาลมะพร้าว→น้ำตาลเหลว, ชีสโตะดิป→ยัมมี่ผง (ซ้ำ), น้ำซอสบะหมี่หยก→บะหมี่หยก (ซ้ำ), อูด้ง→เส้นมันหนึบ (ซ้ำ)
 - `branches` — id, name, sort
 - `suppliers` — **คีย์คือ name ไม่มี id** · ตอนนี้ใช้**ชื่อบริษัทเต็ม**เป็นหลัก (b34) เช่น "บริษัท ซีพี แอ็กตร้า จำกัด(มหาชน)" (=makro เดิม) ·
   order_mode ('any'/'fixed'/'interval'/**'monthdays'**), lead_days, cycle_days, **month_days (text "1,16")**, min_cases,
