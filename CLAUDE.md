@@ -21,7 +21,7 @@
 | ไฟล์ | เวอร์ชัน | หมายเหตุ |
 |---|---|---|
 | `index.html` (production) | v24.6 | ยังไม่ได้ promote โครงหลังบ้าน · v24.4-24.5 = hotfix ล็อกอิน · v24.6 = ปุ่มเปลี่ยนชื่อซัพ (b47) |
-| `beta.html` | **b51** | ทุกฟีเจอร์ล่าสุด |
+| `beta.html` | **b52** | ทุกฟีเจอร์ล่าสุด |
 
 ป้ายเวอร์ชัน = `<span class="verb">…</span>` — **bump ทุกครั้งที่แก้** (`🧪 BETA bN — คำอธิบายสั้น`)
 เปิดกันแคช: `beta.html?v=N`
@@ -38,7 +38,8 @@ b47 ปุ่ม ✏️ เปลี่ยนชื่อบริษัทซ�
 b48 แยกคอลัมน์อัตราใหม่ — beta อ่าน/เขียน **rate_wk/rate_fri/rate_we** (fallback → safety/max เดิมเมื่อ null ผ่าน `numR()`) · safety/max เดิมคืนให้ production ใช้ตามเดิม (ทดลองใน beta เท่านั้น ตามคำสั่งผู้ใช้ 1 ก.ย.) · **ต้องรัน alter เพิ่ม rate_wk/rate_we + ย้ายค่า import + กู้ safety/max เดิมจาก NAS backup** · SQL อัตราใช้ต่อไปทั้งหมดต้องลง rate_* ไม่ใช่ safety/max ·
 b49 **products.bill_name** = ชื่อในบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ของผู้ใช้ (1 ก.ย.) · แอปโชว์ตัวเล็ก 🧾 ใต้ชื่อนับ (`billTag()`) เฉพาะเมื่อต่างจากชื่อนับ · ไฟล์ `bill_names_b49.sql` (ผู้ใช้รัน) ·
 b50 **ตัดเมนูการเงินออกจาก beta** (รายรับ/รายจ่าย Supplier/Food Cost — ผู้ใช้สั่ง 1 ก.ย.) — เอาออกเฉพาะเมนู sidebar + route ใน goPage/restoreLastPage · โค้ด renderSalesPage/renderSupBillPage/renderCostPage และตาราง shift_close/supplier_bills ยังอยู่ (dormant) เผื่อเปิดกลับ · flag สั่งเป็นหน่วยบิล เลื่อนเป็น **b52** ·
-b51 **ตัดเมนู รับของ+ราคา / การใช้ของ / ดูข้อมูลย้อนหลัง ออกจาก beta** (ผู้ใช้สั่ง 1 ก.ย. — ไม่ได้ใช้แล้ว) — เอาออกเฉพาะเมนู sidebar + route goPage/restoreLastPage + ซ่อนปุ่มหัวหน้า (#receiveBtn/#usageBtn/#reportBtn) · โค้ด openReceive/openUsage/openReport + archive readers ยังอยู่ (dormant) · stock_receipts ยังถูกเขียนตอนส่ง LINE ตามเดิม
+b51 **ตัดเมนู รับของ+ราคา / การใช้ของ / ดูข้อมูลย้อนหลัง ออกจาก beta** (ผู้ใช้สั่ง 1 ก.ย. — ไม่ได้ใช้แล้ว) — เอาออกเฉพาะเมนู sidebar + route goPage/restoreLastPage + ซ่อนปุ่มหัวหน้า (#receiveBtn/#usageBtn/#reportBtn) · โค้ด openReceive/openUsage/openReport + archive readers ยังอยู่ (dormant) · stock_receipts ยังถูกเขียนตอนส่ง LINE ตามเดิม ·
+b52 **โลโก้+ชื่อร้าน+เลือกสาขา ย้ายไปหัวแถบซ้าย** (sb_head: `.sb_brand` โลโก้ LOGO + shop + shop_sub2 · `<select id="sbBranch">` สลับสาขา = ทำเหมือน branch picker เดิม + เปิดโมดูลปัจจุบันซ้ำ) · ≥1024px ซ่อน `header .brand` และ `#branchChip` (มือถือยังใช้ header เดิม) · flag สั่งเป็นหน่วยบิล เลื่อนเป็น **b53**
 
 ## 3. Workflow ที่ต้องทำตามเป๊ะ ๆ
 
@@ -108,7 +109,7 @@ b51 **ตัดเมนู รับของ+ราคา / การใช้
 - **ชื่อนับ** (`products.name`) = ชื่อที่พนักงานนับ · **ต้องเหมือนกันทุกสาขา** (อยู่ระหว่างปรับให้ตรง — ไฟล์ รายการปรับสินค้า_2สาขา.xlsx รอผู้ใช้เคาะ)
 - **ชื่อบิล** (`products.bill_name`, b49) = ชื่อตามบิล/P&L (jj-pnl) ผูกด้วย product_id จากตาราง link ฝั่ง P&L (คอลัมน์: product_id, branch JJRD/JJLP, ชื่อนับ, ชื่อบิล, สถานะ, หน่วยนับ, หน่วยบิล, ตัวคูณหน่วย, ซัพ) — ชื่อตารางยังไม่ทราบ ถ้ารู้ให้แอปอ่านสดแทนสำเนา
 - **หน่วยนับ** (`products.unit`) = หน่วยเล็ก (ถุง/ห่อ/โล/ซอง) · **หน่วยบิล** = หน่วยใหญ่ (ลัง/กล่อง/กก.) = ช่อง `pack_unit` เดิม · **อัตราแปลง** = `pack` เดิม (1 หน่วยบิล = pack หน่วยนับ) — ป้าย UI จะเปลี่ยนเป็น "หน่วยบิล / อัตราแปลง"
-- **สั่งเป็นหน่วยบิล?** = flag ใหม่ (วางแผน b52, คอลัมน์ `order_big` boolean) — ติ๊กแล้วใบสั่ง/LINE ปัดขึ้นเต็มหน่วยบิลและแสดง "N ลัง (= M ถุง)"
+- **สั่งเป็นหน่วยบิล?** = flag ใหม่ (วางแผน b53, คอลัมน์ `order_big` boolean) — ติ๊กแล้วใบสั่ง/LINE ปัดขึ้นเต็มหน่วยบิลและแสดง "N ลัง (= M ถุง)"
 - อัตราใช้จาก P&L มาเป็นหน่วยบิล → × อัตราแปลง → ลง rate_wk/rate_fri/rate_we (หน่วยนับ) · pipeline: scratchpad `rates_pipeline.py <RD.pdf> <LP.pdf> <tag>` (แกะ PDF Google Sheets ที่ตัวอักษรไทยเบิ้ล ใช้ทศนิยม 4 ตัวท้าย + ตรวจสัดส่วน ศ/ส-อา คงที่)
 - ตารางแม่บท (ตารางแม่บทสินค้า.xlsx: ชื่อนับ·ชื่อบิล·หน่วยนับ·หน่วยบิล·อัตราแปลง·สั่งเป็นหน่วยบิล) ส่งให้ผู้ใช้กรอก 45 ตัวที่ขาดอัตราแปลง → กลับมาแล้ว gen SQL ปรับชื่อ/หน่วย/อัตราแปลง 2 สาขา + ลงอัตราใช้ครบ
 
